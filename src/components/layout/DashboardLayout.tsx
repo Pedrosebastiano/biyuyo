@@ -1,15 +1,13 @@
-import { useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { MobileHeader } from "./MobileHeader";
+import { BottomNav } from "./BottomNav";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
   return (
     <div className="min-h-screen bg-background">
       {/* Desktop Sidebar */}
@@ -17,20 +15,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <Sidebar />
       </div>
 
-      {/* Mobile Sidebar */}
-      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="p-0 w-72">
-          <Sidebar />
-        </SheetContent>
-      </Sheet>
+      {/* Mobile Header */}
+      <MobileHeader exchangeRate={36.50} />
 
       {/* Main Content */}
       <div className="lg:pl-72">
-        <Header onMenuClick={() => setSidebarOpen(true)} />
-        <main className="p-6">
+        {/* Desktop Header */}
+        <div className="hidden lg:block">
+          <Header />
+        </div>
+        
+        <main className="p-4 pt-18 pb-20 lg:p-6 lg:pt-6 lg:pb-6">
           {children}
         </main>
       </div>
+
+      {/* Mobile Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }

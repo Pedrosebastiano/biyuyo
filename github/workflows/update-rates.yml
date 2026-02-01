@@ -1,0 +1,46 @@
+name: Actualizar Tasa BCV
+
+on:
+  schedule:
+    # Ejecutar todos los días a las 4:05 AM UTC
+    # (Hora Venezuela es UTC-4, así que 4:05 AM UTC = 12:05 AM Venezuela)
+    - cron: '5 4 * * *'
+  workflow_dispatch: # Permite ejecutarlo manualmente desde la web de GitHub si quieres probar
+
+jobs:
+  update-rates:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write # Permiso vital para poder guardar el JSON en el repo
+
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependencias
+        run: npm ci # Instala limpio desde package-lock.json
+
+      - name: Ejecutar Scraper
+        # Usa el comando que ya configuramos en package.json
+        run: npm run scraper
+
+      - name: Guardar cambios (Commit & Push)
+        run: |
+          git config --global user.name "Bot Tasa BCV"
+          git config --global user.email "bot@noreply.github.com"
+          
+          # Verificar si hubo cambios en el archivo
+          if git diff --quiet public/rates.json; then
+            echo "No hay cambios en la tasa hoy."
+          else
+            git add public/rates.json
+            git commit -m "🤖 Actualización automática: Tasa BCV diaria"
+            git push
+            echo "✅ Tasa actualizada en el repositorio."
+          fi

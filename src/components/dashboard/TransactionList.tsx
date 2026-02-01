@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
@@ -12,6 +12,7 @@ import {
   ArrowDownRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ExchangeRateCard } from "../ui/ExchangeRateCard";
 
 const categoryIcons: Record<string, React.ElementType> = {
   shopping: ShoppingCart,
@@ -37,6 +38,7 @@ export function TransactionList() {
     <Card className="border-2">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-lg font-semibold">Recent Transactions</CardTitle>
+        <ExchangeRateCard/>
         <Badge variant="secondary" className="font-mono">
           {transactions.length} transactions
         </Badge>
