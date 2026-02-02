@@ -1,0 +1,291 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { 
+  reminderMacroCategories, 
+  getReminderCategoriesByMacro, 
+  getReminderBusinessTypesByCategory,
+  paymentFrequencies,
+  type Category,
+  type BusinessType,
+  type PaymentFrequency
+} from "@/data/reminderCategories";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { CurrencySelector, type Currency } from "./CurrencySelector";
+
+interface ReminderFormProps {
+  onSubmit: () => void;
+}
+
+export function ReminderForm({ onSubmit }: ReminderFormProps) {
+  const [selectedMacro, setSelectedMacro] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedBusiness, setSelectedBusiness] = useState<string>("");
+  const [paymentName, setPaymentName] = useState<string>("");
+  const [amount, setAmount] = useState<string>("");
+  const [currency, setCurrency] = useState<Currency>("USD");
+  const [nextPaymentDate, setNextPaymentDate] = useState<Date | undefined>();
+  const [frequency, setFrequency] = useState<PaymentFrequency | "">("");
+  const [hasInstallments, setHasInstallments] = useState<boolean>(false);
+  const [totalInstallments, setTotalInstallments] = useState<string>("");
+  
+  const categories: Category[] = selectedMacro ? getReminderCategoriesByMacro(selectedMacro) : [];
+  const businessTypes: BusinessType[] = selectedMacro && selectedCategory 
+    ? getReminderBusinessTypesByCategory(selectedMacro, selectedCategory) 
+    : [];
+
+  const handleMacroChange = (value: string) => {
+    setSelectedMacro(value);
+    setSelectedCategory("");
+    setSelectedBusiness("");
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value);
+    setSelectedBusiness("");
+  };
+
+  const handleSubmit = () => {
+    console.log({
+      type: "reminder",
+      macroCategory: selectedMacro,
+      category: selectedCategory,
+      businessType: selectedBusiness,
+      paymentName,
+      amount: parseFloat(amount),
+      currency,
+      nextPaymentDate,
+      frequency,
+      hasInstallments,
+      totalInstallments: hasInstallments ? parseInt(totalInstallments) : null,
+    });
+    onSubmit();
+  };
+
+  const isFormValid = 
+    selectedMacro && 
+    selectedCategory && 
+    selectedBusiness && 
+    paymentName && 
+    amount && 
+    nextPaymentDate && 
+    frequency &&
+    (!hasInstallments || (hasInstallments && totalInstallments));
+
+  return (
+    <div className="space-y-4">
+      {/* Macro Category */}
+      <div className="space-y-2">
+        <Label htmlFor="reminder-macro-category">Macro Categoría</Label>
+        <Select value={selectedMacro} onValueChange={handleMacroChange}>
+          <SelectTrigger id="reminder-macro-category" className="border-2">
+            <SelectValue placeholder="Selecciona una macro categoría" />
+          </SelectTrigger>
+          <SelectContent className="max-h-[300px]">
+            {reminderMacroCategories.map((macro) => (
+              <SelectItem key={macro.id} value={macro.id}>
+                {macro.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Category */}
+      <div className="space-y-2">
+        <Label htmlFor="reminder-category">Categoría</Label>
+        <Select 
+          value={selectedCategory} 
+          onValueChange={handleCategoryChange}
+          disabled={!selectedMacro}
+        >
+          <SelectTrigger id="reminder-category" className="border-2">
+            <SelectValue placeholder={selectedMacro ? "Selecciona una categoría" : "Primero selecciona una macro categoría"} />
+          </SelectTrigger>
+          <SelectContent>
+            {categories.map((category) => (
+              <SelectItem key={category.id} value={category.id}>
+                {category.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Business Type */}
+      <div className="space-y-2">
+        <Label htmlFor="reminder-business-type">Tipo de Negocio</Label>
+        <Select 
+          value={selectedBusiness} 
+          onValueChange={setSelectedBusiness}
+          disabled={!selectedCategory}
+        >
+          <SelectTrigger id="reminder-business-type" className="border-2">
+            <SelectValue placeholder={selectedCategory ? "Selecciona un tipo de negocio" : "Primero selecciona una categoría"} />
+          </SelectTrigger>
+          <SelectContent>
+            {businessTypes.map((business) => (
+              <SelectItem key={business.id} value={business.id}>
+                {business.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Payment Name */}
+      <div className="space-y-2">
+        <Label htmlFor="payment-name">Nombre del Pago</Label>
+        <Input
+          id="payment-name"
+          type="text"
+          placeholder="Ej: Netflix mensual, Alquiler apartamento..."
+          value={paymentName}
+          onChange={(e) => setPaymentName(e.target.value)}
+          className="border-2"
+        />
+      </div>
+
+      {/* Amount with Currency */}
+      <div className="space-y-2">
+        <Label htmlFor="reminder-amount">Monto del Pago</Label>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
+              {currency === "USD" ? "$" : "Bs."}
+            </span>
+            <Input
+              id="reminder-amount"
+              type="number"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="pl-10 border-2"
+              step="0.01"
+              min="0"
+            />
+          </div>
+          <CurrencySelector 
+            value={currency} 
+            onChange={setCurrency}
+            className="w-28 border-2"
+          />
+        </div>
+      </div>
+
+      {/* Next Payment Date */}
+      <div className="space-y-2">
+        <Label>Fecha Próximo Pago</Label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "w-full justify-start text-left font-normal border-2",
+                !nextPaymentDate && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {nextPaymentDate ? (
+                format(nextPaymentDate, "PPP", { locale: es })
+              ) : (
+                <span>Selecciona una fecha</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={nextPaymentDate}
+              onSelect={setNextPaymentDate}
+              initialFocus
+              className="p-3 pointer-events-auto"
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      {/* Payment Frequency */}
+      <div className="space-y-2">
+        <Label htmlFor="frequency">Frecuencia de Pago</Label>
+        <Select 
+          value={frequency} 
+          onValueChange={(value) => setFrequency(value as PaymentFrequency)}
+        >
+          <SelectTrigger id="frequency" className="border-2">
+            <SelectValue placeholder="Selecciona la frecuencia" />
+          </SelectTrigger>
+          <SelectContent>
+            {paymentFrequencies.map((freq) => (
+              <SelectItem key={freq.id} value={freq.id}>
+                {freq.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Installments */}
+      <div className="space-y-3">
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="has-installments"
+            checked={hasInstallments}
+            onCheckedChange={(checked) => {
+              setHasInstallments(checked === true);
+              if (!checked) setTotalInstallments("");
+            }}
+          />
+          <Label 
+            htmlFor="has-installments" 
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            ¿Es un pago en cuotas?
+          </Label>
+        </div>
+        
+        {hasInstallments && (
+          <div className="space-y-2 pl-6">
+            <Label htmlFor="total-installments">Cuotas totales</Label>
+            <Input
+              id="total-installments"
+              type="number"
+              placeholder="Ej: 12"
+              value={totalInstallments}
+              onChange={(e) => setTotalInstallments(e.target.value)}
+              className="border-2"
+              min="1"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Submit Button */}
+      <Button 
+        className="w-full" 
+        disabled={!isFormValid}
+        onClick={handleSubmit}
+      >
+        Crear Recordatorio
+      </Button>
+    </div>
+  );
+}
