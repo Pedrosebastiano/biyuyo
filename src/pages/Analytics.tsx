@@ -4,6 +4,7 @@ import { MonthlySavingsChart } from "@/components/dashboard/MonthlySavingsChart"
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { EmergencyFund } from "@/components/dashboard/EmergencyFund";
 import { DebtRatio } from "@/components/dashboard/DebtRatio";
+//import { CategoryChart } from "@/components/dashboard/CategoryChart";
 
 const Analytics = () => {
   return (
@@ -19,6 +20,7 @@ const Analytics = () => {
           <MonthlySavingsChart />
           <EmergencyFund />
           <DebtRatio />
+          
         </div>
       </div>
     </DashboardLayout>
