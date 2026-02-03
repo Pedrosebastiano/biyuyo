@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+// 1. Importa el hook (ajusta la ruta según tu proyecto)
+import { useExchangeRate } from "../../hooks/useExchangeRate"; 
 
-interface MobileHeaderProps {
-  exchangeRate?: number;
-}
-
-export function MobileHeader({ exchangeRate = 36.50 }: MobileHeaderProps) {
+export function MobileHeader() {
+  // 2. Extraemos 'rate' y 'loading' del hook
+  const { rate, loading } = useExchangeRate();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
@@ -47,9 +47,17 @@ export function MobileHeader({ exchangeRate = 36.50 }: MobileHeaderProps) {
 
       {/* Exchange Rate */}
       <div className="flex items-center gap-2 bg-muted px-3 py-1.5 rounded-lg">
-        <span className="text-xs text-muted-foreground">USD/VES</span>
-        <span className="font-mono font-semibold text-sm text-primary">
-          {exchangeRate.toFixed(2)}
+        <span className="text-xs text-muted-foreground uppercase">BCV</span>
+        <span className="font-mono font-bold text-sm text-primary">
+          {/* 3. Lógica para mostrar el precio o un estado de carga */}
+          {loading ? (
+            <span className="animate-pulse opacity-50">...</span>
+          ) : (
+            `Bs. ${rate?.toLocaleString("es-VE", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`
+          )}
         </span>
       </div>
     </header>

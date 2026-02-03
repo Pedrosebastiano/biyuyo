@@ -16,26 +16,29 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { 
-  reminderMacroCategories, 
-  getReminderCategoriesByMacro, 
+import {
+  reminderMacroCategories,
+  getReminderCategoriesByMacro,
   getReminderBusinessTypesByCategory,
   paymentFrequencies,
   type Category,
   type BusinessType,
-  type PaymentFrequency
+  type PaymentFrequency,
 } from "@/data/reminderCategories";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { CurrencySelector, type Currency } from "./CurrencySelector";
+import { useTransactions } from "@/hooks/useTransactions";
+import { toast } from "sonner";
 
 interface ReminderFormProps {
   onSubmit: () => void;
 }
 
 export function ReminderForm({ onSubmit }: ReminderFormProps) {
+  const { addReminder } = useTransactions();
   const [selectedMacro, setSelectedMacro] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedBusiness, setSelectedBusiness] = useState<string>("");
@@ -46,11 +49,14 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
   const [frequency, setFrequency] = useState<PaymentFrequency | "">("");
   const [hasInstallments, setHasInstallments] = useState<boolean>(false);
   const [totalInstallments, setTotalInstallments] = useState<string>("");
-  
-  const categories: Category[] = selectedMacro ? getReminderCategoriesByMacro(selectedMacro) : [];
-  const businessTypes: BusinessType[] = selectedMacro && selectedCategory 
-    ? getReminderBusinessTypesByCategory(selectedMacro, selectedCategory) 
+
+  const categories: Category[] = selectedMacro
+    ? getReminderCategoriesByMacro(selectedMacro)
     : [];
+  const businessTypes: BusinessType[] =
+    selectedMacro && selectedCategory
+      ? getReminderBusinessTypesByCategory(selectedMacro, selectedCategory)
+      : [];
 
   const handleMacroChange = (value: string) => {
     setSelectedMacro(value);
@@ -64,35 +70,49 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
   };
 
   const handleSubmit = () => {
-    console.log({
-      type: "reminder",
-      macroCategory: selectedMacro,
-      category: selectedCategory,
-      businessType: selectedBusiness,
-      paymentName,
+    const macroName =
+      reminderMacroCategories.find((m) => m.id === selectedMacro)?.name || "";
+    const categoryName =
+      categories.find((c) => c.id === selectedCategory)?.name || "";
+    const businessName =
+      selectedBusiness === "custom"
+        ? selectedBusiness
+        : businessTypes.find((b) => b.name === selectedBusiness)?.name ||
+          selectedBusiness;
+    const frequencyName =
+      paymentFrequencies.find((f) => f.id === frequency)?.name || "";
+
+    addReminder({
+      name: paymentName,
+      macroCategory: macroName,
+      category: categoryName,
+      business: businessName,
       amount: parseFloat(amount),
       currency,
-      nextPaymentDate,
-      frequency,
-      hasInstallments,
-      totalInstallments: hasInstallments ? parseInt(totalInstallments) : null,
+      nextDueDate: nextPaymentDate!,
+      frequency: frequencyName,
+      isInstallment: hasInstallments,
+      currentInstallment: hasInstallments ? 1 : undefined,
+      totalInstallments: hasInstallments
+        ? parseInt(totalInstallments)
+        : undefined,
     });
-    onSubmit();
-  };
 
-  const isFormValid = 
-    selectedMacro && 
-    selectedCategory && 
-    selectedBusiness && 
-    paymentName && 
-    amount && 
-    nextPaymentDate && 
+    toast.success("Recordatorio creado exitosamente");
+    onSubmit();
+  };  
+  const isFormValid =
+    selectedMacro &&
+    selectedCategory &&
+    selectedBusiness &&
+    paymentName &&
+    amount &&
+    nextPaymentDate &&
     frequency &&
     (!hasInstallments || (hasInstallments && totalInstallments));
 
   return (
     <div className="space-y-4">
-      {/* Macro Category */}
       <div className="space-y-2">
         <Label htmlFor="reminder-macro-category">Macro Categoría</Label>
         <Select value={selectedMacro} onValueChange={handleMacroChange}>
@@ -109,16 +129,21 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
         </Select>
       </div>
 
-      {/* Category */}
       <div className="space-y-2">
         <Label htmlFor="reminder-category">Categoría</Label>
-        <Select 
-          value={selectedCategory} 
+        <Select
+          value={selectedCategory}
           onValueChange={handleCategoryChange}
           disabled={!selectedMacro}
         >
           <SelectTrigger id="reminder-category" className="border-2">
-            <SelectValue placeholder={selectedMacro ? "Selecciona una categoría" : "Primero selecciona una macro categoría"} />
+            <SelectValue
+              placeholder={
+                selectedMacro
+                  ? "Selecciona una categoría"
+                  : "Primero selecciona una macro categoría"
+              }
+            />
           </SelectTrigger>
           <SelectContent>
             {categories.map((category) => (
@@ -133,25 +158,40 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
       {/* Business Type */}
       <div className="space-y-2">
         <Label htmlFor="reminder-business-type">Tipo de Negocio</Label>
-        <Select 
-          value={selectedBusiness} 
+        <Select
+          value={selectedBusiness}
           onValueChange={setSelectedBusiness}
           disabled={!selectedCategory}
         >
           <SelectTrigger id="reminder-business-type" className="border-2">
-            <SelectValue placeholder={selectedCategory ? "Selecciona un tipo de negocio" : "Primero selecciona una categoría"} />
+            <SelectValue
+              placeholder={
+                selectedCategory
+                  ? "Selecciona un tipo de negocio"
+                  : "Primero selecciona una categoría"
+              }
+            />
           </SelectTrigger>
           <SelectContent>
             {businessTypes.map((business) => (
-              <SelectItem key={business.id} value={business.id}>
+              <SelectItem key={business.id} value={business.name}>
                 {business.name}
               </SelectItem>
             ))}
+            <SelectItem value="custom">Otro (escribir manualmente)</SelectItem>
           </SelectContent>
         </Select>
+
+        {selectedBusiness === "custom" && (
+          <Input
+            placeholder="Escribe el tipo de negocio"
+            value=""
+            onChange={(e) => setSelectedBusiness(e.target.value || "custom")}
+            className="border-2 mt-2"
+          />
+        )}
       </div>
 
-      {/* Payment Name */}
       <div className="space-y-2">
         <Label htmlFor="payment-name">Nombre del Pago</Label>
         <Input
@@ -164,7 +204,6 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
         />
       </div>
 
-      {/* Amount with Currency */}
       <div className="space-y-2">
         <Label htmlFor="reminder-amount">Monto del Pago</Label>
         <div className="flex gap-2">
@@ -183,15 +222,14 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
               min="0"
             />
           </div>
-          <CurrencySelector 
-            value={currency} 
+          <CurrencySelector
+            value={currency}
             onChange={setCurrency}
             className="w-28 border-2"
           />
         </div>
       </div>
 
-      {/* Next Payment Date */}
       <div className="space-y-2">
         <Label>Fecha Próximo Pago</Label>
         <Popover>
@@ -200,7 +238,7 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
               variant="outline"
               className={cn(
                 "w-full justify-start text-left font-normal border-2",
-                !nextPaymentDate && "text-muted-foreground"
+                !nextPaymentDate && "text-muted-foreground",
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -223,11 +261,10 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
         </Popover>
       </div>
 
-      {/* Payment Frequency */}
       <div className="space-y-2">
         <Label htmlFor="frequency">Frecuencia de Pago</Label>
-        <Select 
-          value={frequency} 
+        <Select
+          value={frequency}
           onValueChange={(value) => setFrequency(value as PaymentFrequency)}
         >
           <SelectTrigger id="frequency" className="border-2">
@@ -243,7 +280,6 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
         </Select>
       </div>
 
-      {/* Installments */}
       <div className="space-y-3">
         <div className="flex items-center space-x-2">
           <Checkbox
@@ -254,14 +290,14 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
               if (!checked) setTotalInstallments("");
             }}
           />
-          <Label 
-            htmlFor="has-installments" 
+          <Label
+            htmlFor="has-installments"
             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           >
             ¿Es un pago en cuotas?
           </Label>
         </div>
-        
+
         {hasInstallments && (
           <div className="space-y-2 pl-6">
             <Label htmlFor="total-installments">Cuotas totales</Label>
@@ -278,12 +314,7 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
         )}
       </div>
 
-      {/* Submit Button */}
-      <Button 
-        className="w-full" 
-        disabled={!isFormValid}
-        onClick={handleSubmit}
-      >
+      <Button className="w-full" disabled={!isFormValid} onClick={handleSubmit}>
         Crear Recordatorio
       </Button>
     </div>

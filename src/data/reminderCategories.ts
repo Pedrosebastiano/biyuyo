@@ -305,8 +305,7 @@ export type PaymentFrequency =
   | "semanal"
   | "quincenal"
   | "mensual"
-  | "anual"
-  | "personalizado";
+  | "anual";
 
 export const paymentFrequencies: { id: PaymentFrequency; name: string }[] = [
   { id: "unico", name: "Pago único" },
@@ -314,5 +313,4 @@ export const paymentFrequencies: { id: PaymentFrequency; name: string }[] = [
   { id: "quincenal", name: "Quincenal" },
   { id: "mensual", name: "Mensual" },
   { id: "anual", name: "Anual" },
-  { id: "personalizado", name: "Personalizado" },
 ];
