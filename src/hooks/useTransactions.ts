@@ -39,14 +39,16 @@ export function useTransactions() {
   const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
-      // 1. Pedimos Gastos e Ingresos al mismo tiempo
-      const [resExpenses, resIncomes] = await Promise.all([
+      // 1. Pedimos Gastos, Ingresos y Recordatorios al mismo tiempo
+      const [resExpenses, resIncomes, resReminders] = await Promise.all([
         fetch(`${API_URL}/expenses`),
-        fetch(`${API_URL}/incomes`)
+        fetch(`${API_URL}/incomes`),
+        fetch(`${API_URL}/reminders`)
       ]);
 
       const expensesData = await resExpenses.json();
       const incomesData = await resIncomes.json();
+      const remindersData = await resReminders.json();
 
       // 2. Convertimos el formato de la Base de Datos al formato de tu App
       // La BD devuelve: { macrocategoria, total_amount, created_at ... }
@@ -76,16 +78,32 @@ export function useTransactions() {
         date: item.created_at ? item.created_at.split('T')[0] : new Date().toISOString(),
       }));
 
-      // 3. Unimos todo y ordenamos por fecha (más reciente primero)
+      // 3. Formateamos los recordatorios
+      // La BD devuelve: { reminder_id, reminder_name, next_payment_date, payment_frequency, is_installment, installment_number ... }
+      // Tu App espera: { id, name, nextDueDate, frequency, isInstallment, currentInstallment, totalInstallments ... }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const formattedReminders: Reminder[] = remindersData.map((item: any) => ({
+        id: item.id,
+        name: item.nombre,
+        amount: parseFloat(item.monto),
+        currency: "USD" as const,
+        macroCategory: item.macrocategoria,
+        category: item.categoria,
+        business: item.negocio,
+        nextDueDate: new Date(item.fecha_proximo_pago),
+        frequency: item.frecuencia,
+        isInstallment: item.es_cuota || false,
+        currentInstallment: item.cuota_actual || undefined,
+        totalInstallments: item.cuota_actual || undefined, // Using currentInstallment as total for now
+      }));
+
+      // 4. Unimos transacciones y ordenamos por fecha (más reciente primero)
       const allTransactions = [...formattedExpenses, ...formattedIncomes].sort((a, b) => {
         return new Date(b.date).getTime() - new Date(a.date).getTime();
       });
 
       setTransactions(allTransactions);
-
-      // NOTA: Por ahora los recordatorios los dejamos vacíos o locales
-      // porque tu backend todavía no tiene tabla de 'reminders'.
-      setReminders([]); 
+      setReminders(formattedReminders);
 
     } catch (error) {
       console.error("Error cargando transacciones:", error);
@@ -109,9 +127,9 @@ export function useTransactions() {
     transactions,
     reminders,
     loading,
-    refreshTransactions, // Usar esto después de crear un gasto/ingreso
+    refreshTransactions, // Usar esto después de crear un gasto/ingreso/recordatorio
     // Mantenemos las firmas para que no rompa tu UI, pero ahora solo refrescan
     addTransaction: refreshTransactions, 
-    addReminder: () => console.log("Falta implementar backend de recordatorios"),
+    addReminder: refreshTransactions, // Ahora refresca todo incluyendo recordatorios
   };
 }
