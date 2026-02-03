@@ -16,23 +16,28 @@ import {
   type Category,
   type BusinessType,
 } from "@/data/incomeCategories";
-import { Camera, X } from "lucide-react";
+import { Camera, X, Loader2 } from "lucide-react";
 import { CurrencySelector, type Currency } from "./CurrencySelector";
-import { useTransactions } from "@/hooks/useTransactions";
 import { toast } from "sonner";
+import { useTransactions } from "@/hooks/useTransactions";
+
+// TU ID DE SUPABASE
+const USER_ID = "6221431c-7a17-4acc-9c01-43903e30eb21";
 
 interface IncomeFormProps {
   onSubmit: () => void;
 }
 
 export function IncomeForm({ onSubmit }: IncomeFormProps) {
-  const { addTransaction } = useTransactions();
+  const { refreshTransactions } = useTransactions();
   const [selectedMacro, setSelectedMacro] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedBusiness, setSelectedBusiness] = useState<string>("");
+  const [customBusiness, setCustomBusiness] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [currency, setCurrency] = useState<Currency>("USD");
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,11 +53,20 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
     setSelectedMacro(value);
     setSelectedCategory("");
     setSelectedBusiness("");
+    setCustomBusiness("");
   };
 
   const handleCategoryChange = (value: string) => {
     setSelectedCategory(value);
     setSelectedBusiness("");
+    setCustomBusiness("");
+  };
+
+  const handleBusinessChange = (value: string) => {
+    setSelectedBusiness(value);
+    if (value !== "custom") {
+      setCustomBusiness("");
+    }
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,33 +87,72 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const macroName =
       incomeMacroCategories.find((m) => m.id === selectedMacro)?.name || "";
     const categoryName =
       categories.find((c) => c.id === selectedCategory)?.name || "";
-    const businessName =
-      selectedBusiness === "custom"
-        ? selectedBusiness
-        : businessTypes.find((b) => b.name === selectedBusiness)?.name ||
-          selectedBusiness;
 
-    addTransaction({
-      type: "income",
-      macroCategory: macroName,
-      category: categoryName,
-      business: businessName,
-      amount: parseFloat(amount),
-      currency,
-      receiptImage: receiptImage || undefined,
-    });
+    let businessName = "";
+    if (selectedBusiness === "custom") {
+      businessName = customBusiness.trim();
+    } else {
+      const found = businessTypes.find((b) => b.name === selectedBusiness);
+      businessName = found ? found.name : selectedBusiness;
+    }
 
-    toast.success("Ingreso registrado exitosamente");
-    onSubmit();
+    const nuevoIngreso = {
+      macrocategoria: macroName,
+      categoria: categoryName,
+      negocio: businessName,
+      total_amount: parseFloat(amount),
+      user_id: USER_ID,
+    };
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(
+        "https://biyuyo-pruebas.onrender.com/incomes",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(nuevoIngreso),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Error al guardar en el servidor");
+      }
+
+      toast.success("Ingreso registrado en la Nube exitosamente");
+
+      refreshTransactions();
+
+      setSelectedMacro("");
+      setSelectedCategory("");
+      setSelectedBusiness("");
+      setCustomBusiness("");
+      setAmount("");
+      setReceiptImage(null);
+
+      onSubmit();
+    } catch (error) {
+      console.error(error);
+      toast.error("Error conectando con la base de datos");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isFormValid =
-    selectedMacro && selectedCategory && selectedBusiness && amount;
+    selectedMacro && 
+    selectedCategory && 
+    selectedBusiness && 
+    amount &&
+    (selectedBusiness !== "custom" || customBusiness.trim() !== "");
 
   return (
     <div className="space-y-4">
@@ -145,12 +198,11 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
         </Select>
       </div>
 
-      {/* Business Type */}
       <div className="space-y-2">
         <Label htmlFor="income-business-type">Tipo de Fuente</Label>
         <Select
           value={selectedBusiness}
-          onValueChange={setSelectedBusiness}
+          onValueChange={handleBusinessChange}
           disabled={!selectedCategory}
         >
           <SelectTrigger id="income-business-type" className="border-2">
@@ -175,8 +227,8 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
         {selectedBusiness === "custom" && (
           <Input
             placeholder="Escribe el tipo de fuente"
-            value=""
-            onChange={(e) => setSelectedBusiness(e.target.value || "custom")}
+            value={customBusiness}
+            onChange={(e) => setCustomBusiness(e.target.value)}
             className="border-2 mt-2"
           />
         )}
@@ -208,49 +260,19 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>Comprobante (Opcional)</Label>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={handleImageUpload}
-          className="hidden"
-        />
-
-        {receiptImage ? (
-          <div className="relative rounded-lg border-2 border-border overflow-hidden">
-            <img
-              src={receiptImage}
-              alt="Comprobante"
-              className="w-full h-40 object-cover"
-            />
-            <Button
-              variant="destructive"
-              size="icon"
-              className="absolute top-2 right-2 h-8 w-8"
-              onClick={removeImage}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+      <Button
+        className="w-full"
+        disabled={!isFormValid || isSubmitting}
+        onClick={handleSubmit}
+      >
+        {isSubmitting ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Guardando...
+          </>
         ) : (
-          <Button
-            variant="outline"
-            className="w-full h-24 border-2 border-dashed flex flex-col gap-2"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Camera className="h-6 w-6 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              Tomar foto o subir imagen
-            </span>
-          </Button>
+          "Registrar Ingreso"
         )}
-      </div>
-
-      <Button className="w-full" disabled={!isFormValid} onClick={handleSubmit}>
-        Registrar Ingreso
       </Button>
     </div>
   );
