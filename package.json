@@ -52,6 +52,7 @@
     "dotenv": "^17.2.3",
     "embla-carousel-react": "^8.6.0",
     "express": "^5.2.1",
+    "firebase": "^12.8.0",
     "fs": "^0.0.1-security",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.462.0",
