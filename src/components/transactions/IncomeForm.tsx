@@ -9,12 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  incomeMacroCategories, 
-  getIncomeCategoriesByMacro, 
+import {
+  incomeMacroCategories,
+  getIncomeCategoriesByMacro,
   getIncomeBusinessTypesByCategory,
   type Category,
-  type BusinessType 
+  type BusinessType,
 } from "@/data/incomeCategories";
 import { Camera, X } from "lucide-react";
 import { CurrencySelector, type Currency } from "./CurrencySelector";
@@ -33,13 +33,16 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
   const [amount, setAmount] = useState<string>("");
   const [currency, setCurrency] = useState<Currency>("USD");
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const categories: Category[] = selectedMacro ? getIncomeCategoriesByMacro(selectedMacro) : [];
-  const businessTypes: BusinessType[] = selectedMacro && selectedCategory 
-    ? getIncomeBusinessTypesByCategory(selectedMacro, selectedCategory) 
+
+  const categories: Category[] = selectedMacro
+    ? getIncomeCategoriesByMacro(selectedMacro)
     : [];
+  const businessTypes: BusinessType[] =
+    selectedMacro && selectedCategory
+      ? getIncomeBusinessTypesByCategory(selectedMacro, selectedCategory)
+      : [];
 
   const handleMacroChange = (value: string) => {
     setSelectedMacro(value);
@@ -71,9 +74,15 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
   };
 
   const handleSubmit = () => {
-    const macroName = incomeMacroCategories.find((m) => m.id === selectedMacro)?.name || "";
-    const categoryName = categories.find((c) => c.id === selectedCategory)?.name || "";
-    const businessName = selectedBusiness === "custom" ? selectedBusiness : (businessTypes.find((b) => b.name === selectedBusiness)?.name || selectedBusiness);
+    const macroName =
+      incomeMacroCategories.find((m) => m.id === selectedMacro)?.name || "";
+    const categoryName =
+      categories.find((c) => c.id === selectedCategory)?.name || "";
+    const businessName =
+      selectedBusiness === "custom"
+        ? selectedBusiness
+        : businessTypes.find((b) => b.name === selectedBusiness)?.name ||
+          selectedBusiness;
 
     addTransaction({
       type: "income",
@@ -87,9 +96,10 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
 
     toast.success("Ingreso registrado exitosamente");
     onSubmit();
-  };  
+  };
 
-  const isFormValid = selectedMacro && selectedCategory && selectedBusiness && amount;
+  const isFormValid =
+    selectedMacro && selectedCategory && selectedBusiness && amount;
 
   return (
     <div className="space-y-4">
@@ -111,13 +121,19 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="income-category">Categoría</Label>
-        <Select 
-          value={selectedCategory} 
+        <Select
+          value={selectedCategory}
           onValueChange={handleCategoryChange}
           disabled={!selectedMacro}
         >
           <SelectTrigger id="income-category" className="border-2">
-            <SelectValue placeholder={selectedMacro ? "Selecciona una categoría" : "Primero selecciona una macro categoría"} />
+            <SelectValue
+              placeholder={
+                selectedMacro
+                  ? "Selecciona una categoría"
+                  : "Primero selecciona una macro categoría"
+              }
+            />
           </SelectTrigger>
           <SelectContent>
             {categories.map((category) => (
@@ -132,13 +148,19 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
       {/* Business Type */}
       <div className="space-y-2">
         <Label htmlFor="income-business-type">Tipo de Fuente</Label>
-        <Select 
-          value={selectedBusiness} 
+        <Select
+          value={selectedBusiness}
           onValueChange={setSelectedBusiness}
           disabled={!selectedCategory}
         >
           <SelectTrigger id="income-business-type" className="border-2">
-            <SelectValue placeholder={selectedCategory ? "Selecciona un tipo de fuente" : "Primero selecciona una categoría"} />
+            <SelectValue
+              placeholder={
+                selectedCategory
+                  ? "Selecciona un tipo de fuente"
+                  : "Primero selecciona una categoría"
+              }
+            />
           </SelectTrigger>
           <SelectContent>
             {businessTypes.map((business) => (
@@ -149,7 +171,7 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
             <SelectItem value="custom">Otro (escribir manualmente)</SelectItem>
           </SelectContent>
         </Select>
-        
+
         {selectedBusiness === "custom" && (
           <Input
             placeholder="Escribe el tipo de fuente"
@@ -178,8 +200,8 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
               min="0"
             />
           </div>
-          <CurrencySelector 
-            value={currency} 
+          <CurrencySelector
+            value={currency}
             onChange={setCurrency}
             className="w-28 border-2"
           />
@@ -196,12 +218,12 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
           onChange={handleImageUpload}
           className="hidden"
         />
-        
+
         {receiptImage ? (
           <div className="relative rounded-lg border-2 border-border overflow-hidden">
-            <img 
-              src={receiptImage} 
-              alt="Comprobante" 
+            <img
+              src={receiptImage}
+              alt="Comprobante"
               className="w-full h-40 object-cover"
             />
             <Button
@@ -227,11 +249,7 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
         )}
       </div>
 
-      <Button 
-        className="w-full" 
-        disabled={!isFormValid}
-        onClick={handleSubmit}
-      >
+      <Button className="w-full" disabled={!isFormValid} onClick={handleSubmit}>
         Registrar Ingreso
       </Button>
     </div>
