@@ -55,47 +55,53 @@ export function useTransactions() {
       // Tu App espera: { macroCategory, amount, date ... }
       
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const formattedExpenses: Transaction[] = expensesData.map((item: any) => ({
-        id: `exp-${item.id}`,
-        type: "expense",
-        amount: parseFloat(item.total_amount), // Asegurar que sea número
-        currency: "USD", // Por defecto USD, ya que la BD simple no tenía moneda aun
-        macroCategory: item.macrocategoria,
-        category: item.categoria,
-        business: item.negocio,
-        date: item.created_at ? item.created_at.split('T')[0] : new Date().toISOString(),
-      }));
+      const formattedExpenses: Transaction[] = expensesData
+        .filter((item: any) => item.expense_id) // Asegurar que tenga ID
+        .map((item: any) => ({
+          id: `exp-${item.expense_id}`,
+          type: "expense",
+          amount: parseFloat(item.total_amount), // Asegurar que sea número
+          currency: "USD", // Por defecto USD, ya que la BD simple no tenía moneda aun
+          macroCategory: item.macrocategoria,
+          category: item.categoria,
+          business: item.negocio,
+          date: item.created_at ? item.created_at.split('T')[0] : new Date().toISOString(),
+        }));
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const formattedIncomes: Transaction[] = incomesData.map((item: any) => ({
-        id: `inc-${item.id}`,
-        type: "income",
-        amount: parseFloat(item.total_amount),
-        currency: "USD",
-        macroCategory: item.macrocategoria,
-        category: item.categoria,
-        business: item.negocio,
-        date: item.created_at ? item.created_at.split('T')[0] : new Date().toISOString(),
-      }));
+      const formattedIncomes: Transaction[] = incomesData
+        .filter((item: any) => item.income_id) // Asegurar que tenga ID
+        .map((item: any) => ({
+          id: `inc-${item.income_id}`,
+          type: "income",
+          amount: parseFloat(item.total_amount),
+          currency: "USD",
+          macroCategory: item.macrocategoria,
+          category: item.categoria,
+          business: item.negocio,
+          date: item.created_at ? item.created_at.split('T')[0] : new Date().toISOString(),
+        }));
 
       // 3. Formateamos los recordatorios
       // La BD devuelve: { reminder_id, reminder_name, next_payment_date, payment_frequency, is_installment, installment_number ... }
       // Tu App espera: { id, name, nextDueDate, frequency, isInstallment, currentInstallment, totalInstallments ... }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const formattedReminders: Reminder[] = remindersData.map((item: any) => ({
-        id: item.id,
-        name: item.nombre,
-        amount: parseFloat(item.monto),
-        currency: "USD" as const,
-        macroCategory: item.macrocategoria,
-        category: item.categoria,
-        business: item.negocio,
-        nextDueDate: new Date(item.fecha_proximo_pago),
-        frequency: item.frecuencia,
-        isInstallment: item.es_cuota || false,
-        currentInstallment: item.cuota_actual || undefined,
-        totalInstallments: item.cuota_actual || undefined, // Using currentInstallment as total for now
-      }));
+      const formattedReminders: Reminder[] = remindersData
+        .filter((item: any) => item.id) // Asegurar que tenga ID
+        .map((item: any) => ({
+          id: item.id,
+          name: item.nombre,
+          amount: parseFloat(item.monto),
+          currency: "USD" as const,
+          macroCategory: item.macrocategoria,
+          category: item.categoria,
+          business: item.negocio,
+          nextDueDate: new Date(item.fecha_proximo_pago),
+          frequency: item.frecuencia,
+          isInstallment: item.es_cuota || false,
+          currentInstallment: 1, // Siempre empieza en 1 cuando se crea
+          totalInstallments: item.cuota_actual || undefined, // Total de cuotas
+        }));
 
       // 4. Unimos transacciones y ordenamos por fecha (más reciente primero)
       const allTransactions = [...formattedExpenses, ...formattedIncomes].sort((a, b) => {

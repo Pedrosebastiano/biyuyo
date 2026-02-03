@@ -33,6 +33,7 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
   const [selectedMacro, setSelectedMacro] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedBusiness, setSelectedBusiness] = useState<string>("");
+  const [customBusiness, setCustomBusiness] = useState<string>(""); // Nuevo estado para negocio personalizado
   const [amount, setAmount] = useState<string>("");
   const [currency, setCurrency] = useState<Currency>("USD");
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
@@ -52,11 +53,20 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
     setSelectedMacro(value);
     setSelectedCategory("");
     setSelectedBusiness("");
+    setCustomBusiness("");
   };
 
   const handleCategoryChange = (value: string) => {
     setSelectedCategory(value);
     setSelectedBusiness("");
+    setCustomBusiness("");
+  };
+
+  const handleBusinessChange = (value: string) => {
+    setSelectedBusiness(value);
+    if (value !== "custom") {
+      setCustomBusiness(""); // Limpiar custom si se selecciona otra opción
+    }
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,10 +93,13 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
     const categoryName =
       categories.find((c) => c.id === selectedCategory)?.name || "";
 
-    let businessName = selectedBusiness;
-    if (selectedBusiness !== "custom") {
+    // Determinar el nombre del negocio (usar custom si está seleccionado y tiene valor)
+    let businessName = "";
+    if (selectedBusiness === "custom") {
+      businessName = customBusiness.trim();
+    } else {
       const found = businessTypes.find((b) => b.name === selectedBusiness);
-      if (found) businessName = found.name;
+      businessName = found ? found.name : selectedBusiness;
     }
 
     const nuevoGasto = {
@@ -125,6 +138,7 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
       setSelectedMacro("");
       setSelectedCategory("");
       setSelectedBusiness("");
+      setCustomBusiness("");
       setAmount("");
       setReceiptImage(null);
 
@@ -139,7 +153,11 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
   };
 
   const isFormValid =
-    selectedMacro && selectedCategory && selectedBusiness && amount;
+    selectedMacro && 
+    selectedCategory && 
+    selectedBusiness && 
+    amount &&
+    (selectedBusiness !== "custom" || customBusiness.trim() !== "");
 
   return (
     <div className="space-y-4">
@@ -189,7 +207,7 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
         <Label htmlFor="expense-business-type">Tipo de Negocio</Label>
         <Select
           value={selectedBusiness}
-          onValueChange={setSelectedBusiness}
+          onValueChange={handleBusinessChange}
           disabled={!selectedCategory}
         >
           <SelectTrigger id="expense-business-type" className="border-2">
@@ -214,7 +232,8 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
         {selectedBusiness === "custom" && (
           <Input
             placeholder="Escribe el tipo de negocio"
-            onChange={(e) => setSelectedBusiness(e.target.value || "custom")}
+            value={customBusiness}
+            onChange={(e) => setCustomBusiness(e.target.value)}
             className="border-2 mt-2"
           />
         )}

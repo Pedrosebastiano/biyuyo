@@ -5,6 +5,19 @@ import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
+// Función para traducir frecuencias
+const translateFrequency = (frequency: string): string => {
+  const translations: Record<string, string> = {
+    'daily': 'Diario',
+    'weekly': 'Semanal',
+    'biweekly': 'Quincenal',
+    'monthly': 'Mensual',
+    'yearly': 'Anual',
+  };
+
+  return translations[frequency.toLowerCase()] || frequency;
+};
+
 interface ReminderCardProps {
   name: string;
   amount: number;
@@ -61,7 +74,7 @@ export function ReminderCard({
               </Badge>
               {isInstallment && totalInstallments && (
                 <Badge variant="outline" className="text-xs">
-                  Cuota {currentInstallment}/{totalInstallments}
+                  Cuota {currentInstallment || 1}/{totalInstallments}
                 </Badge>
               )}
             </div>
@@ -84,7 +97,7 @@ export function ReminderCard({
               {currencySymbol}
               {amount.toLocaleString("es-VE", { minimumFractionDigits: 2 })}
             </span>
-            <p className="text-xs text-muted-foreground">{frequency}</p>
+            <p className="text-xs text-muted-foreground">{translateFrequency(frequency)}</p>
           </div>
         </div>
       </CardContent>

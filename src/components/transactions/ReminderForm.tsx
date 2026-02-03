@@ -46,6 +46,7 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
   const [selectedMacro, setSelectedMacro] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedBusiness, setSelectedBusiness] = useState<string>("");
+  const [customBusiness, setCustomBusiness] = useState<string>("");
   const [paymentName, setPaymentName] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [currency, setCurrency] = useState<Currency>("USD");
@@ -68,11 +69,20 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
     setSelectedMacro(value);
     setSelectedCategory("");
     setSelectedBusiness("");
+    setCustomBusiness("");
   };
 
   const handleCategoryChange = (value: string) => {
     setSelectedCategory(value);
     setSelectedBusiness("");
+    setCustomBusiness("");
+  };
+
+  const handleBusinessChange = (value: string) => {
+    setSelectedBusiness(value);
+    if (value !== "custom") {
+      setCustomBusiness("");
+    }
   };
 
   const handleSubmit = async () => {
@@ -88,14 +98,13 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
     const categoryName =
       categories.find((c) => c.id === selectedCategory)?.name || "";
     
-    let businessName = selectedBusiness;
-    if (selectedBusiness !== "custom") {
-       const found = businessTypes.find((b) => b.name === selectedBusiness);
-       if(found) businessName = found.name;
+    let businessName = "";
+    if (selectedBusiness === "custom") {
+      businessName = customBusiness.trim();
+    } else {
+      const found = businessTypes.find((b) => b.name === selectedBusiness);
+      businessName = found ? found.name : selectedBusiness;
     }
-
-    const frequencyName =
-      paymentFrequencies.find((f) => f.id === frequency)?.name || "";
 
     // Formatear fecha a formato YYYY-MM-DD para PostgreSQL
     const formattedDate = format(nextPaymentDate, "yyyy-MM-dd");
@@ -109,7 +118,7 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
       negocio: businessName || null,
       monto: parseFloat(amount),
       fecha_proximo_pago: formattedDate,
-      frecuencia: frequency, // 👈 Enviar el ID directamente, no el nombre
+      frecuencia: frequency,
       es_cuota: hasInstallments,
       cuota_actual: hasInstallments && totalInstallments ? parseInt(totalInstallments) : null,
     };
@@ -145,6 +154,7 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
       setSelectedMacro("");
       setSelectedCategory("");
       setSelectedBusiness("");
+      setCustomBusiness("");
       setPaymentName("");
       setAmount("");
       setNextPaymentDate(undefined);
@@ -171,7 +181,8 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
     amount &&
     nextPaymentDate &&
     frequency &&
-    (!hasInstallments || (hasInstallments && totalInstallments));
+    (!hasInstallments || (hasInstallments && totalInstallments)) &&
+    (selectedBusiness !== "custom" || customBusiness.trim() !== "");
 
   return (
     <div className="space-y-4">
@@ -221,7 +232,7 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
         <Label htmlFor="reminder-business-type">Tipo de Negocio</Label>
         <Select
           value={selectedBusiness}
-          onValueChange={setSelectedBusiness}
+          onValueChange={handleBusinessChange}
           disabled={!selectedCategory}
         >
           <SelectTrigger id="reminder-business-type" className="border-2">
@@ -246,7 +257,8 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
         {selectedBusiness === "custom" && (
           <Input
             placeholder="Escribe el tipo de negocio"
-            onChange={(e) => setSelectedBusiness(e.target.value || "custom")}
+            value={customBusiness}
+            onChange={(e) => setCustomBusiness(e.target.value)}
             className="border-2 mt-2"
           />
         )}
