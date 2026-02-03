@@ -89,7 +89,7 @@ export function EmergencyFund() {
 
     const data = useMemo(() => [
         { name: "Fondo actual", value: totalSavings, color: "#9594FF" },
-        { name: "Meta", value: targetMetaAmount, color: "#9594FF" },
+        { name: "Fondos requeridos", value: targetMetaAmount, color: "#9594FF" },
     ], [totalSavings, targetMetaAmount]);
 
     const handleSaveGoal = () => {
