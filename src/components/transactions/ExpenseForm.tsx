@@ -20,6 +20,7 @@ import { Camera, X } from "lucide-react";
 import { CurrencySelector, type Currency } from "./CurrencySelector";
 import { useTransactions } from "@/hooks/useTransactions";
 import { toast } from "sonner";
+import { supabase, uploadImage } from "../../../supabase"; // Importar uploadImage también
 
 interface ExpenseFormProps {
   onSubmit: () => void;
@@ -33,6 +34,8 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
   const [amount, setAmount] = useState<string>("");
   const [currency, setCurrency] = useState<Currency>("USD");
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -58,6 +61,7 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setReceiptImage(reader.result as string);
@@ -68,38 +72,104 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
 
   const removeImage = () => {
     setReceiptImage(null);
+    setImageFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
-  const handleSubmit = () => {
-    const macroName =
-      macroCategories.find((m) => m.id === selectedMacro)?.name || "";
-    const categoryName =
-      categories.find((c) => c.id === selectedCategory)?.name || "";
-    const businessName =
-      selectedBusiness === "custom"
-        ? selectedBusiness
-        : businessTypes.find((b) => b.name === selectedBusiness)?.name ||
-          selectedBusiness;
+  // FUNCIÓN ÚNICA handleSubmit
+  const handleSubmit = async () => {
+    setLoading(true);
 
-    addTransaction({
-      type: "expense",
-      macroCategory: macroName,
-      category: categoryName,
-      business: businessName,
-      amount: parseFloat(amount),
-      currency,
-      receiptImage: receiptImage || undefined,
-    });
+    try {
+      // Validaciones
+      if (!selectedMacro || !selectedCategory || !selectedBusiness || !amount) {
+        toast.error("Por favor, completa todos los campos obligatorios");
+        setLoading(false);
+        return;
+      }
 
-    toast.success("Gasto registrado exitosamente");
-    onSubmit();
+      let imageUrl = null;
+      
+      // Subir imagen a Supabase si existe
+      if (imageFile) {
+        try {
+          imageUrl = await uploadImage(imageFile, 'factura', 'imagenes');
+          toast.success("Imagen subida exitosamente");
+        } catch (error) {
+          console.error("Error al subir imagen:", error);
+          toast.error("Error al subir la imagen, pero continuando...");
+        }
+      }
+
+      // Obtener nombres para mostrar
+      const macroName = macroCategories.find((m) => m.id === selectedMacro)?.name || "";
+      const categoryName = categories.find((c) => c.id === selectedCategory)?.name || "";
+      const businessName = selectedBusiness === "custom" 
+        ? selectedBusiness 
+        : businessTypes.find((b) => b.name === selectedBusiness)?.name || selectedBusiness;
+
+      // Guardar en Supabase
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert([
+          {
+            description: `${macroName} - ${categoryName} - ${businessName}`,
+            amount: parseFloat(amount),
+            category: categoryName,
+            date: new Date().toISOString().split('T')[0],
+            image_url: imageUrl,
+            type: 'expense',
+            macro_category: macroName,
+            business_type: businessName,
+            currency: currency,
+            created_at: new Date().toISOString()
+          }
+        ]);
+
+      if (error) {
+        console.error("Error al guardar en Supabase:", error);
+        throw new Error(`Error al guardar: ${error.message}`);
+      }
+
+      // También agregar al contexto local si es necesario
+      addTransaction({
+        type: "expense",
+        macroCategory: macroName,
+        category: categoryName,
+        business: businessName,
+        amount: parseFloat(amount),
+        currency,
+        receiptImage: receiptImage || undefined,
+      });
+
+      toast.success("Gasto registrado exitosamente");
+      
+      // Resetear formulario
+      setSelectedMacro("");
+      setSelectedCategory("");
+      setSelectedBusiness("");
+      setAmount("");
+      setReceiptImage(null);
+      setImageFile(null);
+      
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      
+      // Cerrar diálogo
+      onSubmit();
+
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error(error instanceof Error ? error.message : "Error al guardar el gasto");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const isFormValid =
-    selectedMacro && selectedCategory && selectedBusiness && amount;
+  const isFormValid = selectedMacro && selectedCategory && selectedBusiness && amount;
 
   return (
     <div className="space-y-4">
@@ -239,6 +309,7 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
             variant="outline"
             className="w-full h-24 border-2 border-dashed flex flex-col gap-2"
             onClick={() => fileInputRef.current?.click()}
+            disabled={loading}
           >
             <Camera className="h-6 w-6 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">
@@ -248,8 +319,12 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
         )}
       </div>
 
-      <Button className="w-full" disabled={!isFormValid} onClick={handleSubmit}>
-        Registrar Gasto
+      <Button 
+        className="w-full" 
+        disabled={!isFormValid || loading} 
+        onClick={handleSubmit}
+      >
+        {loading ? "Guardando..." : "Registrar Gasto"}
       </Button>
     </div>
   );
