@@ -69,10 +69,9 @@ export function ExpenseChart() {
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value, name) => {
-                    const val = value as number;
-                    const percent = ((val / total) * 100).toFixed(2);
-                    return [`$${val.toFixed(2)} (${percent}%)`, name];
+                  formatter={(value, name, props) => {
+                    const percent = ((value / total) * 100).toFixed(2);
+                    return [`$${value.toFixed(2)} (${percent}%)`, name];
                   }}
                   contentStyle={{ background: '#fff', borderRadius: 8, border: '1px solid #eee', fontWeight: 500, fontSize: 14 }}
                 />

@@ -16,28 +16,23 @@ import {
   type Category,
   type BusinessType,
 } from "@/data/categories";
-import { Camera, X, Loader2 } from "lucide-react";
+import { Camera, X } from "lucide-react";
 import { CurrencySelector, type Currency } from "./CurrencySelector";
 import { useTransactions } from "@/hooks/useTransactions";
 import { toast } from "sonner";
-
-// TU ID DE SUPABASE
-const USER_ID = "6221431c-7a17-4acc-9c01-43903e30eb21";
 
 interface ExpenseFormProps {
   onSubmit: () => void;
 }
 
 export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
-  const { refreshTransactions } = useTransactions();
+  const { addTransaction } = useTransactions();
   const [selectedMacro, setSelectedMacro] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedBusiness, setSelectedBusiness] = useState<string>("");
-  const [customBusiness, setCustomBusiness] = useState<string>(""); // Nuevo estado para negocio personalizado
   const [amount, setAmount] = useState<string>("");
   const [currency, setCurrency] = useState<Currency>("USD");
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -53,20 +48,11 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
     setSelectedMacro(value);
     setSelectedCategory("");
     setSelectedBusiness("");
-    setCustomBusiness("");
   };
 
   const handleCategoryChange = (value: string) => {
     setSelectedCategory(value);
     setSelectedBusiness("");
-    setCustomBusiness("");
-  };
-
-  const handleBusinessChange = (value: string) => {
-    setSelectedBusiness(value);
-    if (value !== "custom") {
-      setCustomBusiness(""); // Limpiar custom si se selecciona otra opción
-    }
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -87,77 +73,33 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     const macroName =
       macroCategories.find((m) => m.id === selectedMacro)?.name || "";
     const categoryName =
       categories.find((c) => c.id === selectedCategory)?.name || "";
+    const businessName =
+      selectedBusiness === "custom"
+        ? selectedBusiness
+        : businessTypes.find((b) => b.name === selectedBusiness)?.name ||
+          selectedBusiness;
 
-    // Determinar el nombre del negocio (usar custom si está seleccionado y tiene valor)
-    let businessName = "";
-    if (selectedBusiness === "custom") {
-      businessName = customBusiness.trim();
-    } else {
-      const found = businessTypes.find((b) => b.name === selectedBusiness);
-      businessName = found ? found.name : selectedBusiness;
-    }
+    addTransaction({
+      type: "expense",
+      macroCategory: macroName,
+      category: categoryName,
+      business: businessName,
+      amount: parseFloat(amount),
+      currency,
+      receiptImage: receiptImage || undefined,
+    });
 
-    const nuevoGasto = {
-      macrocategoria: macroName,
-      categoria: categoryName,
-      negocio: businessName,
-      total_amount: parseFloat(amount),
-      user_id: USER_ID,
-    };
-
-    setIsSubmitting(true);
-
-    try {
-      const response = await fetch(
-        "https://biyuyo-pruebas.onrender.com/expenses",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(nuevoGasto),
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error("Error al guardar gasto en el servidor");
-      }
-
-      // ÉXITO
-      toast.success("Gasto registrado en la Nube exitosamente");
-
-      // 1. Refrescar lista
-      refreshTransactions();
-
-      // 2. Limpiar
-      setSelectedMacro("");
-      setSelectedCategory("");
-      setSelectedBusiness("");
-      setCustomBusiness("");
-      setAmount("");
-      setReceiptImage(null);
-
-      // 3. Cerrar
-      onSubmit();
-    } catch (error) {
-      console.error(error);
-      toast.error("Error conectando con la base de datos");
-    } finally {
-      setIsSubmitting(false);
-    }
+    toast.success("Gasto registrado exitosamente");
+    onSubmit();
   };
 
   const isFormValid =
-    selectedMacro && 
-    selectedCategory && 
-    selectedBusiness && 
-    amount &&
-    (selectedBusiness !== "custom" || customBusiness.trim() !== "");
+    selectedMacro && selectedCategory && selectedBusiness && amount;
 
   return (
     <div className="space-y-4">
@@ -207,7 +149,7 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
         <Label htmlFor="expense-business-type">Tipo de Negocio</Label>
         <Select
           value={selectedBusiness}
-          onValueChange={handleBusinessChange}
+          onValueChange={setSelectedBusiness}
           disabled={!selectedCategory}
         >
           <SelectTrigger id="expense-business-type" className="border-2">
@@ -232,8 +174,8 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
         {selectedBusiness === "custom" && (
           <Input
             placeholder="Escribe el tipo de negocio"
-            value={customBusiness}
-            onChange={(e) => setCustomBusiness(e.target.value)}
+            value=""
+            onChange={(e) => setSelectedBusiness(e.target.value || "custom")}
             className="border-2 mt-2"
           />
         )}
@@ -306,19 +248,8 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
         )}
       </div>
 
-      <Button
-        className="w-full"
-        disabled={!isFormValid || isSubmitting}
-        onClick={handleSubmit}
-      >
-        {isSubmitting ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Guardando...
-          </>
-        ) : (
-          "Registrar Gasto"
-        )}
+      <Button className="w-full" disabled={!isFormValid} onClick={handleSubmit}>
+        Registrar Gasto
       </Button>
     </div>
   );

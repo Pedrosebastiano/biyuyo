@@ -301,16 +301,16 @@ export function getReminderBusinessTypesByCategory(macroId: string, categoryId: 
 }
 
 export type PaymentFrequency = 
-  | "daily"
-  | "weekly"
-  | "biweekly"
-  | "monthly"
-  | "yearly";
+  | "unico"
+  | "semanal"
+  | "quincenal"
+  | "mensual"
+  | "anual";
 
 export const paymentFrequencies: { id: PaymentFrequency; name: string }[] = [
-  { id: "daily", name: "Diario" },
-  { id: "weekly", name: "Semanal" },
-  { id: "biweekly", name: "Quincenal" },
-  { id: "monthly", name: "Mensual" },
-  { id: "yearly", name: "Anual" },
+  { id: "unico", name: "Pago único" },
+  { id: "semanal", name: "Semanal" },
+  { id: "quincenal", name: "Quincenal" },
+  { id: "mensual", name: "Mensual" },
+  { id: "anual", name: "Anual" },
 ];

@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "start": "node server.js",  
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
@@ -111,17 +110,9 @@
   },
   "keywords": [],
   "author": "",
-<<<<<<< HEAD
-=======
-
->>>>>>> 09fb72b71970b593dea8d453db402a4a3f316145
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/Pedrosebastiano/smart-money-buddy/issues"
   },
   "homepage": "https://github.com/Pedrosebastiano/smart-money-buddy#readme"
-<<<<<<< HEAD
-=======
-
->>>>>>> 09fb72b71970b593dea8d453db402a4a3f316145
 }
