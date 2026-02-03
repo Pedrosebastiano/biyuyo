@@ -109,13 +109,11 @@
   },
   "keywords": [],
   "author": "",
-<<<<<<< HEAD
+
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/Pedrosebastiano/smart-money-buddy/issues"
   },
   "homepage": "https://github.com/Pedrosebastiano/smart-money-buddy#readme"
-=======
-  "license": "ISC"
->>>>>>> eab745bdf4887424a7b3e31e4498668117fa26fa
+
 }
