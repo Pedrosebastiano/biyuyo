@@ -7,10 +7,21 @@ import {
     ResponsiveContainer,
     Legend
 } from "recharts";
+import { Info } from "lucide-react";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
 
-const debtAmount = 180;
-const totalCapacity = 900; // Example total to make 180 be 20%
-const percentage = (debtAmount / totalCapacity) * 100;
+const debtItems = [
+    { name: "Mensualidad del gimnasio", amount: 80 },
+    { name: "Cashea", amount: 100 },
+];
+
+const totalMoney = 1200;
+const debtAmount = debtItems.reduce((acc, item) => acc + item.amount, 0) || 1;
+const percentage = (debtAmount / totalMoney) * 100;
 
 const getColor = (percent: number) => {
     if (percent <= 20) return "#00E676"; // Green (Healthy)
@@ -44,15 +55,23 @@ const DebtListCard: React.FC<DebtListCardProps> = ({ items }) => {
             }}
         >
             <h3 className="text-xl font-bold mb-4 italic text-[#4DD0E1]">Deudas pendientes</h3>
-            <div className="bg-white rounded-xl p-4">
-                <ul className="space-y-1">
-                    {items.map((item, index) => (
-                        <li key={index} className="flex items-center text-[#29488e] font-medium">
-                            <span className="text-[#29488e] mr-2 text-xl">•</span>
-                            {item.name} (${item.amount})
-                        </li>
-                    ))}
-                </ul>
+            <div className="bg-white rounded-xl overflow-hidden shadow-sm">
+                <table className="w-full text-left border-collapse">
+                    <thead>
+                        <tr className="border-b border-[#D1FDFC]">
+                            <th className="px-4 py-3 text-[#29488e] font-bold text-sm uppercase tracking-wider">Deuda</th>
+                            <th className="px-4 py-3 text-[#29488e] font-bold text-sm uppercase tracking-wider text-right">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {items.map((item, index) => (
+                            <tr key={index} className={index !== items.length - 1 ? "border-b border-[#f0f9f9]" : ""}>
+                                <td className="px-4 py-3 text-[#29488e] font-medium">{item.name}</td>
+                                <td className="px-4 py-3 text-[#29488e] font-bold text-right">${item.amount}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
         </div>
     );
@@ -61,13 +80,28 @@ const DebtListCard: React.FC<DebtListCardProps> = ({ items }) => {
 export function DebtRatio() {
     return (
         <Card className="border-2 shadow-sm">
-            <CardHeader className="text-center pb-0">
-                <CardTitle className="text-2xl font-bold text-[#2d509e]">
-                    Compromiso financiero
-                </CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between pb-0 pt-6 px-6">
+                <div className="flex-1 text-center">
+                    <CardTitle className="text-2xl font-bold text-[#2d509e] mr-[-40px]">
+                        Compromiso financiero
+                    </CardTitle>
+                </div>
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <button className="flex items-center justify-center w-10 h-10 bg-white rounded-2xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-gray-50 hover:bg-gray-50 transition-colors">
+                            <Info className="w-6 h-6 text-[#2d509e]" />
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-3">
+                        <p className="text-sm font-medium text-[#2d509e]">Deudas sobre ingresos</p>
+                    </PopoverContent>
+                </Popover>
             </CardHeader>
-            <CardContent className="pb-6">
-                <div className="h-[300px] w-full relative -mt-4">
+            <CardContent className="pb-4">
+                <div className="h-[260px] w-full relative -mt-4">
+                    <div className="absolute top-[20px] left-1/2 transform -translate-x-1/2 text-xs text-gray-400 font-medium">
+                        {`${percentage.toFixed(0)}%`}
+                    </div>
                     <ResponsiveContainer width="100%" height="100%">
                         <RadialBarChart
                             cx="50%"
@@ -89,22 +123,7 @@ export function DebtRatio() {
                                 background={{ fill: '#D1FDFC' }}
                                 dataKey="value"
                                 cornerRadius={5}
-                                label={({ cx, cy, value }) => {
-                                    // Custom label positioning could be complex, sticking to simple centers for now or relying on Legend
-                                    // The image has a label "20%" offset.
-                                    return null;
-                                }}
                             />
-                            {/* Custom Label for percentage */}
-                            <text
-                                x="50%"
-                                y="20%"
-                                textAnchor="middle"
-                                dominantBaseline="middle"
-                                className="fill-gray-500 text-sm font-medium"
-                            >
-                                {`${percentage.toFixed(0)}%`}
-                            </text>
 
                             <Legend
                                 iconSize={10}
@@ -128,12 +147,7 @@ export function DebtRatio() {
                     </div>
                 </div>
 
-                <DebtListCard
-                    items={[
-                        { name: "Mensualidad del gimnasio", amount: 80 },
-                        { name: "Cashea", amount: 100 },
-                    ]}
-                />
+                <DebtListCard items={debtItems} />
             </CardContent>
         </Card>
     );

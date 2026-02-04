@@ -2,6 +2,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useMemo } from "react";
+import { Info } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 // Distinct colors for macro categories
 const COLORS = [
@@ -146,8 +152,22 @@ export function ExpenseChart() {
 
   return (
     <Card className="border-2">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold text-[#29488e] text-center">Gastos por Categoría</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between pb-0 pt-6 px-6">
+        <div className="flex-1 text-center">
+          <CardTitle className="text-2xl font-bold text-[#2d509e] mr-[-40px]">
+            Gastos por Categoría
+          </CardTitle>
+        </div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button className="flex items-center justify-center w-10 h-10 bg-white rounded-2xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-gray-50 hover:bg-gray-50 transition-colors">
+              <Info className="w-6 h-6 text-[#2d509e]" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-3">
+            <p className="text-sm font-medium text-[#2d509e]">Desglose de tus gastos segun sus categorías</p>
+          </PopoverContent>
+        </Popover>
       </CardHeader>
       <CardContent className="pb-2">
         <div className="flex flex-col items-center">
