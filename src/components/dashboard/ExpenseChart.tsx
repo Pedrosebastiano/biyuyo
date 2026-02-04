@@ -40,11 +40,10 @@ const MOCK_DATA = [
 
 import { Transaction } from "@/hooks/useTransactions";
 
-export function ExpenseChart({ transactions = [] }: { transactions?: Transaction[] }) {
+export function ExpenseChart({ transactions }: { transactions: Transaction[] }) {
 
   const chartData = useMemo(() => {
     // 1. Filter expenses
-    if (!transactions) return [];
     let expenses = transactions.filter((t) => t.type === "expense");
 
     // Fallback to dummy data if no real data exists
@@ -98,7 +97,7 @@ export function ExpenseChart({ transactions = [] }: { transactions?: Transaction
         </CardHeader>
         <CardContent>
           <div className="h-[410px] w-full flex flex-col items-center justify-center text-muted-foreground">
-            No hay datos disponibles
+            No data available
           </div>
         </CardContent>
       </Card>

@@ -60,7 +60,7 @@ const Analytics = () => {
       <div className="space-y-6 pb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-[#2d509e]">Análisis</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-[#2d509e]">Analytics</h1>
             <p className="text-muted-foreground mt-1">
               Filtra y analiza tus movimientos financieros.
             </p>
@@ -81,7 +81,7 @@ const Analytics = () => {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <IncomeExpenseChart transactions={filteredTransactions} />
             <ExpenseChart transactions={filteredTransactions} />
-            <MonthlySavingsChart transactions={filteredTransactions} accounts={accounts} />
+            <MonthlySavingsChart transactions={filteredTransactions} />
             <EmergencyFund accounts={accounts} transactions={filteredTransactions} />
             <DebtRatio reminders={reminders} accounts={accounts} />
           </div>

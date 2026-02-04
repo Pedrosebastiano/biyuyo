@@ -64,25 +64,17 @@ function CustomLegend({ chartData }: { chartData: any[] }) {
   );
 }
 
-import { Transaction, Account } from "@/hooks/useTransactions";
+import { Transaction } from "@/hooks/useTransactions";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 
-export function MonthlySavingsChart({ transactions, accounts }: { transactions: Transaction[], accounts: Account[] }) {
+export function MonthlySavingsChart({ transactions }: { transactions: Transaction[] }) {
   const [savingsGoal, setSavingsGoal] = useState(100);
   const [tempGoal, setTempGoal] = useState(savingsGoal.toString());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const totalSavings = useMemo(() =>
-    accounts.reduce((acc, curr) => acc + curr.savings, 0),
-    [accounts]);
-
   const data = useMemo(() => {
-    const baseData = [
-      { name: "Meta de ahorro", value: savingsGoal, color: "#bdbdbd" },
-      { name: "Ahorro actual", value: totalSavings, color: "#26C6DA" }
-    ];
-
+    const baseData = [{ name: "Meta de ahorro", value: savingsGoal, color: "#bdbdbd" }];
     if (!transactions || transactions.length === 0) return baseData;
 
     const grouped: Record<string, { name: string; fullDate: Date; value: number }> = {};
@@ -99,25 +91,23 @@ export function MonthlySavingsChart({ transactions, accounts }: { transactions: 
         };
       }
 
-      // No sumamos ingresos aquí según el requerimiento del usuario (usar el campo 'savings' de la DB)
-      // Pero sí restamos gastos para ver el flujo neto mensual si se desea, 
-      // o simplemente mostramos el progreso acumulado.
-      /*if (t.type === "expense") {
+      if (t.type === "income") {
+        grouped[monthKey].value += t.amount;
+      } else {
         grouped[monthKey].value -= t.amount;
       }
-      */
     });
 
     const monthlyData = Object.values(grouped)
       .sort((a, b) => a.fullDate.getTime() - b.fullDate.getTime())
       .map((item, index) => ({
-        name: `Flujo ${item.name}`,
+        name: item.name,
         value: Number(item.value.toFixed(2)),
-        color: pastelColors[(index + 2) % pastelColors.length]
+        color: pastelColors[index % pastelColors.length]
       }));
 
     return [...baseData, ...monthlyData];
-  }, [transactions, accounts, savingsGoal, totalSavings]);
+  }, [transactions, savingsGoal]);
 
   const handleSaveGoal = () => {
     const newGoal = parseFloat(tempGoal);
@@ -132,7 +122,7 @@ export function MonthlySavingsChart({ transactions, accounts }: { transactions: 
       <CardHeader className="flex flex-row items-center justify-between pb-0 pt-6 px-6">
         <div className="flex-1 text-center">
           <CardTitle className="text-2xl font-bold text-[#2d509e] mr-[-40px]">
-            Ahorros
+            Ahorros mensuales
           </CardTitle>
         </div>
         <Popover>
