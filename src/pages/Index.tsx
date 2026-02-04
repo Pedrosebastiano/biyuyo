@@ -4,7 +4,7 @@ import { ExpenseChart } from "@/components/dashboard/ExpenseChart";
 import { IncomeExpenseChart } from "@/components/dashboard/IncomeExpenseChart";
 import { TransactionList } from "@/components/dashboard/TransactionList";
 import { QuickActions } from "@/components/dashboard/QuickActions";
-import { EmergencyFund } from "@/components/dashboard/EmergencyFund";
+import { FinancialGoals } from "@/components/dashboard/FinancialGoals";
 import { Wallet, TrendingUp, TrendingDown, PiggyBank } from "lucide-react";
 
 const stats = [
@@ -57,6 +57,9 @@ const Index = () => {
           ))}
         </div>
 
+        {/* Quick Actions - between stats and charts */}
+        <QuickActions />
+
         {/* Charts Row */}
         <div className="grid gap-6 lg:grid-cols-2">
           <IncomeExpenseChart />
@@ -69,8 +72,7 @@ const Index = () => {
             <TransactionList />
           </div>
           <div className="space-y-6">
-            <QuickActions />
-            <EmergencyFund />
+            <FinancialGoals />
           </div>
         </div>
       </div>

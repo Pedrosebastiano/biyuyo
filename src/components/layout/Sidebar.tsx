@@ -6,22 +6,21 @@ import {
   Wallet, 
   TrendingUp, 
   Users, 
-  Bell, 
-  Receipt,
   Target,
   Settings,
   Crown,
   LogOut
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Link } from "react-router-dom";
+import { useExchangeRate } from "@/hooks/useExchangeRate";
+import biyuyoLogo from "@/assets/biyuyo-logo.png";
 
 const navigation = [
   { name: "Dashboard", icon: LayoutDashboard, href: "/", current: true },
-  { name: "Transactions", icon: Wallet, href: "/transactions", current: false },
+  { name: "Transacciones", icon: Wallet, href: "/transactions", current: false },
   { name: "Analytics", icon: TrendingUp, href: "/analytics", current: false },
   { name: "Shared Accounts", icon: Users, href: "/shared", current: false, badge: "Premium" },
-  { name: "Reminders", icon: Bell, href: "/reminders", current: false, badge: "3" },
-  { name: "Receipts", icon: Receipt, href: "/receipts", current: false },
   { name: "Goals", icon: Target, href: "/goals", current: false },
 ];
 
@@ -34,26 +33,36 @@ interface SidebarProps {
 }
 
 export function Sidebar({ className }: SidebarProps) {
+  const { rate, loading } = useExchangeRate();
+  
   return (
     <div className={cn("flex flex-col h-full bg-card border-r-2 border-border", className)}>
       {/* Logo */}
       <div className="p-6 border-b-2 border-border">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center overflow-hidden">
-            {/* Reemplaza el Wallet con la imagen */}
-            <img 
-              src="https://pmjjguyibxydzxnofcjx.supabase.co/storage/v1/object/public/factura/biyuyo_imagen.png"
-              alt="Biyuyo Logo"
-              className="h-full w-full object-cover"
-            />
-          </div>
+        <Link to="/" className="flex items-center gap-3">
+          <img src={biyuyoLogo} alt="Biyuyo" className="h-10 w-10 rounded-lg object-contain" />
           <div>
             <h1 className="text-xl font-bold tracking-tight">Biyuyo</h1>
             <p className="text-xs text-muted-foreground">Smart Money Management</p>
           </div>
-        </div>
+        </Link>
       </div>
 
+      {/* Exchange Rate */}
+      <div className="px-6 py-3 border-b border-border">
+        <div className="flex items-center justify-center bg-muted px-3 py-2 rounded-lg">
+          <span className="font-mono font-semibold text-sm text-primary">
+            {loading ? (
+              <span className="animate-pulse opacity-50">...</span>
+            ) : (
+              `$1 ⇄ Bs. ${rate?.toLocaleString("es-VE", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`
+            )}
+          </span>
+        </div>
+      </div>
 
       {/* Navigation */}
       <ScrollArea className="flex-1 px-4 py-6">

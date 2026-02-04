@@ -20,73 +20,65 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* PRIMARY: Cambiado de verde a azul #2B4C90 */
-    --primary: 222 54% 37%; /* HSL equivalente de #2B4C90 */
+    --primary: 220 56% 37%;
     --primary-foreground: 0 0% 100%;
 
-    /* SECONDARY: Cambiado a turquesa #49C5B2 */
-    --secondary: 172 49% 53%; /* HSL equivalente de #49C5B2 */
+    --secondary: 210 20% 96%;
     --secondary-foreground: 222 47% 11%;
 
     --muted: 210 15% 93%;
     --muted-foreground: 215 16% 47%;
 
-    /* ACCENT: Usando el turquesa con opacidad */
-    --accent: 172 49% 95%;
-    --accent-foreground: 172 49% 25%;
+    --accent: 170 52% 60%;
+    --accent-foreground: 220 56% 20%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    /* SUCCESS: Cambiado al azul principal */
-    --success: 222 54% 37%;
-    --success-foreground: 0 0% 100%;
+    --success: 170 52% 60%;
+    --success-foreground: 220 56% 20%;
 
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 0%;
 
     --border: 214 32% 91%;
     --input: 214 32% 91%;
-    /* RING: Cambiado al azul principal */
-    --ring: 222 54% 37%;
+    --ring: 220 56% 37%;
 
     --radius: 0.75rem;
 
-    /* SIDEBAR: Usando el azul como fondo */
-    --sidebar-background: 222 54% 37%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 222 54% 37%;
-    --sidebar-accent: 172 49% 53%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 222 54% 45%;
-    --sidebar-ring: 0 0% 100%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 220 56% 37%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 170 52% 90%;
+    --sidebar-accent-foreground: 220 56% 25%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 220 56% 37%;
 
-    /* CHARTS: Usando variaciones de tus colores */
-    --chart-1: 222 54% 37%; /* Azul principal */
-    --chart-2: 172 49% 53%; /* Turquesa principal */
-    --chart-3: 222 54% 50%; /* Azul más claro */
-    --chart-4: 172 49% 70%; /* Turquesa más claro */
-    --chart-5: 38 92% 50%; /* Naranja (para contraste) */
+    --chart-1: 220 56% 37%;
+    --chart-2: 170 52% 60%;
+    --chart-3: 262 83% 58%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 0 84% 60%;
 
-    --sidebar: 222 54% 37%;
-
-    /* SHADOWS: Usando el azul con opacidad */
-    --shadow-2xs: 0 1px 2px 0 hsl(222 54% 37% / 0.03);
-    --shadow-xs: 0 1px 3px 0 hsl(222 54% 37% / 0.06);
-    --shadow-sm: 0 2px 4px 0 hsl(222 54% 37% / 0.06);
-    --shadow: 0 4px 6px -1px hsl(222 54% 37% / 0.08);
-    --shadow-md: 0 8px 15px -3px hsl(222 54% 37% / 0.1);
-    --shadow-lg: 0 15px 30px -5px hsl(222 54% 37% / 0.12);
-    --shadow-xl: 0 25px 50px -12px hsl(222 54% 37% / 0.15);
-    --shadow-2xl: 0 35px 60px -15px hsl(222 54% 37% / 0.2);
-
-    --tracking-normal: 0em;
-    --spacing: 0.25rem;
+    --sidebar: 0 0% 100%;
 
     --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
     --font-serif: 'Lora', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
     --font-mono: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+
+    --shadow-2xs: 0 1px 2px 0 hsl(222 47% 11% / 0.03);
+    --shadow-xs: 0 1px 3px 0 hsl(222 47% 11% / 0.06);
+    --shadow-sm: 0 2px 4px 0 hsl(222 47% 11% / 0.06);
+    --shadow: 0 4px 6px -1px hsl(222 47% 11% / 0.08);
+    --shadow-md: 0 8px 15px -3px hsl(222 47% 11% / 0.1);
+    --shadow-lg: 0 15px 30px -5px hsl(222 47% 11% / 0.12);
+    --shadow-xl: 0 25px 50px -12px hsl(222 47% 11% / 0.15);
+    --shadow-2xl: 0 35px 60px -15px hsl(222 47% 11% / 0.2);
+
+    --tracking-normal: 0em;
+    --spacing: 0.25rem;
   }
 
   .dark {
@@ -99,26 +91,22 @@ All colors MUST be HSL.
     --popover: 222 47% 9%;
     --popover-foreground: 210 20% 98%;
 
-    /* PRIMARY DARK: Azul más claro para modo oscuro */
-    --primary: 222 54% 50%;
+    --primary: 220 56% 45%;
     --primary-foreground: 0 0% 100%;
 
-    /* SECONDARY DARK: Turquesa más vibrante */
-    --secondary: 172 49% 60%;
-    --secondary-foreground: 222 47% 6%;
+    --secondary: 222 47% 15%;
+    --secondary-foreground: 210 20% 98%;
 
     --muted: 222 47% 15%;
     --muted-foreground: 215 16% 60%;
 
-    /* ACCENT DARK */
-    --accent: 172 49% 20%;
-    --accent-foreground: 172 49% 85%;
+    --accent: 170 52% 25%;
+    --accent-foreground: 170 52% 85%;
 
     --destructive: 0 62% 45%;
     --destructive-foreground: 0 0% 100%;
 
-    /* SUCCESS DARK */
-    --success: 222 54% 50%;
+    --success: 170 52% 45%;
     --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
@@ -126,28 +114,25 @@ All colors MUST be HSL.
 
     --border: 222 47% 18%;
     --input: 222 47% 18%;
-    --ring: 222 54% 50%;
+    --ring: 220 56% 45%;
 
-    /* SIDEBAR DARK */
-    --sidebar-background: 222 54% 25%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 222 54% 25%;
-    --sidebar-accent: 172 49% 60%;
-    --sidebar-accent-foreground: 222 47% 6%;
-    --sidebar-border: 222 54% 35%;
-    --sidebar-ring: 0 0% 100%;
+    --sidebar-background: 222 47% 8%;
+    --sidebar-foreground: 210 20% 98%;
+    --sidebar-primary: 220 56% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 170 52% 20%;
+    --sidebar-accent-foreground: 170 52% 85%;
+    --sidebar-border: 222 47% 18%;
+    --sidebar-ring: 220 56% 45%;
 
-    /* CHARTS DARK */
-    --chart-1: 222 54% 50%;
-    --chart-2: 172 49% 60%;
-    --chart-3: 222 54% 65%;
-    --chart-4: 172 49% 75%;
-    --chart-5: 38 92% 60%;
+    --chart-1: 220 56% 45%;
+    --chart-2: 170 52% 55%;
+    --chart-3: 262 83% 65%;
+    --chart-4: 38 92% 55%;
+    --chart-5: 0 84% 55%;
 
-    --sidebar: 222 54% 25%;
+    --sidebar: 222 47% 8%;
 
-    /* SHADOWS DARK */
     --shadow-2xs: 0 1px 2px 0 hsl(0 0% 0% / 0.1);
     --shadow-xs: 0 1px 3px 0 hsl(0 0% 0% / 0.15);
     --shadow-sm: 0 2px 4px 0 hsl(0 0% 0% / 0.15);
@@ -167,90 +152,4 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
-}
-
-/* Estilos adicionales para tus colores en app.css */
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-
-/* Usar el azul principal para hover */
-.logo:hover {
-  filter: drop-shadow(0 0 2em rgba(43, 76, 144, 0.67)); /* #2B4C90 con transparencia */
-}
-
-/* Usar el turquesa para React */
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em rgba(73, 197, 178, 0.67)); /* #49C5B2 con transparencia */
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: hsl(var(--muted-foreground));
-}
-
-/* Clases de utilidad CSS personalizadas */
-.bg-primary-solid {
-  background-color: #2b4c90;
-}
-
-.bg-secondary-solid {
-  background-color: #49c5b2;
-}
-
-.text-primary-solid {
-  color: #2b4c90;
-}
-
-.text-secondary-solid {
-  color: #49c5b2;
-}
-
-.border-primary-solid {
-  border-color: #2b4c90;
-}
-
-.border-secondary-solid {
-  border-color: #49c5b2;
-}
-
-/* Gradientes con tus colores */
-.gradient-primary {
-  background: linear-gradient(135deg, #2b4c90 0%, #3a5ca9 100%);
-}
-
-.gradient-secondary {
-  background: linear-gradient(135deg, #49c5b2 0%, #5dd0bf 100%);
-}
-
-.gradient-dual {
-  background: linear-gradient(135deg, #2b4c90 0%, #49c5b2 100%);
 }
