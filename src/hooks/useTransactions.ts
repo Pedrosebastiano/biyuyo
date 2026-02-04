@@ -35,7 +35,7 @@ export function useTransactions() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Función para obtener los datos de la NUBE (Render + Supabase)
+  // Función para obtener los datos de la NUBE (Render + Supabase) 
   const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
