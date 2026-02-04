@@ -25,7 +25,7 @@ import {
   type BusinessType,
   type PaymentFrequency,
 } from "@/data/reminderCategories";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -33,15 +33,20 @@ import { CurrencySelector, type Currency } from "./CurrencySelector";
 import { useTransactions } from "@/hooks/useTransactions";
 import { toast } from "sonner";
 
+// TU ID DE SUPABASE
+const USER_ID = "6221431c-7a17-4acc-9c01-43903e30eb21";
+
 interface ReminderFormProps {
   onSubmit: () => void;
 }
 
 export function ReminderForm({ onSubmit }: ReminderFormProps) {
-  const { addReminder } = useTransactions();
+  const { refreshTransactions } = useTransactions();
+  
   const [selectedMacro, setSelectedMacro] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedBusiness, setSelectedBusiness] = useState<string>("");
+  const [customBusiness, setCustomBusiness] = useState<string>("");
   const [paymentName, setPaymentName] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [currency, setCurrency] = useState<Currency>("USD");
@@ -49,6 +54,8 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
   const [frequency, setFrequency] = useState<PaymentFrequency | "">("");
   const [hasInstallments, setHasInstallments] = useState<boolean>(false);
   const [totalInstallments, setTotalInstallments] = useState<string>("");
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const categories: Category[] = selectedMacro
     ? getReminderCategoriesByMacro(selectedMacro)
@@ -62,45 +69,110 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
     setSelectedMacro(value);
     setSelectedCategory("");
     setSelectedBusiness("");
+    setCustomBusiness("");
   };
 
   const handleCategoryChange = (value: string) => {
     setSelectedCategory(value);
     setSelectedBusiness("");
+    setCustomBusiness("");
   };
 
-  const handleSubmit = () => {
+  const handleBusinessChange = (value: string) => {
+    setSelectedBusiness(value);
+    if (value !== "custom") {
+      setCustomBusiness("");
+    }
+  };
+
+  const handleSubmit = async () => {
+    // Validación de fecha
+    if (!nextPaymentDate) {
+      toast.error("Por favor selecciona una fecha de pago");
+      return;
+    }
+
+    // Obtener nombres legibles
     const macroName =
       reminderMacroCategories.find((m) => m.id === selectedMacro)?.name || "";
     const categoryName =
       categories.find((c) => c.id === selectedCategory)?.name || "";
-    const businessName =
-      selectedBusiness === "custom"
-        ? selectedBusiness
-        : businessTypes.find((b) => b.name === selectedBusiness)?.name ||
-          selectedBusiness;
-    const frequencyName =
-      paymentFrequencies.find((f) => f.id === frequency)?.name || "";
+    
+    let businessName = "";
+    if (selectedBusiness === "custom") {
+      businessName = customBusiness.trim();
+    } else {
+      const found = businessTypes.find((b) => b.name === selectedBusiness);
+      businessName = found ? found.name : selectedBusiness;
+    }
 
-    addReminder({
-      name: paymentName,
-      macroCategory: macroName,
-      category: categoryName,
-      business: businessName,
-      amount: parseFloat(amount),
-      currency,
-      nextDueDate: nextPaymentDate!,
-      frequency: frequencyName,
-      isInstallment: hasInstallments,
-      currentInstallment: hasInstallments ? 1 : undefined,
-      totalInstallments: hasInstallments
-        ? parseInt(totalInstallments)
-        : undefined,
-    });
+    // Formatear fecha a formato YYYY-MM-DD para PostgreSQL
+    const formattedDate = format(nextPaymentDate, "yyyy-MM-dd");
 
-    toast.success("Recordatorio creado exitosamente");
-    onSubmit();
-  };  
+    // Preparar objeto - CLAVE: manejar correctamente null vs undefined
+    const nuevoRecordatorio = {
+      user_id: USER_ID,
+      nombre: paymentName,
+      macrocategoria: macroName,
+      categoria: categoryName,
+      negocio: businessName || null,
+      monto: parseFloat(amount),
+      fecha_proximo_pago: formattedDate,
+      frecuencia: frequency,
+      es_cuota: hasInstallments,
+      cuota_actual: hasInstallments && totalInstallments ? parseInt(totalInstallments) : null,
+    };
+
+    console.log("📤 Enviando recordatorio:", nuevoRecordatorio);
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(
+        "https://biyuyo-pruebas.onrender.com/reminders", 
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(nuevoRecordatorio),
+        }
+      );
+
+      // Ver detalles del error si falla
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Error desconocido" }));
+        console.error("❌ Error del servidor:", errorData);
+        throw new Error(errorData.error || "Error al guardar recordatorio");
+      }
+
+      const resultado = await response.json();
+      console.log("✅ Recordatorio guardado:", resultado);
+
+      toast.success("Recordatorio guardado exitosamente");
+      
+      // Limpiar formulario
+      setSelectedMacro("");
+      setSelectedCategory("");
+      setSelectedBusiness("");
+      setCustomBusiness("");
+      setPaymentName("");
+      setAmount("");
+      setNextPaymentDate(undefined);
+      setFrequency("");
+      setHasInstallments(false);
+      setTotalInstallments("");
+
+      refreshTransactions();
+      onSubmit();
+
+    } catch (error) {
+      console.error("❌ Error completo:", error);
+      toast.error(error instanceof Error ? error.message : "Error conectando con la base de datos");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const isFormValid =
     selectedMacro &&
     selectedCategory &&
@@ -109,7 +181,8 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
     amount &&
     nextPaymentDate &&
     frequency &&
-    (!hasInstallments || (hasInstallments && totalInstallments));
+    (!hasInstallments || (hasInstallments && totalInstallments)) &&
+    (selectedBusiness !== "custom" || customBusiness.trim() !== "");
 
   return (
     <div className="space-y-4">
@@ -155,12 +228,11 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
         </Select>
       </div>
 
-      {/* Business Type */}
       <div className="space-y-2">
         <Label htmlFor="reminder-business-type">Tipo de Negocio</Label>
         <Select
           value={selectedBusiness}
-          onValueChange={setSelectedBusiness}
+          onValueChange={handleBusinessChange}
           disabled={!selectedCategory}
         >
           <SelectTrigger id="reminder-business-type" className="border-2">
@@ -185,8 +257,8 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
         {selectedBusiness === "custom" && (
           <Input
             placeholder="Escribe el tipo de negocio"
-            value=""
-            onChange={(e) => setSelectedBusiness(e.target.value || "custom")}
+            value={customBusiness}
+            onChange={(e) => setCustomBusiness(e.target.value)}
             className="border-2 mt-2"
           />
         )}
@@ -314,8 +386,19 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
         )}
       </div>
 
-      <Button className="w-full" disabled={!isFormValid} onClick={handleSubmit}>
-        Crear Recordatorio
+      <Button 
+        className="w-full" 
+        disabled={!isFormValid || isSubmitting} 
+        onClick={handleSubmit}
+      >
+        {isSubmitting ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Guardando Recordatorio...
+          </>
+        ) : (
+          "Crear Recordatorio"
+        )}
       </Button>
     </div>
   );

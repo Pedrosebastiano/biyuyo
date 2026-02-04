@@ -39,21 +39,15 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Logo */}
       <div className="p-6 border-b-2 border-border">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center overflow-hidden">
-            {/* Reemplaza el Wallet con la imagen */}
-            <img 
-              src="https://pmjjguyibxydzxnofcjx.supabase.co/storage/v1/object/public/factura/biyuyo_imagen.png"
-              alt="Biyuyo Logo"
-              className="h-full w-full object-cover"
-            />
+          <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
+            <Wallet className="h-6 w-6 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight">Biyuyo</h1>
+            <h1 className="text-xl font-bold tracking-tight">FinanceFlow</h1>
             <p className="text-xs text-muted-foreground">Smart Money Management</p>
           </div>
         </div>
       </div>
-
 
       {/* Navigation */}
       <ScrollArea className="flex-1 px-4 py-6">
