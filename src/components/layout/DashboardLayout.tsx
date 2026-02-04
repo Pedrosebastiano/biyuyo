@@ -16,7 +16,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Mobile Header */}
-      <MobileHeader exchangeRate={36.50} />
+      <MobileHeader />
 
       {/* Main Content */}
       <div className="lg:pl-72">
