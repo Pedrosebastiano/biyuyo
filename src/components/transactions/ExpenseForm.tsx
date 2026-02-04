@@ -232,9 +232,9 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
   };
 
   const isFormValid =
-    selectedMacro && 
-    selectedCategory && 
-    selectedBusiness && 
+    selectedMacro &&
+    selectedCategory &&
+    selectedBusiness &&
     amount &&
     (selectedBusiness !== "custom" || customBusiness.trim() !== "");
 

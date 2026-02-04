@@ -8,6 +8,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// MiddleWare de Logging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
 // NOTA DE SEGURIDAD: Eventualmente moveremos esto a variables de entorno.
 const connectionString =
   "postgresql://postgres.pmjjguyibxydzxnofcjx:ZyMDIx2p3EErqtaG@aws-0-us-west-2.pooler.supabase.com:6543/postgres";
@@ -37,7 +43,14 @@ app.get("/users", async (req, res) => {
 
 // --- GASTOS (EXPENSES) ---
 app.post("/expenses", async (req, res) => {
-  const { macrocategoria, categoria, negocio, total_amount, user_id, receipt_image_url } = req.body;
+  const {
+    macrocategoria,
+    categoria,
+    negocio,
+    total_amount,
+    user_id,
+    receipt_image_url,
+  } = req.body;
 
   try {
     const query = `
@@ -45,7 +58,14 @@ app.post("/expenses", async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *;
     `;
-    const values = [macrocategoria, categoria, negocio, total_amount, user_id, receipt_image_url || null];
+    const values = [
+      macrocategoria,
+      categoria,
+      negocio,
+      total_amount,
+      user_id,
+      receipt_image_url || null,
+    ];
 
     const result = await pool.query(query, values);
     console.log("✅ Gasto guardado exitosamente:", result.rows[0]);
@@ -57,10 +77,19 @@ app.post("/expenses", async (req, res) => {
 });
 
 app.get("/expenses", async (req, res) => {
+  const { userId } = req.query;
   try {
-    const result = await pool.query(
-      "SELECT * FROM expenses ORDER BY created_at DESC",
-    );
+    let query = "SELECT * FROM expenses";
+    let values = [];
+
+    if (userId) {
+      query += " WHERE user_id = $1";
+      values.push(userId);
+    }
+
+    query += " ORDER BY created_at DESC";
+
+    const result = await pool.query(query, values);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -70,7 +99,8 @@ app.get("/expenses", async (req, res) => {
 
 // --- INGRESOS (INCOMES) ---
 app.post("/incomes", async (req, res) => {
-  const { macrocategoria, categoria, negocio, total_amount, user_id } = req.body;
+  const { macrocategoria, categoria, negocio, total_amount, user_id } =
+    req.body;
 
   try {
     const query = `
@@ -88,9 +118,20 @@ app.post("/incomes", async (req, res) => {
   }
 });
 
-app.get('/incomes', async (req, res) => {
+app.get("/incomes", async (req, res) => {
+  const { userId } = req.query;
   try {
-    const result = await pool.query('SELECT * FROM incomes ORDER BY created_at DESC');
+    let query = "SELECT * FROM incomes";
+    let values = [];
+
+    if (userId) {
+      query += " WHERE user_id = $1";
+      values.push(userId);
+    }
+
+    query += " ORDER BY created_at DESC";
+
+    const result = await pool.query(query, values);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -110,7 +151,7 @@ app.post("/reminders", async (req, res) => {
     fecha_proximo_pago,
     frecuencia,
     es_cuota,
-    cuota_actual
+    cuota_actual,
   } = req.body;
 
   try {
@@ -130,18 +171,18 @@ app.post("/reminders", async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *;
     `;
-    
+
     const values = [
-      user_id, 
+      user_id,
       nombre,
-      macrocategoria, 
-      categoria, 
-      negocio, 
+      macrocategoria,
+      categoria,
+      negocio,
       monto,
       fecha_proximo_pago,
       frecuencia,
       es_cuota,
-      cuota_actual
+      cuota_actual,
     ];
 
     const result = await pool.query(query, values);
@@ -153,10 +194,13 @@ app.post("/reminders", async (req, res) => {
 });
 
 app.get("/reminders", async (req, res) => {
+  const { userId } = req.query;
   try {
-    const result = await pool.query("SELECT * FROM reminders ORDER BY next_payment_date ASC");
-    
-    const recordatoriosFormateados = result.rows.map(row => ({
+    const result = await pool.query(
+      "SELECT * FROM reminders ORDER BY next_payment_date ASC",
+    );
+
+    const recordatoriosFormateados = result.rows.map((row) => ({
       id: row.reminder_id,
       user_id: row.user_id,
       nombre: row.reminder_name,
@@ -167,7 +211,7 @@ app.get("/reminders", async (req, res) => {
       fecha_proximo_pago: row.next_payment_date,
       frecuencia: row.payment_frequency,
       es_cuota: row.is_installment,
-      cuota_actual: row.installment_number
+      cuota_actual: row.installment_number,
     }));
 
     res.json(recordatoriosFormateados);
@@ -181,8 +225,28 @@ app.get("/reminders", async (req, res) => {
 app.get("/exchange-rates", async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT * FROM exchange_rates ORDER BY rate_date DESC LIMIT 30"
+      "SELECT * FROM exchange_rates ORDER BY rate_date DESC LIMIT 30",
     );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- CUENTAS (ACCOUNTS) ---
+app.get("/accounts", async (req, res) => {
+  const { userId } = req.query;
+  try {
+    let query = "SELECT * FROM accounts";
+    let values = [];
+
+    if (userId) {
+      query += " WHERE user_id = $1";
+      values.push(userId);
+    }
+
+    const result = await pool.query(query, values);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -193,7 +257,7 @@ app.get("/exchange-rates", async (req, res) => {
 app.get("/exchange-rates/latest", async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT * FROM exchange_rates ORDER BY rate_date DESC LIMIT 1"
+      "SELECT * FROM exchange_rates ORDER BY rate_date DESC LIMIT 1",
     );
     res.json(result.rows[0] || null);
   } catch (err) {
@@ -208,4 +272,3 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 Backend corriendo en el puerto ${PORT}`);
 });
-
