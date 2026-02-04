@@ -1,11 +1,19 @@
 import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-// 1. Importa el hook (ajusta la ruta según tu proyecto)
-import { useExchangeRate } from "../../hooks/useExchangeRate"; 
+import { useExchangeRate } from "../../hooks/useExchangeRate";
+import { Link } from "react-router-dom";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import biyuyoLogo from "@/assets/biyuyo-logo.png";
 
 export function MobileHeader() {
-  // 2. Extraemos 'rate' y 'loading' del hook
   const { rate, loading } = useExchangeRate();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -30,30 +38,46 @@ export function MobileHeader() {
   return (
     <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 h-14 bg-card border-b-2 border-border px-4 flex items-center justify-between transition-transform duration-300 lg:hidden",
+        "fixed top-0 left-0 right-0 z-50 h-14 bg-card border-b-2 border-border px-3 flex items-center justify-between transition-transform duration-300 lg:hidden",
         !isVisible && "-translate-y-full"
       )}
     >
-      {/* Profile */}
-      <div className="flex items-center gap-3">
-        <Avatar className="h-9 w-9 border-2 border-border">
-          <AvatarImage src="/placeholder.svg" alt="User" />
-          <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-sm">
-            JD
-          </AvatarFallback>
-        </Avatar>
-        <span className="font-semibold text-sm">John Doe</span>
-      </div>
+      {/* Profile with Dropdown */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="flex items-center gap-1.5 focus:outline-none">
+            <Avatar className="h-8 w-8 border-2 border-border">
+              <AvatarImage src="/placeholder.svg" alt="User" />
+              <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-xs">
+                JD
+              </AvatarFallback>
+            </Avatar>
+            <span className="font-medium text-xs">John Doe</span>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-48 border-2">
+          <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem>Perfil</DropdownMenuItem>
+          <DropdownMenuItem>Facturación</DropdownMenuItem>
+          <DropdownMenuItem>Configuración</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="text-destructive">Cerrar sesión</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Center Logo */}
+      <Link to="/" className="absolute left-1/2 -translate-x-1/2">
+        <img src={biyuyoLogo} alt="Biyuyo" className="h-9 w-auto" />
+      </Link>
 
       {/* Exchange Rate */}
-      <div className="flex items-center gap-2 bg-muted px-3 py-1.5 rounded-lg">
-        <span className="text-xs text-muted-foreground uppercase">BCV</span>
-        <span className="font-mono font-bold text-sm text-primary">
-          {/* 3. Lógica para mostrar el precio o un estado de carga */}
+      <div className="flex items-center bg-muted px-2 py-1 rounded-md">
+        <span className="font-mono font-semibold text-xs text-primary">
           {loading ? (
             <span className="animate-pulse opacity-50">...</span>
           ) : (
-            `Bs. ${rate?.toLocaleString("es-VE", {
+            `$1 ⇄ Bs. ${rate?.toLocaleString("es-VE", {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             })}`

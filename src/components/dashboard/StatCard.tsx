@@ -29,23 +29,23 @@ const iconStyles = {
 
 export function StatCard({ title, value, icon: Icon, trend, variant = "default" }: StatCardProps) {
   return (
-    <Card className={cn("border-2 transition-all hover:shadow-md", variantStyles[variant])}>
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-3xl font-bold tracking-tight">{value}</p>
+    <Card className={cn("border-2 transition-all hover:shadow-md overflow-hidden", variantStyles[variant])}>
+      <CardContent className="p-4 lg:p-6">
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-2 min-w-0 flex-1">
+            <p className="text-sm font-medium text-muted-foreground truncate">{title}</p>
+            <p className="text-2xl lg:text-3xl font-bold tracking-tight truncate">{value}</p>
             {trend && (
               <p className={cn(
-                "text-sm font-medium",
+                "text-xs lg:text-sm font-medium",
                 trend.isPositive ? "text-primary" : "text-destructive"
               )}>
                 {trend.isPositive ? "+" : ""}{trend.value}% from last month
               </p>
             )}
           </div>
-          <div className={cn("p-3 rounded-lg", iconStyles[variant])}>
-            <Icon className="h-6 w-6" />
+          <div className={cn("p-2 lg:p-3 rounded-lg shrink-0 hidden sm:flex", iconStyles[variant])}>
+            <Icon className="h-5 w-5 lg:h-6 lg:w-6" />
           </div>
         </div>
       </CardContent>
