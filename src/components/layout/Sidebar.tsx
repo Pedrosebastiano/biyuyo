@@ -1,11 +1,11 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  LayoutDashboard, 
-  Wallet, 
-  TrendingUp, 
-  Users, 
+import {
+  LayoutDashboard,
+  Wallet,
+  TrendingUp,
+  Users,
   Target,
   Settings,
   Crown,
@@ -19,13 +19,13 @@ import biyuyoLogo from "@/assets/biyuyo-logo.png";
 const navigation = [
   { name: "Dashboard", icon: LayoutDashboard, href: "/", current: true },
   { name: "Transacciones", icon: Wallet, href: "/transactions", current: false },
-  { name: "Analytics", icon: TrendingUp, href: "/analytics", current: false },
-  { name: "Shared Accounts", icon: Users, href: "/shared", current: false, badge: "Premium" },
-  { name: "Goals", icon: Target, href: "/goals", current: false },
+  { name: "Análisis", icon: TrendingUp, href: "/analytics", current: false },
+  { name: "Cuentas Compartidas", icon: Users, href: "/shared", current: false, badge: "Premium" },
+  { name: "Metas", icon: Target, href: "/goals", current: false },
 ];
 
 const bottomNav = [
-  { name: "Settings", icon: Settings, href: "/settings" },
+  { name: "Configuración", icon: Settings, href: "/settings" },
 ];
 
 interface SidebarProps {
@@ -34,7 +34,7 @@ interface SidebarProps {
 
 export function Sidebar({ className }: SidebarProps) {
   const { rate, loading } = useExchangeRate();
-  
+
   return (
     <div className={cn("flex flex-col h-full bg-card border-r-2 border-border", className)}>
       {/* Logo */}
@@ -43,7 +43,7 @@ export function Sidebar({ className }: SidebarProps) {
           <img src={biyuyoLogo} alt="Biyuyo" className="h-10 w-10 rounded-lg object-contain" />
           <div>
             <h1 className="text-xl font-bold tracking-tight">Biyuyo</h1>
-            <p className="text-xs text-muted-foreground">Smart Money Management</p>
+            <p className="text-xs text-muted-foreground">Gestión Inteligente de Dinero</p>
           </div>
         </Link>
       </div>
@@ -79,7 +79,7 @@ export function Sidebar({ className }: SidebarProps) {
               <item.icon className="h-5 w-5" />
               <span className="flex-1 text-left">{item.name}</span>
               {item.badge && (
-                <Badge 
+                <Badge
                   variant={item.badge === "Premium" ? "secondary" : "default"}
                   className="text-xs"
                 >
@@ -96,13 +96,13 @@ export function Sidebar({ className }: SidebarProps) {
         <div className="p-4 rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
           <div className="flex items-center gap-2 mb-2">
             <Crown className="h-5 w-5" />
-            <span className="font-semibold">Go Premium</span>
+            <span className="font-semibold">Pásate a Premium</span>
           </div>
           <p className="text-sm opacity-90 mb-3">
-            Unlock shared accounts, advanced analytics & more
+            Desbloquea cuentas compartidas, análisis avanzados y más
           </p>
           <Button variant="secondary" size="sm" className="w-full">
-            Upgrade Now
+            Actualizar Ahora
           </Button>
         </div>
       </div>
@@ -124,7 +124,7 @@ export function Sidebar({ className }: SidebarProps) {
           className="w-full justify-start gap-3 h-11 text-muted-foreground hover:text-destructive"
         >
           <LogOut className="h-5 w-5" />
-          <span>Log out</span>
+          <span>Cerrar sesión</span>
         </Button>
       </div>
     </div>
