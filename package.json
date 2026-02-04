@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "scraper": "tsx src/scripts/bcv-scraper.ts"
+    "scraper": "tsx src/scripts/bcv-scraper.ts --once"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
