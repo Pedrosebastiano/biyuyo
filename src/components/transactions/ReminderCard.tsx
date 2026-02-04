@@ -3,8 +3,6 @@ import { Badge } from "@/components/ui/badge";
 import { CalendarClock } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
-import { cn } from "@/lib/utils";
-import InvoiceButton from './InvoiceButton';
 
 // Función para traducir frecuencias
 const translateFrequency = (frequency: string): string => {
