@@ -37,12 +37,15 @@ export function MobileHeader() {
       {/* Profile */}
       <div className="flex items-center gap-3">
         <Avatar className="h-9 w-9 border-2 border-border">
-          <AvatarImage src="/placeholder.svg" alt="User" />
+          <AvatarImage 
+            src="https://pmjjguyibxydzxnofcjx.supabase.co/storage/v1/object/public/factura/biyuyo_imagen.png" 
+            alt="Biyuyo Logo" 
+          />
           <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-sm">
-            JD
+            BY
           </AvatarFallback>
         </Avatar>
-        <span className="font-semibold text-sm">John Doe</span>
+        <span className="font-semibold text-sm">Biyuyo</span>
       </div>
 
       {/* Exchange Rate */}
