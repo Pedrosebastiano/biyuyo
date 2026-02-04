@@ -1,0 +1,62 @@
+name: Actualizar Tasa BCV Diariamente
+
+on:
+  schedule:
+    # Ejecutar todos los días a las 00:01 hora de Venezuela (UTC-4)
+    # Venezuela UTC-4 → 00:01 VET = 04:01 UTC
+    - cron: '1 4 * * *'
+  workflow_dispatch: # Permite ejecutarlo manualmente desde GitHub
+
+jobs:
+  update-rates:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write # Permiso vital para poder guardar el JSON en el repo
+
+    steps:
+      - name: 📥 Clonar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Obtener todo el historial para evitar conflictos
+
+      - name: 🟢 Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 📦 Instalar dependencias
+        run: npm ci
+
+      - name: 🕷️ Ejecutar Scraper BCV
+        run: npm run scraper
+        env:
+          TZ: America/Caracas # Establecer zona horaria de Venezuela
+
+      - name: 💾 Configurar Git
+        run: |
+          git config --global user.name "BCV Bot"
+          git config --global user.email "bot@noreply.github.com"
+
+      - name: 📤 Guardar cambios (Commit & Push)
+        run: |
+          # Verificar si hubo cambios en el archivo
+          if git diff --quiet public/rates.json; then
+            echo "✅ No hay cambios en la tasa hoy (misma tasa que ayer)"
+          else
+            git add public/rates.json
+            git commit -m "🤖 Actualización automática: Tasa BCV $(date +'%d/%m/%Y')"
+            git pull --rebase origin main || git pull --rebase origin master
+            git push
+            echo "✅ Tasa actualizada y guardada en el repositorio"
+          fi
+
+      - name: 📊 Notificación de resultado
+        if: success()
+        run: echo "✅ Workflow completado exitosamente a las $(date)"
+
+      - name: ❌ Notificación de error
+        if: failure()
+        run: |
+          echo "❌ Falló el scraper BCV. Revisa los logs."
+          exit 1
