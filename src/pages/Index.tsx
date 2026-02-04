@@ -5,7 +5,9 @@ import { IncomeExpenseChart } from "@/components/dashboard/IncomeExpenseChart";
 import { TransactionList } from "@/components/dashboard/TransactionList";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { FinancialGoals } from "@/components/dashboard/FinancialGoals";
+import { useTransactions } from "@/hooks/useTransactions";
 import { Wallet, TrendingUp, TrendingDown, PiggyBank } from "lucide-react";
+import { APP_CONFIG } from "@/lib/config";
 
 const stats = [
   {
@@ -39,6 +41,8 @@ const stats = [
 ];
 
 const Index = () => {
+  const { transactions } = useTransactions(APP_CONFIG.DEFAULT_USER_ID);
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -62,8 +66,8 @@ const Index = () => {
 
         {/* Charts Row */}
         <div className="grid gap-6 lg:grid-cols-2">
-          <IncomeExpenseChart />
-          <ExpenseChart />
+          <IncomeExpenseChart transactions={transactions} />
+          <ExpenseChart transactions={transactions} />
         </div>
 
         {/* Bottom Row */}

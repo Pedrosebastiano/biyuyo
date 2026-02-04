@@ -8,6 +8,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// MiddleWare de Logging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
 // NOTA DE SEGURIDAD: Eventualmente moveremos esto a variables de entorno.
 const connectionString =
   "postgresql://postgres.pmjjguyibxydzxnofcjx:ZyMDIx2p3EErqtaG@aws-0-us-west-2.pooler.supabase.com:6543/postgres";
@@ -56,10 +62,19 @@ app.post("/expenses", async (req, res) => {
 });
 
 app.get("/expenses", async (req, res) => {
+  const { userId } = req.query;
   try {
-    const result = await pool.query(
-      "SELECT * FROM expenses ORDER BY created_at DESC",
-    );
+    let query = "SELECT * FROM expenses";
+    let values = [];
+
+    if (userId) {
+      query += " WHERE user_id = $1";
+      values.push(userId);
+    }
+
+    query += " ORDER BY created_at DESC";
+
+    const result = await pool.query(query, values);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -88,8 +103,19 @@ app.post("/incomes", async (req, res) => {
 });
 
 app.get('/incomes', async (req, res) => {
+  const { userId } = req.query;
   try {
-    const result = await pool.query('SELECT * FROM incomes ORDER BY created_at DESC');
+    let query = "SELECT * FROM incomes";
+    let values = [];
+
+    if (userId) {
+      query += " WHERE user_id = $1";
+      values.push(userId);
+    }
+
+    query += " ORDER BY created_at DESC";
+
+    const result = await pool.query(query, values);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -133,14 +159,14 @@ app.post("/reminders", async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *;
     `;
-    
+
     // Asignamos las variables recibidas al orden correcto
     const values = [
-      user_id, 
+      user_id,
       nombre,              // Va a reminder_name
-      macrocategoria, 
-      categoria, 
-      negocio, 
+      macrocategoria,
+      categoria,
+      negocio,
       monto,               // Va a total_amount
       fecha_proximo_pago,  // Va a next_payment_date
       frecuencia,          // Va a payment_frequency
@@ -157,10 +183,20 @@ app.post("/reminders", async (req, res) => {
 });
 
 app.get("/reminders", async (req, res) => {
+  const { userId } = req.query;
   try {
-    // Ordenamos por fecha más próxima
-    const result = await pool.query("SELECT * FROM reminders ORDER BY next_payment_date ASC");
-    
+    let query = "SELECT * FROM reminders";
+    let values = [];
+
+    if (userId) {
+      query += " WHERE user_id = $1";
+      values.push(userId);
+    }
+
+    query += " ORDER BY next_payment_date ASC";
+
+    const result = await pool.query(query, values);
+
     // Transformamos los datos de vuelta al español para que el Frontend los entienda
     const recordatoriosFormateados = result.rows.map(row => ({
       id: row.reminder_id,           // Tu tabla usa reminder_id
@@ -177,6 +213,26 @@ app.get("/reminders", async (req, res) => {
     }));
 
     res.json(recordatoriosFormateados);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- CUENTAS (ACCOUNTS) ---
+app.get("/accounts", async (req, res) => {
+  const { userId } = req.query;
+  try {
+    let query = "SELECT * FROM accounts";
+    let values = [];
+
+    if (userId) {
+      query += " WHERE user_id = $1";
+      values.push(userId);
+    }
+
+    const result = await pool.query(query, values);
+    res.json(result.rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

@@ -23,6 +23,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Info } from "lucide-react";
 
 // More saturated color palette (except for savings goal)
 const pastelColors = [
@@ -62,17 +64,50 @@ function CustomLegend({ chartData }: { chartData: any[] }) {
   );
 }
 
-export function MonthlySavingsChart() {
+import { Transaction } from "@/hooks/useTransactions";
+import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
+
+export function MonthlySavingsChart({ transactions }: { transactions: Transaction[] }) {
   const [savingsGoal, setSavingsGoal] = useState(100);
   const [tempGoal, setTempGoal] = useState(savingsGoal.toString());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const data = useMemo(() => [
-    { name: "Meta de ahorro", value: savingsGoal, color: "#bdbdbd" },
-    { name: "Ene", value: 50.41, color: pastelColors[0] },
-    { name: "Feb", value: 75.06, color: pastelColors[1] },
-    { name: "Mar", value: 95.66, color: pastelColors[2] },
-  ], [savingsGoal]);
+  const data = useMemo(() => {
+    const baseData = [{ name: "Meta de ahorro", value: savingsGoal, color: "#bdbdbd" }];
+    if (!transactions || transactions.length === 0) return baseData;
+
+    const grouped: Record<string, { name: string; fullDate: Date; value: number }> = {};
+
+    transactions.forEach((t) => {
+      const dateObj = parseISO(t.date);
+      const monthKey = format(dateObj, "MMM", { locale: es });
+
+      if (!grouped[monthKey]) {
+        grouped[monthKey] = {
+          name: monthKey,
+          fullDate: dateObj,
+          value: 0
+        };
+      }
+
+      if (t.type === "income") {
+        grouped[monthKey].value += t.amount;
+      } else {
+        grouped[monthKey].value -= t.amount;
+      }
+    });
+
+    const monthlyData = Object.values(grouped)
+      .sort((a, b) => a.fullDate.getTime() - b.fullDate.getTime())
+      .map((item, index) => ({
+        name: item.name,
+        value: Number(item.value.toFixed(2)),
+        color: pastelColors[index % pastelColors.length]
+      }));
+
+    return [...baseData, ...monthlyData];
+  }, [transactions, savingsGoal]);
 
   const handleSaveGoal = () => {
     const newGoal = parseFloat(tempGoal);
@@ -84,15 +119,24 @@ export function MonthlySavingsChart() {
 
   return (
     <Card className="border-2 shadow-sm relative">
-      <CardHeader className="text-center pb-2">
-        <CardTitle className="text-2xl font-bold text-[#2d509e]">
-          Ahorros mensuales
-        </CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between pb-0 pt-6 px-6">
+        <div className="flex-1 text-center">
+          <CardTitle className="text-2xl font-bold text-[#2d509e] mr-[-40px]">
+            Ahorros mensuales
+          </CardTitle>
+        </div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button className="flex items-center justify-center w-10 h-10 bg-white rounded-2xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-gray-50 hover:bg-gray-50 transition-colors">
+              <Info className="w-6 h-6 text-[#2d509e]" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-3">
+            <p className="text-sm font-medium text-[#2d509e]">Comparativa de tus ahorros mensuales. Puedes ajustar tu meta en la sección de metas.</p>
+          </PopoverContent>
+        </Popover>
       </CardHeader>
       <CardContent>
-        <div className="text-right text-xs text-muted-foreground mb-1 mr-4">
-          Unit: $
-        </div>
         <div className="h-[350px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart

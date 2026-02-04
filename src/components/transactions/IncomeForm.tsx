@@ -148,9 +148,9 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
   };
 
   const isFormValid =
-    selectedMacro && 
-    selectedCategory && 
-    selectedBusiness && 
+    selectedMacro &&
+    selectedCategory &&
+    selectedBusiness &&
     amount &&
     (selectedBusiness !== "custom" || customBusiness.trim() !== "");
 

@@ -22,6 +22,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Info } from "lucide-react";
 
 interface MonthsGoalCardProps {
     months: number;
@@ -71,25 +73,39 @@ const CylinderBar = (props: any) => {
     );
 };
 
-export function EmergencyFund() {
-    // Variable definition for core numbers
-    const totalSavings = 1200;
-    const monthlyExpenses = 400;
+import { Account, Transaction } from "@/hooks/useTransactions";
 
+export function EmergencyFund({ accounts, transactions }: { accounts: Account[], transactions: Transaction[] }) {
     const [goalMonths, setGoalMonths] = useState(6);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [tempGoalMonths, setTempGoalMonths] = useState(goalMonths.toString());
 
-    // Calculations based on user logic:
-    // Months of Freedom = Total Savings / Monthly Expenses
-    const estimatedMonthsOfFreedom = totalSavings / monthlyExpenses;
+    // Variable definition for core numbers derived from props
+    const totalSavings = useMemo(() =>
+        accounts.reduce((acc, curr) => acc + curr.savings, 0),
+        [accounts]);
 
-    // Meta bar = Goal Months * Monthly Expenses
+    const monthlyExpenses = useMemo(() => {
+        const expenses = transactions.filter(t => t.type === "expense");
+        if (expenses.length === 0) return 400; // Fallback razonable
+
+        const grouped: Record<string, number> = {};
+        expenses.forEach(e => {
+            const month = e.date.substring(0, 7); // YYYY-MM
+            grouped[month] = (grouped[month] || 0) + e.amount;
+        });
+
+        const values = Object.values(grouped);
+        return values.reduce((a, b) => a + b, 0) / (values.length || 1);
+    }, [transactions]);
+
+    // Calculations based on user logic:
+    const estimatedMonthsOfFreedom = monthlyExpenses > 0 ? totalSavings / monthlyExpenses : 0;
     const targetMetaAmount = goalMonths * monthlyExpenses;
 
     const data = useMemo(() => [
-        { name: "Fondo actual", value: totalSavings, color: "#9594FF" },
-        { name: "Fondos requeridos", value: targetMetaAmount, color: "#9594FF" },
+        { name: "Fondo actual", value: Number(totalSavings.toFixed(2)), color: "#9594FF" },
+        { name: "Fondos requeridos", value: Number(targetMetaAmount.toFixed(2)), color: "#9594FF" },
     ], [totalSavings, targetMetaAmount]);
 
     const handleSaveGoal = () => {
@@ -102,10 +118,22 @@ export function EmergencyFund() {
 
     return (
         <Card className="border-2 shadow-sm">
-            <CardHeader className="text-center pb-2">
-                <CardTitle className="text-2xl font-bold text-[#2d509e]">
-                    Fondo actual V.S Meta
-                </CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between pb-0 pt-6 px-6">
+                <div className="flex-1 text-center">
+                    <CardTitle className="text-2xl font-bold text-[#2d509e] mr-[-40px]">
+                        Fondo actual V.S Meta
+                    </CardTitle>
+                </div>
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <button className="flex items-center justify-center w-10 h-10 bg-white rounded-2xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-gray-50 hover:bg-gray-50 transition-colors">
+                            <Info className="w-6 h-6 text-[#2d509e]" />
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-3">
+                        <p className="text-sm font-medium text-[#2d509e]">Fondo de emergencia y meses de libertad</p>
+                    </PopoverContent>
+                </Popover>
             </CardHeader>
             <CardContent>
                 <div className="flex flex-col items-start px-6">
@@ -119,7 +147,6 @@ export function EmergencyFund() {
                 </div>
 
                 <div className="h-[300px] w-full mt-4 relative">
-                    <div className="absolute top-0 left-0 text-xs text-muted-foreground ml-4">Unit: $</div>
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart
                             data={data}
