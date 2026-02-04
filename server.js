@@ -133,14 +133,14 @@ app.post("/reminders", async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *;
     `;
-    
+
     // Asignamos las variables recibidas al orden correcto
     const values = [
-      user_id, 
+      user_id,
       nombre,              // Va a reminder_name
-      macrocategoria, 
-      categoria, 
-      negocio, 
+      macrocategoria,
+      categoria,
+      negocio,
       monto,               // Va a total_amount
       fecha_proximo_pago,  // Va a next_payment_date
       frecuencia,          // Va a payment_frequency
@@ -160,7 +160,7 @@ app.get("/reminders", async (req, res) => {
   try {
     // Ordenamos por fecha más próxima
     const result = await pool.query("SELECT * FROM reminders ORDER BY next_payment_date ASC");
-    
+
     // Transformamos los datos de vuelta al español para que el Frontend los entienda
     const recordatoriosFormateados = result.rows.map(row => ({
       id: row.reminder_id,           // Tu tabla usa reminder_id
@@ -177,6 +177,17 @@ app.get("/reminders", async (req, res) => {
     }));
 
     res.json(recordatoriosFormateados);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- CUENTAS (ACCOUNTS) ---
+app.get("/accounts", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM accounts");
+    res.json(result.rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

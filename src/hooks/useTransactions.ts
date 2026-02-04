@@ -30,30 +30,40 @@ export interface Reminder {
   totalInstallments?: number;
 }
 
+export interface Account {
+  id: string;
+  name: string;
+  balance: number;
+  savings: number;
+  createdAt: string;
+}
+
 export function useTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Función para obtener los datos de la NUBE (Render + Supabase) 
   const fetchTransactions = useCallback(async () => {
     try {
-      setLoading(true);
-      // 1. Pedimos Gastos, Ingresos y Recordatorios al mismo tiempo
-      const [resExpenses, resIncomes, resReminders] = await Promise.all([
+      // 1. Pedimos Gastos, Ingresos, Recordatorios y Cuentas al mismo tiempo
+      const [resExpenses, resIncomes, resReminders, resAccounts] = await Promise.all([
         fetch(`${API_URL}/expenses`),
         fetch(`${API_URL}/incomes`),
-        fetch(`${API_URL}/reminders`)
+        fetch(`${API_URL}/reminders`),
+        fetch(`${API_URL}/accounts`)
       ]);
 
       const expensesData = await resExpenses.json();
       const incomesData = await resIncomes.json();
       const remindersData = await resReminders.json();
+      const accountsData = await resAccounts.json();
 
       // 2. Convertimos el formato de la Base de Datos al formato de tu App
       // La BD devuelve: { macrocategoria, total_amount, created_at ... }
       // Tu App espera: { macroCategory, amount, date ... }
-      
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const formattedExpenses: Transaction[] = expensesData
         .filter((item: any) => item.expense_id) // Asegurar que tenga ID
@@ -103,13 +113,23 @@ export function useTransactions() {
           totalInstallments: item.cuota_actual || undefined, // Total de cuotas
         }));
 
-      // 4. Unimos transacciones y ordenamos por fecha (más reciente primero)
+      // 4. Formateamos las cuentas
+      const formattedAccounts: Account[] = accountsData.map((item: any) => ({
+        id: item.account_id,
+        name: item.name,
+        balance: parseFloat(item.balance),
+        savings: parseFloat(item.savings),
+        createdAt: item.created_at,
+      }));
+
+      // 5. Unimos transacciones y ordenamos por fecha (más reciente primero)
       const allTransactions = [...formattedExpenses, ...formattedIncomes].sort((a, b) => {
         return new Date(b.date).getTime() - new Date(a.date).getTime();
       });
 
       setTransactions(allTransactions);
       setReminders(formattedReminders);
+      setAccounts(formattedAccounts);
 
     } catch (error) {
       console.error("Error cargando transacciones:", error);
@@ -132,10 +152,11 @@ export function useTransactions() {
   return {
     transactions,
     reminders,
+    accounts,
     loading,
     refreshTransactions, // Usar esto después de crear un gasto/ingreso/recordatorio
     // Mantenemos las firmas para que no rompa tu UI, pero ahora solo refrescan
-    addTransaction: refreshTransactions, 
+    addTransaction: refreshTransactions,
     addReminder: refreshTransactions, // Ahora refresca todo incluyendo recordatorios
   };
 }

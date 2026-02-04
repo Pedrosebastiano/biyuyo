@@ -24,8 +24,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="hidden lg:block">
           <Header />
         </div>
-        
-        <main className="p-4 pt-18 pb-20 lg:p-6 lg:pt-6 lg:pb-6">
+
+        <main className="p-4 pt-20 pb-20 lg:p-6 lg:pt-6 lg:pb-6">
           {children}
         </main>
       </div>

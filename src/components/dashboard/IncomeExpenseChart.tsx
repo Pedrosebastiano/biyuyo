@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Dot } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { SavingsGoalCard } from "./GoalCard";
 import { Info } from "lucide-react";
 import {
@@ -7,17 +7,50 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Transaction } from "@/hooks/useTransactions";
+import { useMemo } from "react";
+import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
 
-const data = [
-  { month: "Jan", income: 4200, expenses: 2800 },
-  { month: "Feb", income: 4500, expenses: 3100 },
-  { month: "Mar", income: 4300, expenses: 2900 },
-  { month: "Apr", income: 4800, expenses: 3200 },
-  { month: "May", income: 5100, expenses: 3400 },
-  { month: "Jun", income: 4900, expenses: 3100 },
-];
+interface IncomeExpenseChartProps {
+  transactions: Transaction[];
+}
 
-export function IncomeExpenseChart() {
+export function IncomeExpenseChart({ transactions }: IncomeExpenseChartProps) {
+  const chartData = useMemo(() => {
+    if (!transactions || transactions.length === 0) return [];
+
+    const grouped: Record<string, { date: string; fullDate: Date; ingresos: number; gastos: number }> = {};
+
+    transactions.forEach((t) => {
+      const dateObj = parseISO(t.date);
+      const monthKey = format(dateObj, "MMM", { locale: es });
+
+      if (!grouped[monthKey]) {
+        grouped[monthKey] = {
+          date: monthKey,
+          fullDate: dateObj,
+          ingresos: 0,
+          gastos: 0
+        };
+      }
+
+      if (t.type === "income") {
+        grouped[monthKey].ingresos += t.amount;
+      } else {
+        grouped[monthKey].gastos += t.amount;
+      }
+    });
+
+    return Object.values(grouped).sort((a, b) => a.fullDate.getTime() - b.fullDate.getTime());
+  }, [transactions]);
+
+  const averageExpenses = useMemo(() => {
+    if (chartData.length === 0) return 0;
+    const totalGastos = chartData.reduce((acc, current) => acc + current.gastos, 0);
+    return totalGastos / chartData.length;
+  }, [chartData]);
+
   return (
     <Card className="border-2">
       <CardHeader className="flex flex-row items-center justify-between pb-0 pt-6 px-6">
@@ -40,12 +73,12 @@ export function IncomeExpenseChart() {
       <CardContent className="pb-2">
         <div className="h-[260px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+            <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
               <CartesianGrid stroke="#ececec" strokeDasharray="6 6" />
               <XAxis dataKey="date" tick={{ fill: '#888', fontSize: 13 }} axisLine={false} tickLine={false} />
-              <YAxis domain={[0, 100]} tick={{ fill: '#888', fontSize: 13 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#888', fontSize: 13 }} axisLine={false} tickLine={false} />
               <Tooltip
-                formatter={(value: number) => [`$${value}`, ""]}
+                formatter={(value: number) => [`$${value.toFixed(2)}`, ""]}
                 contentStyle={{
                   backgroundColor: "hsl(var(--card))",
                   border: "2px solid hsl(var(--border))",
@@ -89,7 +122,7 @@ export function IncomeExpenseChart() {
         </div>
       </CardContent>
       <div className="px-6 pb-6">
-        <SavingsGoalCard goal={100} text="Promedio de gasto diario:" currency="$" />
+        <SavingsGoalCard goal={averageExpenses} text="Promedio de gasto diario:" currency="$" />
       </div>
     </Card>
   );

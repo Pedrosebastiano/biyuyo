@@ -64,17 +64,50 @@ function CustomLegend({ chartData }: { chartData: any[] }) {
   );
 }
 
-export function MonthlySavingsChart() {
+import { Transaction } from "@/hooks/useTransactions";
+import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
+
+export function MonthlySavingsChart({ transactions }: { transactions: Transaction[] }) {
   const [savingsGoal, setSavingsGoal] = useState(100);
   const [tempGoal, setTempGoal] = useState(savingsGoal.toString());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const data = useMemo(() => [
-    { name: "Meta de ahorro", value: savingsGoal, color: "#bdbdbd" },
-    { name: "Ene", value: 50.41, color: pastelColors[0] },
-    { name: "Feb", value: 75.06, color: pastelColors[1] },
-    { name: "Mar", value: 95.66, color: pastelColors[2] },
-  ], [savingsGoal]);
+  const data = useMemo(() => {
+    const baseData = [{ name: "Meta de ahorro", value: savingsGoal, color: "#bdbdbd" }];
+    if (!transactions || transactions.length === 0) return baseData;
+
+    const grouped: Record<string, { name: string; fullDate: Date; value: number }> = {};
+
+    transactions.forEach((t) => {
+      const dateObj = parseISO(t.date);
+      const monthKey = format(dateObj, "MMM", { locale: es });
+
+      if (!grouped[monthKey]) {
+        grouped[monthKey] = {
+          name: monthKey,
+          fullDate: dateObj,
+          value: 0
+        };
+      }
+
+      if (t.type === "income") {
+        grouped[monthKey].value += t.amount;
+      } else {
+        grouped[monthKey].value -= t.amount;
+      }
+    });
+
+    const monthlyData = Object.values(grouped)
+      .sort((a, b) => a.fullDate.getTime() - b.fullDate.getTime())
+      .map((item, index) => ({
+        name: item.name,
+        value: Number(item.value.toFixed(2)),
+        color: pastelColors[index % pastelColors.length]
+      }));
+
+    return [...baseData, ...monthlyData];
+  }, [transactions, savingsGoal]);
 
   const handleSaveGoal = () => {
     const newGoal = parseFloat(tempGoal);

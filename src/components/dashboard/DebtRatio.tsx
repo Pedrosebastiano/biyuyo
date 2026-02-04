@@ -14,30 +14,14 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 
-const debtItems = [
-    { name: "Mensualidad del gimnasio", amount: 80 },
-    { name: "Cashea", amount: 100 },
-];
-
-const totalMoney = 1200;
-const debtAmount = debtItems.reduce((acc, item) => acc + item.amount, 0) || 1;
-const percentage = (debtAmount / totalMoney) * 100;
+import { Reminder, Account } from "@/hooks/useTransactions";
+import { useMemo } from "react";
 
 const getColor = (percent: number) => {
     if (percent <= 20) return "#00E676"; // Green (Healthy)
     if (percent <= 35) return "#FFD600"; // Yellow (Precaution)
     return "#FF1744"; // Red (Critical)
 };
-
-const fillColor = getColor(percentage);
-
-const data = [
-    {
-        name: "Deudas",
-        value: percentage,
-        fill: fillColor,
-    },
-];
 
 interface DebtListCardProps {
     items: { name: string; amount: number }[];
@@ -64,12 +48,18 @@ const DebtListCard: React.FC<DebtListCardProps> = ({ items }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {items.map((item, index) => (
-                            <tr key={index} className={index !== items.length - 1 ? "border-b border-[#f0f9f9]" : ""}>
-                                <td className="px-4 py-3 text-[#29488e] font-medium">{item.name}</td>
-                                <td className="px-4 py-3 text-[#29488e] font-bold text-right">${item.amount}</td>
+                        {items.length > 0 ? (
+                            items.map((item, index) => (
+                                <tr key={index} className={index !== items.length - 1 ? "border-b border-[#f0f9f9]" : ""}>
+                                    <td className="px-4 py-3 text-[#29488e] font-medium">{item.name}</td>
+                                    <td className="px-4 py-3 text-[#29488e] font-bold text-right">${item.amount}</td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan={2} className="px-4 py-3 text-[#29488e] text-center opacity-50">No hay deudas pendientes</td>
                             </tr>
-                        ))}
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -77,7 +67,32 @@ const DebtListCard: React.FC<DebtListCardProps> = ({ items }) => {
     );
 };
 
-export function DebtRatio() {
+export function DebtRatio({ reminders, accounts }: { reminders: Reminder[], accounts: Account[] }) {
+    const debtItems = useMemo(() =>
+        reminders.map(r => ({ name: r.name, amount: r.amount })),
+        [reminders]);
+
+    const totalMoney = useMemo(() =>
+        accounts.reduce((acc, curr) => acc + curr.balance, 0),
+        [accounts]);
+
+    const debtAmount = useMemo(() =>
+        debtItems.reduce((acc, item) => acc + item.amount, 0),
+        [debtItems]);
+
+    const percentage = useMemo(() =>
+        totalMoney > 0 ? (debtAmount / totalMoney) * 100 : 0,
+        [debtAmount, totalMoney]);
+
+    const fillColor = useMemo(() => getColor(percentage), [percentage]);
+
+    const data = useMemo(() => [
+        {
+            name: "Deudas",
+            value: percentage,
+            fill: fillColor,
+        },
+    ], [percentage, fillColor]);
     return (
         <Card className="border-2 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-0 pt-6 px-6">

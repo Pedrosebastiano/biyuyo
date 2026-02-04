@@ -73,25 +73,39 @@ const CylinderBar = (props: any) => {
     );
 };
 
-export function EmergencyFund() {
-    // Variable definition for core numbers
-    const totalSavings = 1200;
-    const monthlyExpenses = 400;
+import { Account, Transaction } from "@/hooks/useTransactions";
 
+export function EmergencyFund({ accounts, transactions }: { accounts: Account[], transactions: Transaction[] }) {
     const [goalMonths, setGoalMonths] = useState(6);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [tempGoalMonths, setTempGoalMonths] = useState(goalMonths.toString());
 
-    // Calculations based on user logic:
-    // Months of Freedom = Total Savings / Monthly Expenses
-    const estimatedMonthsOfFreedom = totalSavings / monthlyExpenses;
+    // Variable definition for core numbers derived from props
+    const totalSavings = useMemo(() =>
+        accounts.reduce((acc, curr) => acc + curr.savings, 0),
+        [accounts]);
 
-    // Meta bar = Goal Months * Monthly Expenses
+    const monthlyExpenses = useMemo(() => {
+        const expenses = transactions.filter(t => t.type === "expense");
+        if (expenses.length === 0) return 400; // Fallback razonable
+
+        const grouped: Record<string, number> = {};
+        expenses.forEach(e => {
+            const month = e.date.substring(0, 7); // YYYY-MM
+            grouped[month] = (grouped[month] || 0) + e.amount;
+        });
+
+        const values = Object.values(grouped);
+        return values.reduce((a, b) => a + b, 0) / (values.length || 1);
+    }, [transactions]);
+
+    // Calculations based on user logic:
+    const estimatedMonthsOfFreedom = monthlyExpenses > 0 ? totalSavings / monthlyExpenses : 0;
     const targetMetaAmount = goalMonths * monthlyExpenses;
 
     const data = useMemo(() => [
-        { name: "Fondo actual", value: totalSavings, color: "#9594FF" },
-        { name: "Fondos requeridos", value: targetMetaAmount, color: "#9594FF" },
+        { name: "Fondo actual", value: Number(totalSavings.toFixed(2)), color: "#9594FF" },
+        { name: "Fondos requeridos", value: Number(targetMetaAmount.toFixed(2)), color: "#9594FF" },
     ], [totalSavings, targetMetaAmount]);
 
     const handleSaveGoal = () => {
