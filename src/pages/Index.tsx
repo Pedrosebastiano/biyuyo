@@ -57,6 +57,9 @@ const Index = () => {
           ))}
         </div>
 
+        {/* Quick Actions - between stats and charts */}
+        <QuickActions />
+
         {/* Charts Row */}
         <div className="grid gap-6 lg:grid-cols-2">
           <IncomeExpenseChart />
@@ -69,7 +72,6 @@ const Index = () => {
             <TransactionList />
           </div>
           <div className="space-y-6">
-            <QuickActions />
             <FinancialGoals />
           </div>
         </div>
