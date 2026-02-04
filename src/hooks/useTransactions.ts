@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 
-// URL DE TU BACKEND EN RENDER
-const API_URL = "https://biyuyo-pruebas.onrender.com";
+import { getApiUrl } from "@/lib/config";
+
+const API_URL = getApiUrl();
+
 
 export interface Transaction {
   id: string;
@@ -38,7 +40,7 @@ export interface Account {
   createdAt: string;
 }
 
-export function useTransactions() {
+export function useTransactions(userId?: string) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -47,18 +49,30 @@ export function useTransactions() {
   // Función para obtener los datos de la NUBE (Render + Supabase) 
   const fetchTransactions = useCallback(async () => {
     try {
+      setLoading(true);
+      const queryParams = userId ? `?userId=${userId}` : "";
+
+      console.log(`[useTransactions] Fetching data from: ${API_URL}`);
+      console.log(`[useTransactions] UserID: ${userId || 'None'}`);
+
       // 1. Pedimos Gastos, Ingresos, Recordatorios y Cuentas al mismo tiempo
       const [resExpenses, resIncomes, resReminders, resAccounts] = await Promise.all([
-        fetch(`${API_URL}/expenses`),
-        fetch(`${API_URL}/incomes`),
-        fetch(`${API_URL}/reminders`),
-        fetch(`${API_URL}/accounts`)
+        fetch(`${API_URL}/expenses${queryParams}`),
+        fetch(`${API_URL}/incomes${queryParams}`),
+        fetch(`${API_URL}/reminders${queryParams}`),
+        fetch(`${API_URL}/accounts${queryParams}`)
       ]);
+
+      console.log(`[useTransactions] Responses: Exp:${resExpenses.status}, Inc:${resIncomes.status}, Rem:${resReminders.status}, Acc:${resAccounts.status}`);
+
 
       const expensesData = await resExpenses.json();
       const incomesData = await resIncomes.json();
       const remindersData = await resReminders.json();
       const accountsData = await resAccounts.json();
+
+      console.log(`[useTransactions] Data count: Exp:${expensesData.length}, Inc:${incomesData.length}, Rem:${remindersData.length}, Acc:${accountsData.length}`);
+
 
       // 2. Convertimos el formato de la Base de Datos al formato de tu App
       // La BD devuelve: { macrocategoria, total_amount, created_at ... }
@@ -136,7 +150,7 @@ export function useTransactions() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   // Cargar datos al abrir la app
   useEffect(() => {

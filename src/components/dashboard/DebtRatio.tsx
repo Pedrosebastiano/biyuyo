@@ -80,9 +80,11 @@ export function DebtRatio({ reminders, accounts }: { reminders: Reminder[], acco
         debtItems.reduce((acc, item) => acc + item.amount, 0),
         [debtItems]);
 
-    const percentage = useMemo(() =>
-        totalMoney > 0 ? (debtAmount / totalMoney) * 100 : 0,
-        [debtAmount, totalMoney]);
+    const percentage = useMemo(() => {
+        const value = totalMoney > 0 ? (debtAmount / totalMoney) * 100 : 0;
+        console.log(`[DebtRatio] Debt: ${debtAmount}, Balance: ${totalMoney}, Ratio: ${value.toFixed(2)}%`);
+        return value;
+    }, [debtAmount, totalMoney]);
 
     const fillColor = useMemo(() => getColor(percentage), [percentage]);
 
@@ -108,7 +110,7 @@ export function DebtRatio({ reminders, accounts }: { reminders: Reminder[], acco
                         </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-3">
-                        <p className="text-sm font-medium text-[#2d509e]">Deudas sobre ingresos</p>
+                        <p className="text-sm font-medium text-[#2d509e]">Deudas sobre balance de cuenta</p>
                     </PopoverContent>
                 </Popover>
             </CardHeader>
