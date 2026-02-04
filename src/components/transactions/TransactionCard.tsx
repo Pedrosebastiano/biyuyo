@@ -2,7 +2,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ReceiptText } from "lucide-react"; // Importante para el título del modal
+import InvoiceButton from './InvoiceButton'; // Asegúrate de que la ruta sea correcta
 
 interface TransactionCardProps {
   type: "expense" | "income";
@@ -31,56 +33,69 @@ export function TransactionCard({
 
   return (
     <>
-      <Card className="border-2">
+      <Card className="border-2 overflow-hidden">
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-3">
+            {/* Información Izquierda */}
             <div className="flex-1 min-w-0 space-y-1">
               <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs shrink-0">
+                <Badge variant="secondary" className="text-[10px] px-2 py-0 shrink-0">
                   {macroCategory}
                 </Badge>
               </div>
-              <p className="font-medium truncate">{category}</p>
-              <p className="text-sm text-muted-foreground truncate">{business}</p>
-              <p className="text-xs text-muted-foreground">{date}</p>
-              
-              {receiptImage && (
-                <button
-                  onClick={() => setImageDialogOpen(true)}
-                  className="mt-2 w-full"
-                >
-                  <img
-                    src={receiptImage}
-                    alt="Factura"
-                    className="w-full h-24 object-cover rounded-md border-2 border-border hover:opacity-80 transition-opacity"
-                  />
-                </button>
-              )}
+              <p className="font-bold truncate text-foreground">{category}</p>
+              <p className="text-sm text-muted-foreground truncate italic">{business}</p>
+              <p className="text-xs text-muted-foreground pt-1">{date}</p>
             </div>
             
-            <div className="text-right shrink-0">
+            {/* Columna Derecha: Monto + Botón Factura */}
+            <div className="flex flex-col items-end gap-3 shrink-0">
               <span
                 className={cn(
-                  "font-mono font-bold text-lg",
-                  isExpense ? "text-destructive" : "text-primary"
+                  "font-mono font-black text-lg leading-none",
+                  isExpense ? "text-destructive" : "text-emerald-600"
                 )}
               >
                 {isExpense ? "-" : "+"}
                 {currencySymbol}
                 {amount.toLocaleString("es-VE", { minimumFractionDigits: 2 })}
               </span>
+
+              {/* Botón de factura (solo si existe la imagen en Supabase) */}
+              {receiptImage && (
+                <InvoiceButton 
+                  invoiceNumber={`REC-${business.substring(0,3).toUpperCase()}`}
+                  onClick={() => setImageDialogOpen(true)}
+                  className="scale-90 origin-right" // Un poco más pequeño para encajar
+                />
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Modal de la Factura */}
       <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          <img
-            src={receiptImage}
-            alt="Factura"
-            className="w-full h-auto"
-          />
+        <DialogContent className="max-w-md bg-slate-50 border-none shadow-2xl p-6">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="flex items-center gap-2 text-slate-700">
+              <ReceiptText className="h-5 w-5 text-primary" />
+              Comprobante de Pago
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="relative overflow-hidden rounded-xl border-4 border-white shadow-inner bg-white">
+            <img
+              src={receiptImage}
+              alt="Factura"
+              className="w-full h-auto max-h-[70vh] object-contain"
+            />
+          </div>
+          
+          <div className="mt-4 flex justify-between items-center text-[10px] text-muted-foreground font-mono uppercase">
+            <span>{business}</span>
+            <span>{date}</span>
+          </div>
         </DialogContent>
       </Dialog>
     </>
