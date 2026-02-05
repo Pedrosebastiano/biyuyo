@@ -1,25 +1,28 @@
 import admin from "firebase-admin";
-import fs from "fs";
 
-// BUSCAR EL ARCHIVO DE CREDENCIALES
-// Debes descargar tu 'serviceAccountKey.json' de Firebase Console:
-// Project Settings -> Service Accounts -> Generate New Private Key
-// Y guardarlo en la raíz del proyecto.
-const serviceAccountPath = "./serviceAccountKey.json";
+// CONFIGURACIÓN CON VARIABLE DE ENTORNO
+// Esto evita tener que subir el archivo JSON a Git
+// El JSON se carga desde la variable de entorno FIREBASE_SERVICE_ACCOUNT_JSON
 
-if (fs.existsSync(serviceAccountPath)) {
-    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
+if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    try {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
 
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-    });
-
-    console.log("✅ Firebase Admin inicializado correctamente.");
+        if (!admin.apps.length) {
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount),
+            });
+            console.log("✅ Firebase Admin inicializado correctamente desde ENV.");
+        }
+    } catch (err) {
+        console.error("❌ Error inicializando Firebase Admin:", err.message);
+    }
 } else {
-    console.warn("⚠️ ADVERTENCIA: No se encontró 'serviceAccountKey.json'.");
-    console.warn("   Las notificaciones push desde el servidor NO funcionarán.");
-    console.warn("   Descárgalo de Firebase Console y colócalo en la raíz.");
+    console.warn("⚠️ FIREBASE_SERVICE_ACCOUNT_JSON no configurada.");
+    console.warn("   Crea un archivo .env con:");
+    console.warn("   FIREBASE_SERVICE_ACCOUNT_JSON='{...tu JSON aquí...}'");
 }
 
-export const messaging = admin.messaging();
+export const messaging = admin.messaging;
 export default admin;
+
