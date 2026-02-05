@@ -4,7 +4,7 @@ import { messaging } from "@/lib/firebase";
 import { getToken, onMessage } from "firebase/messaging";
 import { toast } from "sonner";
 import { localNotificationService } from "@/services/local-notification-service";
-//import { supabase } from "@/lib/supabase"; 
+import { getApiUrl, APP_CONFIG } from "@/lib/config";
 
 export const usePushNotification = () => {
     const [fcmToken, setFcmToken] = useState<string | null>(null);
@@ -23,8 +23,29 @@ export const usePushNotification = () => {
                     if (currentToken) {
                         setFcmToken(currentToken);
                         console.log("FCM Token obtenido:", currentToken);
-                        // Aquí llamarías a tu función de Supabase:
-                        // await updateProfileToken(currentToken);
+
+                        const apiUrl = getApiUrl();
+                        // Guardar token en el backend para enviarlo luego desde el servidor
+                        try {
+                            await fetch(`${apiUrl}/users/token`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ user_id: APP_CONFIG.DEFAULT_USER_ID, token: currentToken }),
+                            });
+                        } catch (err) {
+                            console.error("Error registrando token en backend:", err);
+                        }
+                        // 2. NUEVO: Suscribir este token al tema 'all' en el servidor
+                        try {
+                            await fetch(`${apiUrl}/subscribe`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ token: currentToken, topic: "all" }),
+                            });
+                            console.log("🚀 Suscrito al tema 'all' exitosamente");
+                        } catch (err) {
+                            console.error("Error al suscribir al tema:", err);
+                        }
                     }
                 }
             } catch (err) {

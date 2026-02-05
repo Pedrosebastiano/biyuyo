@@ -1,47 +1,20 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, TrendingUp, Users, Calculator, BellRing } from "lucide-react";
+import { Plus, TrendingUp, Users, Calculator } from "lucide-react";
 import { AddTransactionDialog } from "@/components/transactions/AddTransactionDialog";
 // Importamos tus servicios de notificaciones
-import { usePushNotification } from "@/hooks/use-push-notification";
-import { localNotificationService } from "@/services/local-notification-service";
+// Notificaciones manejadas en otros componentes — no se usan aquí
 
 export function QuickActions() {
   const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
   
-  // Inicializamos el hook de Push (Firebase)
-  const { fcmToken } = usePushNotification();
-
-  const handleTestNotification = async () => {
-    // 1. Pedir permiso explícito si no lo tiene
-    const permission = await localNotificationService.requestPermission();
-    
-    if (permission === "granted") {
-      // 2. Disparar una notificación local inmediata
-      localNotificationService.displayNotification("¡Biyuyo funcionando!", {
-        body: "Las notificaciones locales y el sistema Push están activos.",
-        requireInteraction: true
-      });
-
-      // 3. Programar una para dentro de 10 segundos (para probar el segundo plano)
-      const future = new Date(Date.now() + 10000);
-      localNotificationService.scheduleNotification(
-        "test-debt",
-        "Recordatorio de Deuda",
-        future,
-        { body: "Esta es una simulación de una deuda vencida." }
-      );
-      
-      console.log("Token FCM actual:", fcmToken);
-    }
-  };
+  // Test de notificaciones removido — funcionalidad centralizada en hooks/servicios
 
   const actions = [
     { label: "Agregar Transacción", shortLabel: "Agregar", icon: Plus, variant: "default" as const, onClick: () => setIsTransactionDialogOpen(true) },
     { label: "Cuentas Compartidas", shortLabel: "Compartidas", icon: Users, variant: "outline" as const, onClick: () => {} },
-    // BOTÓN DE PRUEBA TEMPORAL
-    { label: "Probar Notis", shortLabel: "Notis", icon: BellRing, variant: "outline" as const, onClick: handleTestNotification },
+    // (Botón de pruebas removido)
     { label: "Predecir Gastos", shortLabel: "Predecir", icon: Calculator, variant: "outline" as const, onClick: () => {} },
   ];
 
