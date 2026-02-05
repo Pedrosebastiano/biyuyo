@@ -177,8 +177,8 @@ export function ExpenseChart({
               <Info className="w-4 h-4 sm:w-5 sm:h-5 text-[#2d509e]" />
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-3">
-            <p className="text-sm font-medium text-[#2d509e]">Desglose de tus gastos segun sus categorías. Aquellos gastos menores al 5% no se muestran en el gráfico. </p>
+          <PopoverContent className="w-auto max-w-[250px] p-3" side="left" align="start">
+            <p className="text-sm font-medium text-[#2d509e]">Desglose de tus gastos según sus categorías. Aquellos gastos menores al 5% no se muestran.</p>
           </PopoverContent>
         </Popover>
       </CardHeader>

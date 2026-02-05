@@ -78,7 +78,7 @@ export function IncomeExpenseChart({
               <Info className="w-4 h-4 sm:w-5 sm:h-5 text-[#2d509e]" />
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-3">
+          <PopoverContent className="w-auto max-w-[250px] p-3" side="left" align="start">
             <p className="text-sm font-medium text-[#2d509e]">Comparativa de ingresos y gastos mensuales</p>
           </PopoverContent>
         </Popover>
