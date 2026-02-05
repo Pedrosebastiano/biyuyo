@@ -131,18 +131,16 @@ export function EmergencyFund({
     return (
         <Card className="border-2 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-0 pt-6 px-6">
-                <div className="flex-1 text-center">
-                    <CardTitle className="text-2xl font-bold text-[#2d509e] mr-[-40px]">
-                        Fondo actual V.S Meta
-                    </CardTitle>
-                </div>
+                <CardTitle className="text-lg sm:text-2xl font-bold text-[#2d509e] flex-1">
+                    Fondo actual V.S Meta
+                </CardTitle>
                 <Popover>
                     <PopoverTrigger asChild>
-                        <button className="flex items-center justify-center w-10 h-10 bg-white rounded-2xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-gray-50 hover:bg-gray-50 transition-colors">
-                            <Info className="w-6 h-6 text-[#2d509e]" />
+                        <button className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-gray-50 hover:bg-gray-50 transition-colors shrink-0 ml-2">
+                            <Info className="w-4 h-4 sm:w-5 sm:h-5 text-[#2d509e]" />
                         </button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-3">
+                    <PopoverContent className="w-auto max-w-[250px] p-3" side="left" align="start">
                         <p className="text-sm font-medium text-[#2d509e]">Fondo de emergencia y meses de libertad</p>
                     </PopoverContent>
                 </Popover>
