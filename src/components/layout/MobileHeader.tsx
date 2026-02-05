@@ -12,11 +12,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import biyuyoLogo from "@/assets/biyuyo-logo.png";
+import { CurrencyConverterDialog } from "@/components/ui/CurrencyConverterDialog";
 
 export function MobileHeader() {
-  const { rate, loading } = useExchangeRate();
+  const { rate, rateDate, loading } = useExchangeRate();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [isConverterOpen, setIsConverterOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -72,7 +74,10 @@ export function MobileHeader() {
       </Link>
 
       {/* Exchange Rate */}
-      <div className="flex items-center bg-muted px-2 py-1 rounded-md">
+      <button
+        onClick={() => setIsConverterOpen(true)}
+        className="flex items-center bg-muted px-2 py-1 rounded-md hover:bg-muted/80 transition-colors"
+      >
         <span className="font-mono font-semibold text-xs text-primary">
           {loading ? (
             <span className="animate-pulse opacity-50">...</span>
@@ -83,7 +88,14 @@ export function MobileHeader() {
             })}`
           )}
         </span>
-      </div>
+      </button>
+
+      <CurrencyConverterDialog
+        open={isConverterOpen}
+        onOpenChange={setIsConverterOpen}
+        exchangeRate={rate}
+        rateDate={rateDate}
+      />
     </header>
   );
 }

@@ -20,14 +20,16 @@ import { Camera, X, Loader2 } from "lucide-react";
 import { CurrencySelector, type Currency } from "./CurrencySelector";
 import { useTransactions } from "@/hooks/useTransactions";
 import { toast } from "sonner";
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
+import { useExchangeRate } from "@/hooks/useExchangeRate"; // Importamos el hook
 
 // TU ID DE SUPABASE
 const USER_ID = "6221431c-7a17-4acc-9c01-43903e30eb21";
 
 // Configuración de Supabase
 const supabaseUrl = "https://pmjjguyibxydzxnofcjx.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtampndXlpYnh5ZHp4bm9mY2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwODE2NTAsImV4cCI6MjA4NTY1NzY1MH0.ZYTzwvzdcjgiiJHollA7vyNZ7ZF8hIN1NuTOq5TdtjI";
+const supabaseKey =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtampndXlpYnh5ZHp4bm9mY2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwODE2NTAsImV4cCI6MjA4NTY1NzY1MH0.ZYTzwvzdcjgiiJHollA7vyNZ7ZF8hIN1NuTOq5TdtjI";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface ExpenseFormProps {
@@ -36,6 +38,9 @@ interface ExpenseFormProps {
 
 export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
   const { refreshTransactions } = useTransactions();
+  // Obtenemos la tasa del BCV
+  const { rate, loading: loadingRate } = useExchangeRate();
+
   const [selectedMacro, setSelectedMacro] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedBusiness, setSelectedBusiness] = useState<string>("");
@@ -80,19 +85,19 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
     const file = event.target.files?.[0];
     if (file) {
       // Validar que sea una imagen
-      if (!file.type.match('image.*')) {
-        toast.error('Solo se permiten archivos de imagen');
+      if (!file.type.match("image.*")) {
+        toast.error("Solo se permiten archivos de imagen");
         return;
       }
 
       // Validar tamaño (máximo 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        toast.error('La imagen no debe superar los 5MB');
+        toast.error("La imagen no debe superar los 5MB");
         return;
       }
 
       setReceiptFile(file);
-      
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setReceiptImage(reader.result as string);
@@ -112,20 +117,19 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
   const uploadImageToSupabase = async (file: File): Promise<string | null> => {
     try {
       // Generar nombre único para el archivo
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split(".").pop();
       const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
       const filePath = `imagenes/${fileName}`;
 
       console.log(`📤 Subiendo imagen a Supabase: ${filePath}`);
 
       // Subir el archivo a Supabase Storage
-      const { error: uploadError } = await supabase
-        .storage
-        .from('factura')
+      const { error: uploadError } = await supabase.storage
+        .from("factura")
         .upload(filePath, file, {
-          cacheControl: '3600',
+          cacheControl: "3600",
           upsert: false,
-          contentType: file.type
+          contentType: file.type,
         });
 
       if (uploadError) {
@@ -134,10 +138,9 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
       }
 
       // Obtener URL pública
-      const { data: { publicUrl } } = supabase
-        .storage
-        .from('factura')
-        .getPublicUrl(filePath);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("factura").getPublicUrl(filePath);
 
       console.log(`✅ Imagen subida exitosamente: ${publicUrl}`);
       return publicUrl;
@@ -162,6 +165,21 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
       businessName = found ? found.name : selectedBusiness;
     }
 
+    // --- LÓGICA DE CONVERSIÓN DE MONEDA ---
+    let finalAmountUSD = parseFloat(amount);
+
+    if (currency === "VES") {
+      if (!rate || rate === 0) {
+        toast.error(
+          "No se pudo obtener la tasa del BCV para realizar la conversión.",
+        );
+        return;
+      }
+      // Dividimos los Bolívares entre la tasa para obtener Dólares
+      finalAmountUSD = finalAmountUSD / rate;
+    }
+    // --------------------------------------
+
     setIsSubmitting(true);
 
     try {
@@ -171,9 +189,11 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
       if (receiptFile) {
         console.log("📷 Procesando imagen de factura...");
         imageUrl = await uploadImageToSupabase(receiptFile);
-        
+
         if (!imageUrl) {
-          toast.error("Error al subir la imagen, pero el gasto se guardará sin ella");
+          toast.error(
+            "Error al subir la imagen, pero el gasto se guardará sin ella",
+          );
         }
       }
 
@@ -182,7 +202,7 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
         macrocategoria: macroName,
         categoria: categoryName,
         negocio: businessName,
-        total_amount: parseFloat(amount),
+        total_amount: finalAmountUSD, // Siempre enviamos USD
         user_id: USER_ID,
         receipt_image_url: imageUrl, // Agregar URL de la imagen
       };
@@ -204,10 +224,14 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
         throw new Error("Error al guardar gasto en el servidor");
       }
 
-      // ÉXITO
-      toast.success(imageUrl 
-        ? "Gasto e imagen registrados exitosamente" 
-        : "Gasto registrado exitosamente");
+      // ÉXITO - Mensaje personalizado
+      let successMsg = "";
+
+      successMsg = "Gasto registrado exitosamente";
+
+      if (imageUrl) successMsg += " con imagen.";
+
+      toast.success(successMsg);
 
       // Refrescar lista
       refreshTransactions();
@@ -236,6 +260,7 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
     selectedCategory &&
     selectedBusiness &&
     amount &&
+    (currency !== "VES" || (rate && !loadingRate)) && // Validar tasa
     (selectedBusiness !== "custom" || customBusiness.trim() !== "");
 
   return (
@@ -342,6 +367,17 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
             className="w-28 border-2"
           />
         </div>
+
+        {/* Helper text para mostrar la conversión en tiempo real */}
+        {currency === "VES" && rate && amount && (
+          <div className="text-xs text-muted-foreground mt-1 ml-1">
+            Se guardará como:{" "}
+            <span className="font-semibold text-primary">
+              ${(parseFloat(amount) / rate).toFixed(2)} USD
+            </span>{" "}
+            (Tasa BCV: {rate})
+          </div>
+        )}
       </div>
 
       <div className="space-y-2">

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/popover";
 
 import { Reminder, Account } from "@/hooks/useTransactions";
+import { useCurrency, Currency } from "@/hooks/useCurrency";
 import { useMemo } from "react";
 
 const getColor = (percent: number) => {
@@ -25,9 +26,10 @@ const getColor = (percent: number) => {
 
 interface DebtListCardProps {
     items: { name: string; amount: number }[];
+    currencySymbol: string;
 }
 
-const DebtListCard: React.FC<DebtListCardProps> = ({ items }) => {
+const DebtListCard: React.FC<DebtListCardProps> = ({ items, currencySymbol }) => {
     return (
         <div
             style={{
@@ -52,7 +54,7 @@ const DebtListCard: React.FC<DebtListCardProps> = ({ items }) => {
                             items.map((item, index) => (
                                 <tr key={index} className={index !== items.length - 1 ? "border-b border-[#f0f9f9]" : ""}>
                                     <td className="px-4 py-3 text-[#29488e] font-medium">{item.name}</td>
-                                    <td className="px-4 py-3 text-[#29488e] font-bold text-right">${item.amount}</td>
+                                    <td className="px-4 py-3 text-[#29488e] font-bold text-right">{currencySymbol}{item.amount.toFixed(2)}</td>
                                 </tr>
                             ))
                         ) : (
@@ -67,14 +69,26 @@ const DebtListCard: React.FC<DebtListCardProps> = ({ items }) => {
     );
 };
 
-export function DebtRatio({ reminders, accounts }: { reminders: Reminder[], accounts: Account[] }) {
+export function DebtRatio({
+    reminders,
+    accounts,
+    currency = "USD",
+    exchangeRate = null
+}: {
+    reminders: Reminder[];
+    accounts: Account[];
+    currency?: Currency;
+    exchangeRate?: number | null;
+}) {
+    const { convertValue, getCurrencySymbol } = useCurrency({ exchangeRate, currency });
+
     const debtItems = useMemo(() =>
-        reminders.map(r => ({ name: r.name, amount: r.amount })),
-        [reminders]);
+        reminders.map(r => ({ name: r.name, amount: convertValue(r.amount) })),
+        [reminders, convertValue]);
 
     const totalMoney = useMemo(() =>
-        accounts.reduce((acc, curr) => acc + curr.balance, 0),
-        [accounts]);
+        convertValue(accounts.reduce((acc, curr) => acc + curr.balance, 0)),
+        [accounts, convertValue]);
 
     const debtAmount = useMemo(() =>
         debtItems.reduce((acc, item) => acc + item.amount, 0),
@@ -98,18 +112,16 @@ export function DebtRatio({ reminders, accounts }: { reminders: Reminder[], acco
     return (
         <Card className="border-2 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-0 pt-6 px-6">
-                <div className="flex-1 text-center">
-                    <CardTitle className="text-2xl font-bold text-[#2d509e] mr-[-40px]">
-                        Compromiso financiero
-                    </CardTitle>
-                </div>
+                <CardTitle className="text-lg sm:text-2xl font-bold text-[#2d509e] flex-1">
+                    Compromiso financiero
+                </CardTitle>
                 <Popover>
                     <PopoverTrigger asChild>
-                        <button className="flex items-center justify-center w-10 h-10 bg-white rounded-2xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-gray-50 hover:bg-gray-50 transition-colors">
-                            <Info className="w-6 h-6 text-[#2d509e]" />
+                        <button className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-gray-50 hover:bg-gray-50 transition-colors shrink-0 ml-2">
+                            <Info className="w-4 h-4 sm:w-5 sm:h-5 text-[#2d509e]" />
                         </button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-3">
+                    <PopoverContent className="w-auto max-w-[250px] p-3" side="left" align="start">
                         <p className="text-sm font-medium text-[#2d509e]">Deudas sobre balance de cuenta</p>
                     </PopoverContent>
                 </Popover>
@@ -160,11 +172,11 @@ export function DebtRatio({ reminders, accounts }: { reminders: Reminder[], acco
 
                     {/* Centered Total Amount */}
                     <div className="absolute top-[75%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                        <span className="text-4xl font-bold text-[#1a1a1a]">${debtAmount}</span>
+                        <span className="text-4xl font-bold text-[#1a1a1a]">{getCurrencySymbol()}{debtAmount.toFixed(2)}</span>
                     </div>
                 </div>
 
-                <DebtListCard items={debtItems} />
+                <DebtListCard items={debtItems} currencySymbol={getCurrencySymbol()} />
             </CardContent>
         </Card>
     );

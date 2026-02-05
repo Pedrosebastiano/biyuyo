@@ -175,12 +175,15 @@ export default function Transactions() {
           <Header />
         </div>
 
-        <main className="p-4 pt-18 pb-20 lg:p-6 lg:pt-6 lg:pb-6">
+        <main className="p-4 pt-20 pb-20 lg:p-6 lg:pt-6 lg:pb-6">
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold tracking-tight">
-                Transacciones
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-[#2d509e]">
+                  Transacciones
               </h1>
+              <p className="text-muted-foreground mt-1">
+                  Gestiona tus gastos, ingresos y recordatorios.
+              </p>
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>

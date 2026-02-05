@@ -11,28 +11,28 @@ import { APP_CONFIG } from "@/lib/config";
 
 const stats = [
   {
-    title: "Total Balance",
+    title: "Balance Total",
     value: "$12,450.00",
     icon: Wallet,
     trend: { value: 12.5, isPositive: true },
     variant: "success" as const,
   },
   {
-    title: "Monthly Income",
+    title: "Ingresos Mensuales",
     value: "$5,300.00",
     icon: TrendingUp,
     trend: { value: 8.2, isPositive: true },
     variant: "default" as const,
   },
   {
-    title: "Monthly Expenses",
+    title: "Gastos Mensuales",
     value: "$3,180.00",
     icon: TrendingDown,
     trend: { value: 3.1, isPositive: false },
     variant: "default" as const,
   },
   {
-    title: "Savings Rate",
+    title: "Tasa de Ahorro",
     value: "40%",
     icon: PiggyBank,
     trend: { value: 5.0, isPositive: true },
@@ -48,9 +48,9 @@ const Index = () => {
       <div className="space-y-6">
         {/* Page Header */}
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-[#2d509e]">Dashboard</h1>
           <p className="text-muted-foreground mt-1">
-            Welcome back, John! Here's your financial overview.
+            ¡Bienvenido de nuevo, John! Aquí está tu resumen financiero.
           </p>
         </div>
 

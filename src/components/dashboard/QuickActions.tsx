@@ -9,14 +9,14 @@ import { localNotificationService } from "@/services/local-notification-service"
 
 export function QuickActions() {
   const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
-  
+
   // Inicializamos el hook de Push (Firebase)
   const { fcmToken } = usePushNotification();
 
   const handleTestNotification = async () => {
     // 1. Pedir permiso explícito si no lo tiene
     const permission = await localNotificationService.requestPermission();
-    
+
     if (permission === "granted") {
       // 2. Disparar una notificación local inmediata
       localNotificationService.displayNotification("¡Biyuyo funcionando!", {
@@ -32,17 +32,17 @@ export function QuickActions() {
         future,
         { body: "Esta es una simulación de una deuda vencida." }
       );
-      
+
       console.log("Token FCM actual:", fcmToken);
     }
   };
 
   const actions = [
     { label: "Agregar Transacción", shortLabel: "Agregar", icon: Plus, variant: "default" as const, onClick: () => setIsTransactionDialogOpen(true) },
-    { label: "Cuentas Compartidas", shortLabel: "Compartidas", icon: Users, variant: "outline" as const, onClick: () => {} },
+    { label: "Cuentas Compartidas", shortLabel: "Compartidas", icon: Users, variant: "outline" as const, onClick: () => { } },
     // BOTÓN DE PRUEBA TEMPORAL
     { label: "Probar Notis", shortLabel: "Notis", icon: BellRing, variant: "outline" as const, onClick: handleTestNotification },
-    { label: "Predecir Gastos", shortLabel: "Predecir", icon: Calculator, variant: "outline" as const, onClick: () => {} },
+    { label: "Predecir Gastos", shortLabel: "Predecir", icon: Calculator, variant: "outline" as const, onClick: () => { } },
   ];
 
   return (
@@ -51,7 +51,7 @@ export function QuickActions() {
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Acciones Rápidas</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <CardContent className="grid grid-cols-2 gap-3">
           {actions.map((action) => (
             <Button
               key={action.label}
@@ -67,9 +67,9 @@ export function QuickActions() {
         </CardContent>
       </Card>
 
-      <AddTransactionDialog 
-        open={isTransactionDialogOpen} 
-        onOpenChange={setIsTransactionDialogOpen} 
+      <AddTransactionDialog
+        open={isTransactionDialogOpen}
+        onOpenChange={setIsTransactionDialogOpen}
       />
     </>
   );

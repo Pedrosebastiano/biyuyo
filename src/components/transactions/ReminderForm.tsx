@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { CurrencySelector, type Currency } from "./CurrencySelector";
 import { useTransactions } from "@/hooks/useTransactions";
 import { toast } from "sonner";
+import { useExchangeRate } from "@/hooks/useExchangeRate"; // Importamos el hook
 
 // TU ID DE SUPABASE
 const USER_ID = "6221431c-7a17-4acc-9c01-43903e30eb21";
@@ -42,7 +43,9 @@ interface ReminderFormProps {
 
 export function ReminderForm({ onSubmit }: ReminderFormProps) {
   const { refreshTransactions } = useTransactions();
-  
+  // Obtenemos la tasa del BCV
+  const { rate, loading: loadingRate } = useExchangeRate();
+
   const [selectedMacro, setSelectedMacro] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedBusiness, setSelectedBusiness] = useState<string>("");
@@ -54,7 +57,7 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
   const [frequency, setFrequency] = useState<PaymentFrequency | "">("");
   const [hasInstallments, setHasInstallments] = useState<boolean>(false);
   const [totalInstallments, setTotalInstallments] = useState<string>("");
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const categories: Category[] = selectedMacro
@@ -97,7 +100,7 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
       reminderMacroCategories.find((m) => m.id === selectedMacro)?.name || "";
     const categoryName =
       categories.find((c) => c.id === selectedCategory)?.name || "";
-    
+
     let businessName = "";
     if (selectedBusiness === "custom") {
       businessName = customBusiness.trim();
@@ -109,18 +112,36 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
     // Formatear fecha a formato YYYY-MM-DD para PostgreSQL
     const formattedDate = format(nextPaymentDate, "yyyy-MM-dd");
 
-    // Preparar objeto - CLAVE: manejar correctamente null vs undefined
+    // --- LÓGICA DE CONVERSIÓN DE MONEDA ---
+    let finalAmountUSD = parseFloat(amount);
+
+    if (currency === "VES") {
+      if (!rate || rate === 0) {
+        toast.error(
+          "No se pudo obtener la tasa del BCV para realizar la conversión.",
+        );
+        return;
+      }
+      // Dividimos los Bolívares entre la tasa para obtener Dólares
+      finalAmountUSD = finalAmountUSD / rate;
+    }
+    // --------------------------------------
+
+    // Preparar objeto
     const nuevoRecordatorio = {
       user_id: USER_ID,
       nombre: paymentName,
       macrocategoria: macroName,
       categoria: categoryName,
       negocio: businessName || null,
-      monto: parseFloat(amount),
+      monto: finalAmountUSD, // Siempre enviamos USD
       fecha_proximo_pago: formattedDate,
       frecuencia: frequency,
       es_cuota: hasInstallments,
-      cuota_actual: hasInstallments && totalInstallments ? parseInt(totalInstallments) : null,
+      cuota_actual:
+        hasInstallments && totalInstallments
+          ? parseInt(totalInstallments)
+          : null,
     };
 
     console.log("📤 Enviando recordatorio:", nuevoRecordatorio);
@@ -128,19 +149,21 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
 
     try {
       const response = await fetch(
-        "https://biyuyo-pruebas.onrender.com/reminders", 
+        "https://biyuyo-pruebas.onrender.com/reminders",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(nuevoRecordatorio),
-        }
+        },
       );
 
       // Ver detalles del error si falla
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Error desconocido" }));
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Error desconocido" }));
         console.error("❌ Error del servidor:", errorData);
         throw new Error(errorData.error || "Error al guardar recordatorio");
       }
@@ -148,8 +171,10 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
       const resultado = await response.json();
       console.log("✅ Recordatorio guardado:", resultado);
 
+      // Feedback específico dependiendo de la moneda usada
+
       toast.success("Recordatorio guardado exitosamente");
-      
+
       // Limpiar formulario
       setSelectedMacro("");
       setSelectedCategory("");
@@ -164,10 +189,13 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
 
       refreshTransactions();
       onSubmit();
-
     } catch (error) {
       console.error("❌ Error completo:", error);
-      toast.error(error instanceof Error ? error.message : "Error conectando con la base de datos");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Error conectando con la base de datos",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -181,6 +209,7 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
     amount &&
     nextPaymentDate &&
     frequency &&
+    (currency !== "VES" || (rate && !loadingRate)) && // Validar que tengamos tasa si es Bs
     (!hasInstallments || (hasInstallments && totalInstallments)) &&
     (selectedBusiness !== "custom" || customBusiness.trim() !== "");
 
@@ -300,6 +329,17 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
             className="w-28 border-2"
           />
         </div>
+
+        {/* Helper text para mostrar la conversión en tiempo real */}
+        {currency === "VES" && rate && amount && (
+          <div className="text-xs text-muted-foreground mt-1 ml-1">
+            Se guardará como:{" "}
+            <span className="font-semibold text-primary">
+              ${(parseFloat(amount) / rate).toFixed(2)} USD
+            </span>{" "}
+            (Tasa BCV: {rate})
+          </div>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -386,9 +426,9 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
         )}
       </div>
 
-      <Button 
-        className="w-full" 
-        disabled={!isFormValid || isSubmitting} 
+      <Button
+        className="w-full"
+        disabled={!isFormValid || isSubmitting}
         onClick={handleSubmit}
       >
         {isSubmitting ? (

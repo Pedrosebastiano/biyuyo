@@ -20,6 +20,8 @@ import { Camera, X, Loader2 } from "lucide-react";
 import { CurrencySelector, type Currency } from "./CurrencySelector";
 import { toast } from "sonner";
 import { useTransactions } from "@/hooks/useTransactions";
+// Asegúrate de que la ruta sea correcta según tu estructura de carpetas
+import { useExchangeRate } from "@/hooks/useExchangeRate";
 
 // TU ID DE SUPABASE
 const USER_ID = "6221431c-7a17-4acc-9c01-43903e30eb21";
@@ -30,6 +32,9 @@ interface IncomeFormProps {
 
 export function IncomeForm({ onSubmit }: IncomeFormProps) {
   const { refreshTransactions } = useTransactions();
+  // Obtenemos la tasa del BCV
+  const { rate, loading: loadingRate } = useExchangeRate();
+
   const [selectedMacro, setSelectedMacro] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedBusiness, setSelectedBusiness] = useState<string>("");
@@ -101,12 +106,28 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
       businessName = found ? found.name : selectedBusiness;
     }
 
+    // --- LÓGICA DE CONVERSIÓN DE MONEDA ---
+    let finalAmountUSD = parseFloat(amount);
+
+    if (currency === "VES") {
+      if (!rate || rate === 0) {
+        toast.error(
+          "No se pudo obtener la tasa del BCV para realizar la conversión.",
+        );
+        return;
+      }
+      // Dividimos los Bolívares entre la tasa para obtener Dólares
+      finalAmountUSD = finalAmountUSD / rate;
+    }
+    // --------------------------------------
+
     const nuevoIngreso = {
       macrocategoria: macroName,
       categoria: categoryName,
       negocio: businessName,
-      total_amount: parseFloat(amount),
+      total_amount: finalAmountUSD, // Siempre enviamos el monto en USD
       user_id: USER_ID,
+      // Nota: Si el backend soporta la imagen, deberías agregarla aquí también.
     };
 
     setIsSubmitting(true);
@@ -120,17 +141,20 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(nuevoIngreso),
-        }
+        },
       );
 
       if (!response.ok) {
         throw new Error("Error al guardar en el servidor");
       }
 
-      toast.success("Ingreso registrado en la Nube exitosamente");
+      // Feedback específico dependiendo de la moneda usada
+
+      toast.success("Ingreso registrado exitosamente");
 
       refreshTransactions();
 
+      // Resetear formulario
       setSelectedMacro("");
       setSelectedCategory("");
       setSelectedBusiness("");
@@ -147,11 +171,13 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
     }
   };
 
+  // Validamos el formulario. Si es VES, requerimos que la tasa (rate) exista.
   const isFormValid =
     selectedMacro &&
     selectedCategory &&
     selectedBusiness &&
     amount &&
+    (currency !== "VES" || (rate && !loadingRate)) &&
     (selectedBusiness !== "custom" || customBusiness.trim() !== "");
 
   return (
@@ -258,6 +284,22 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
             className="w-28 border-2"
           />
         </div>
+
+        {/* Helper text para mostrar la conversión en tiempo real */}
+        {currency === "VES" && rate && amount && (
+          <div className="text-xs text-muted-foreground mt-1 ml-1">
+            Se guardará como:{" "}
+            <span className="font-semibold text-primary">
+              ${(parseFloat(amount) / rate).toFixed(2)} USD
+            </span>{" "}
+            (Tasa BCV: {rate})
+          </div>
+        )}
+      </div>
+
+      {/* Sección de cámara (Visual, tal cual estaba en el original) */}
+      <div>
+        {/* Si necesitas la lógica de subida de imagen, iría aquí, pero no afecta la conversión de moneda */}
       </div>
 
       <Button

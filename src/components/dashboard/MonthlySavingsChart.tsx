@@ -65,16 +65,26 @@ function CustomLegend({ chartData }: { chartData: any[] }) {
 }
 
 import { Transaction } from "@/hooks/useTransactions";
+import { useCurrency, Currency } from "@/hooks/useCurrency";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 
-export function MonthlySavingsChart({ transactions }: { transactions: Transaction[] }) {
+export function MonthlySavingsChart({
+  transactions,
+  currency = "USD",
+  exchangeRate = null
+}: {
+  transactions: Transaction[];
+  currency?: Currency;
+  exchangeRate?: number | null;
+}) {
+  const { convertValue, getCurrencySymbol } = useCurrency({ exchangeRate, currency });
   const [savingsGoal, setSavingsGoal] = useState(100);
   const [tempGoal, setTempGoal] = useState(savingsGoal.toString());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const data = useMemo(() => {
-    const baseData = [{ name: "Meta de ahorro", value: savingsGoal, color: "#bdbdbd" }];
+    const baseData = [{ name: "Meta de ahorro", value: convertValue(savingsGoal), color: "#bdbdbd" }];
     if (!transactions || transactions.length === 0) return baseData;
 
     const grouped: Record<string, { name: string; fullDate: Date; value: number }> = {};
@@ -102,12 +112,12 @@ export function MonthlySavingsChart({ transactions }: { transactions: Transactio
       .sort((a, b) => a.fullDate.getTime() - b.fullDate.getTime())
       .map((item, index) => ({
         name: item.name,
-        value: Number(item.value.toFixed(2)),
+        value: Number(convertValue(item.value).toFixed(2)),
         color: pastelColors[index % pastelColors.length]
       }));
 
     return [...baseData, ...monthlyData];
-  }, [transactions, savingsGoal]);
+  }, [transactions, savingsGoal, convertValue]);
 
   const handleSaveGoal = () => {
     const newGoal = parseFloat(tempGoal);
@@ -120,18 +130,16 @@ export function MonthlySavingsChart({ transactions }: { transactions: Transactio
   return (
     <Card className="border-2 shadow-sm relative">
       <CardHeader className="flex flex-row items-center justify-between pb-0 pt-6 px-6">
-        <div className="flex-1 text-center">
-          <CardTitle className="text-2xl font-bold text-[#2d509e] mr-[-40px]">
+        <CardTitle className="text-lg sm:text-2xl font-bold text-[#2d509e] flex-1">
             Ahorros mensuales
-          </CardTitle>
-        </div>
+        </CardTitle>
         <Popover>
           <PopoverTrigger asChild>
-            <button className="flex items-center justify-center w-10 h-10 bg-white rounded-2xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-gray-50 hover:bg-gray-50 transition-colors">
-              <Info className="w-6 h-6 text-[#2d509e]" />
+            <button className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-gray-50 hover:bg-gray-50 transition-colors shrink-0 ml-2">
+              <Info className="w-4 h-4 sm:w-5 sm:h-5 text-[#2d509e]" />
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-3">
+          <PopoverContent className="w-auto max-w-[250px] p-3" side="left" align="start">
             <p className="text-sm font-medium text-[#2d509e]">Comparativa de tus ahorros mensuales. Puedes ajustar tu meta en la sección de metas.</p>
           </PopoverContent>
         </Popover>
@@ -170,7 +178,7 @@ export function MonthlySavingsChart({ transactions }: { transactions: Transactio
                   border: "1px solid #ddd",
                   borderRadius: "8px",
                 }}
-                formatter={(value: number) => [`$${value}`, "Ahorro"]}
+                formatter={(value: number) => [`${getCurrencySymbol()}${value}`, "Ahorro"]}
               />
               <Legend verticalAlign="bottom" height={36} content={<CustomLegend chartData={data} />} />
 
@@ -192,7 +200,7 @@ export function MonthlySavingsChart({ transactions }: { transactions: Transactio
                         fontSize={14}
                         fontWeight="bold"
                       >
-                        {`${entry.name}: $${value}`}
+                        {`${entry.name}: ${getCurrencySymbol()}${value}`}
                       </text>
                     </g>
                   );
@@ -209,9 +217,9 @@ export function MonthlySavingsChart({ transactions }: { transactions: Transactio
 
       <div className="px-8 pb-6 flex flex-col gap-4">
         <SavingsGoalCard
-          goal={savingsGoal}
+          goal={convertValue(savingsGoal)}
           text="Meta de ahorro:"
-          currency="$"
+          currency={getCurrencySymbol()}
           style={{ margin: 0 }}
         />
 

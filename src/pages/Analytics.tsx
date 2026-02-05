@@ -8,11 +8,17 @@ import { useState, useMemo } from "react";
 import { DateRange } from "react-day-picker";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { useTransactions } from "@/hooks/useTransactions";
+import { useExchangeRate } from "@/hooks/useExchangeRate";
+import { Currency } from "@/hooks/useCurrency";
 import { APP_CONFIG } from "@/lib/config";
 import { isWithinInterval, parseISO, startOfDay, endOfDay, isBefore } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { ArrowLeftRight } from "lucide-react";
 
 const Analytics = () => {
   const { transactions, reminders, accounts, loading } = useTransactions(APP_CONFIG.DEFAULT_USER_ID);
+  const { rate: exchangeRate } = useExchangeRate();
+  const [currency, setCurrency] = useState<Currency>("USD");
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: undefined,
     to: undefined,
@@ -65,7 +71,27 @@ const Analytics = () => {
               Filtra y analiza tus movimientos financieros.
             </p>
           </div>
-          <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setCurrency(currency === "USD" ? "VES" : "USD")}
+              className="gap-2 h-10 border-input bg-background hover:bg-accent"
+            >
+              <ArrowLeftRight className="h-4 w-4" />
+              <span className="font-medium">
+                {currency === "USD" ? "$" : "Bs."}
+              </span>
+              {exchangeRate && (
+                <span className="text-xs text-muted-foreground">
+                  {currency === "USD"
+                    ? `1 = Bs. ${exchangeRate.toFixed(2)}`
+                    : `1 = $ ${(1 / exchangeRate).toFixed(4)}`
+                  }
+                </span>
+              )}
+            </Button>
+            <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+          </div>
         </div>
 
         {!hasData ? (
@@ -79,11 +105,11 @@ const Analytics = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <IncomeExpenseChart transactions={filteredTransactions} />
-            <ExpenseChart transactions={filteredTransactions} />
-            <MonthlySavingsChart transactions={filteredTransactions} />
-            <EmergencyFund accounts={accounts} transactions={filteredTransactions} />
-            <DebtRatio reminders={reminders} accounts={accounts} />
+            <IncomeExpenseChart transactions={filteredTransactions} currency={currency} exchangeRate={exchangeRate} />
+            <ExpenseChart transactions={filteredTransactions} currency={currency} exchangeRate={exchangeRate} />
+            <MonthlySavingsChart transactions={filteredTransactions} currency={currency} exchangeRate={exchangeRate} />
+            <EmergencyFund accounts={accounts} transactions={filteredTransactions} currency={currency} exchangeRate={exchangeRate} />
+            <DebtRatio reminders={reminders} accounts={accounts} currency={currency} exchangeRate={exchangeRate} />
           </div>
         )}
       </div>
