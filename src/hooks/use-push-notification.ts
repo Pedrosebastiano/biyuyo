@@ -1,6 +1,6 @@
 // src/hooks/usePushNotification.ts
 import { useState, useEffect } from "react";
-import { messaging } from "@/lib/firebase"; 
+import { messaging } from "@/lib/firebase";
 import { getToken, onMessage } from "firebase/messaging";
 import { toast } from "sonner";
 import { localNotificationService } from "@/services/local-notification-service";
@@ -14,12 +14,11 @@ export const usePushNotification = () => {
             try {
                 // Pedimos permiso usando el servicio centralizado
                 const permission = await localNotificationService.requestPermission();
-                
+
                 if (permission === "granted" && messaging) {
-                    // Es MUY recomendable usar la VAPID Key de tu consola de Firebase
-                    const currentToken = await getToken(messaging, {
-                        vapidKey: "BHFMjfQKQwiMQPn0Ca_J1eavdtjLveKAg1KWgI1JV6w9Qv7YuiIFU0csnATu5L5mQNFDHH2j3Ny-8aN1OKpeTQw" 
-                    });
+                    // Es recomendable NO usar VAPID key hardcodeada si no es estrictamente necesario y la config de Firebase ya lo maneja.
+                    // Volvemos a la configuración automática que funcionaba previamente.
+                    const currentToken = await getToken(messaging);
 
                     if (currentToken) {
                         setFcmToken(currentToken);
@@ -55,7 +54,7 @@ export const usePushNotification = () => {
             // 2. Disparar notificación del sistema (ruido/vibración)
             localNotificationService.displayNotification(
                 payload.notification?.title || "Recordatorio",
-                { 
+                {
                     body: payload.notification?.body,
                     requireInteraction: true // La notificación no se quita hasta que el usuario la vea
                 }
