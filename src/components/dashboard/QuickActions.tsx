@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, TrendingUp, Users, Calculator } from "lucide-react";
+import { Plus, TrendingUp } from "lucide-react";
 import { AddTransactionDialog } from "@/components/transactions/AddTransactionDialog";
+import { useNavigate } from "react-router-dom";
 
 export function QuickActions() {
   const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
   const actions = [
     { label: "Agregar Transacción", shortLabel: "Agregar", icon: Plus, variant: "default" as const, onClick: () => setIsTransactionDialogOpen(true) },
-    { label: "Cuentas Compartidas", shortLabel: "Compartidas", icon: Users, variant: "outline" as const, onClick: () => {} },
-    { label: "Ver Análisis", shortLabel: "Análisis", icon: TrendingUp, variant: "outline" as const, onClick: () => {} },
-    { label: "Predecir Gastos", shortLabel: "Predecir", icon: Calculator, variant: "outline" as const, onClick: () => {} },
+    { label: "Ver Análisis", shortLabel: "Análisis", icon: TrendingUp, variant: "outline" as const, onClick: () => navigate("/analytics") },
   ];
 
   return (
@@ -20,7 +20,7 @@ export function QuickActions() {
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Acciones Rápidas</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <CardContent className="grid grid-cols-2 gap-3">
           {actions.map((action) => (
             <Button
               key={action.label}

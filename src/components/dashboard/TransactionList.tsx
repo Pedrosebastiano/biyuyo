@@ -40,6 +40,7 @@ export function TransactionList() {
       currency: t.currency,
       date: new Date(t.date),
       isReminder: false,
+      createdAt: t.createdAt ? new Date(t.createdAt) : new Date(t.date),
     })),
     ...reminders.map((r) => ({
       id: r.id,
@@ -49,19 +50,20 @@ export function TransactionList() {
       currency: r.currency,
       date: r.nextDueDate,
       isReminder: true,
+      createdAt: r.createdAt ? new Date(r.createdAt) : r.nextDueDate,
     })),
   ]
-    .sort((a, b) => b.date.getTime() - a.date.getTime())
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, 10);
 
   return (
     <Card className="border-2">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-lg font-semibold">
-          Recent Transactions
+          Transacciones Recientes
         </CardTitle>
         <Badge variant="secondary" className="font-mono">
-          {combinedItems.length} transactions
+          {combinedItems.length} transacciones
         </Badge>
       </CardHeader>
       <CardContent className="p-0">
