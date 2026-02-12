@@ -25,10 +25,12 @@ const pool = new Pool({
   },
 });
 
+//hola
 // --- RUTA DE PRUEBA ---
 app.get("/", (req, res) => {
   res.send("¡Hola! El servidor de Biyuyo está funcionando y listo ☁️");
 });
+
 
 // --- USUARIOS ---
 app.get("/users", async (req, res) => {
