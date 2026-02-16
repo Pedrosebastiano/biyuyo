@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useExchangeRate } from "../../hooks/useExchangeRate";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,12 +13,24 @@ import {
 } from "@/components/ui/dropdown-menu";
 import biyuyoLogo from "@/assets/biyuyo-logo.png";
 import { CurrencyConverterDialog } from "@/components/ui/CurrencyConverterDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function MobileHeader() {
   const { rate, rateDate, loading } = useExchangeRate();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [isConverterOpen, setIsConverterOpen] = useState(false);
+
+  const initials = user?.name
+    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    : "U";
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -49,22 +61,20 @@ export function MobileHeader() {
         <DropdownMenuTrigger asChild>
           <button className="flex items-center gap-1.5 focus:outline-none">
             <Avatar className="h-8 w-8 border-2 border-border">
-              <AvatarImage src="/placeholder.svg" alt="User" />
               <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-xs">
-                JD
+                {initials}
               </AvatarFallback>
             </Avatar>
-            <span className="font-medium text-xs">John Doe</span>
+            <span className="font-medium text-xs">{user?.name || "Usuario"}</span>
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48 border-2">
           <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>Perfil</DropdownMenuItem>
-          <DropdownMenuItem>Facturación</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => navigate("/profile")}>Perfil</DropdownMenuItem>
           <DropdownMenuItem>Configuración</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive">Cerrar sesión</DropdownMenuItem>
+          <DropdownMenuItem className="text-destructive" onClick={handleLogout}>Cerrar sesión</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
