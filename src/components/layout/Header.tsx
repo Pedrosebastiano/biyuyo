@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -16,11 +16,22 @@ import { AddTransactionDialog } from "@/components/transactions/AddTransactionDi
 import { useTransactions } from "@/hooks/useTransactions";
 import { useNavigate } from "react-router-dom";
 import { differenceInDays } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function Header() {
   const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
   const { reminders } = useTransactions();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  const initials = user?.name
+    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    : "U";
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   // Count reminders that are overdue or due within 3 days (red badge ones)
   const urgentRemindersCount = reminders.filter((reminder) => {
@@ -74,22 +85,20 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="gap-3 pl-2 pr-3">
                 <Avatar className="h-8 w-8 border-2 border-border">
-                  <AvatarImage src="/placeholder.svg" alt="User" />
                   <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-                    JD
+                    {initials}
                   </AvatarFallback>
                 </Avatar>
-                <span className="font-medium">John Doe</span>
+                <span className="font-medium">{user?.name || "Usuario"}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 border-2">
               <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Perfil</DropdownMenuItem>
-              <DropdownMenuItem>Facturación</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/profile")}>Perfil</DropdownMenuItem>
               <DropdownMenuItem>Configuración</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive">Cerrar sesión</DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive" onClick={handleLogout}>Cerrar sesión</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

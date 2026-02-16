@@ -12,9 +12,10 @@ import {
   LogOut
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useExchangeRate } from "@/hooks/useExchangeRate";
 import biyuyoLogo from "@/assets/biyuyo-logo.png";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navigation = [
   { name: "Dashboard", icon: LayoutDashboard, href: "/", current: true },
@@ -34,7 +35,13 @@ interface SidebarProps {
 
 export function Sidebar({ className }: SidebarProps) {
   const { rate, loading } = useExchangeRate();
-  
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
   return (
     <div className={cn("flex flex-col h-full bg-card border-r-2 border-border", className)}>
       {/* Logo */}
@@ -123,9 +130,10 @@ export function Sidebar({ className }: SidebarProps) {
         <Button
           variant="ghost"
           className="w-full justify-start gap-3 h-11 text-muted-foreground hover:text-destructive"
+          onClick={handleLogout}
         >
           <LogOut className="h-5 w-5" />
-          <span>Log out</span>
+          <span>Cerrar sesión</span>
         </Button>
       </div>
     </div>
