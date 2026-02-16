@@ -4,27 +4,39 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import biyuyoLogo from "@/assets/biyuyo-logo.png";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!email || !password) {
-      toast({ title: "Error", description: "Completa todos los campos", variant: "destructive" });
+      toast.error("Completa todos los campos");
       return;
     }
-    login(email, password);
-    navigate("/");
+
+    setIsSubmitting(true);
+
+    try {
+      await login(email, password);
+      toast.success("¡Bienvenido de nuevo!");
+      navigate("/");
+    } catch (error) {
+      console.error("Error en login:", error);
+      toast.error(error instanceof Error ? error.message : "Error al iniciar sesión");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -51,6 +63,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-9"
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -66,11 +79,13 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-9 pr-10"
+                  disabled={isSubmitting}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  disabled={isSubmitting}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -83,8 +98,15 @@ export default function Login() {
               </Link>
             </div>
 
-            <Button type="submit" className="w-full">
-              Iniciar sesión
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Iniciando sesión...
+                </>
+              ) : (
+                "Iniciar sesión"
+              )}
             </Button>
           </form>
 
@@ -99,7 +121,7 @@ export default function Login() {
           </div>
 
           {/* Google Button */}
-          <Button variant="outline" className="w-full border-2 gap-2" type="button">
+          <Button variant="outline" className="w-full border-2 gap-2" type="button" disabled={isSubmitting}>
             <svg className="h-4 w-4" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>

@@ -60,39 +60,15 @@ export default function Signup() {
       toast({ title: "Error", description: "La contraseña no cumple los requisitos", variant: "destructive" });
       return;
     }
-
+  
     setIsSubmitting(true);
-
+  
     try {
-      const response = await fetch(`${API_URL}/signup`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: name.trim(),
-          email: email.toLowerCase().trim(),
-          password: password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Error al crear la cuenta");
-      }
-
+      await signup(name.trim(), email.toLowerCase().trim(), password);
       toast({ 
         title: "¡Cuenta creada!", 
         description: "Tu cuenta ha sido creada exitosamente" 
       });
-
-      // Login the user with the created account
-      signup(name, email, password);
-      
-      // Store the user_id for future use
-      localStorage.setItem("biyuyo_user_id", data.user_id);
-      
       navigate("/");
     } catch (error) {
       console.error("Error en signup:", error);

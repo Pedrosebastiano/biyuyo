@@ -5,6 +5,7 @@ import cors from "cors";
 import cron from "node-cron";
 import { messaging } from "./firebase-admin-setup.js";
 import bcrypt from 'bcrypt';
+import nodemailer from "nodemailer";
 
 const { Pool } = pg;
 const app = express();
@@ -23,12 +24,31 @@ app.use((req, res, next) => {
 const connectionString =
   "postgresql://postgres.pmjjguyibxydzxnofcjx:ZyMDIx2p3EErqtaG@aws-0-us-west-2.pooler.supabase.com:6543/postgres";
 
-const pool = new Pool({
-  connectionString,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-});
+  const pool = new Pool({
+    connectionString,
+    ssl: {
+      rejectUnauthorized: false,
+    },
+  });
+  
+  // ← AGREGAR ESTE BLOQUE COMPLETO AQUÍ
+  // Configuración de Nodemailer con Gmail
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  });
+  
+  // Verificar configuración de email al iniciar
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error("❌ Error en configuración de email:", error);
+    } else {
+      console.log("✅ Servidor de email listo para enviar mensajes");
+    }
+  });
 
 // --- RUTA DE PRUEBA ---
 app.get("/", (req, res) => {
@@ -267,6 +287,267 @@ app.post("/signup", async (req, res) => {
   } catch (err) {
     console.error("Error en signup:", err);
     res.status(500).json({ error: "Error al crear la cuenta" });
+  }
+});
+
+// Agregar después del endpoint /signup existente
+
+// --- LOGIN ---
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email y contraseña son requeridos" });
+  }
+
+  try {
+    // Buscar usuario por email
+    const userResult = await pool.query(
+      "SELECT user_id, name, email, password_hash FROM users WHERE email = $1",
+      [email.toLowerCase()]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(401).json({ error: "Credenciales inválidas" });
+    }
+
+    const user = userResult.rows[0];
+
+    // Verificar contraseña
+    const bcrypt = await import('bcrypt');
+    const passwordMatch = await bcrypt.compare(password, user.password_hash);
+
+    if (!passwordMatch) {
+      return res.status(401).json({ error: "Credenciales inválidas" });
+    }
+
+    console.log(`✅ Login exitoso: ${user.email}`);
+
+    // Retornar datos del usuario (sin password_hash)
+    res.json({
+      user_id: user.user_id,
+      name: user.name,
+      email: user.email,
+    });
+
+  } catch (err) {
+    console.error("Error en login:", err);
+    res.status(500).json({ error: "Error al iniciar sesión" });
+  }
+});
+
+// --- FORGOT PASSWORD (Solicitar reset) ---
+// --- FORGOT PASSWORD (Solicitar reset) ---
+app.post("/forgot-password", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: "Email es requerido" });
+  }
+
+  try {
+    // Verificar que el usuario existe
+    const userResult = await pool.query(
+      "SELECT user_id, email, name FROM users WHERE email = $1",
+      [email.toLowerCase()]
+    );
+
+    if (userResult.rows.length === 0) {
+      // Por seguridad, no revelamos si el email existe o no
+      return res.json({ 
+        success: true, 
+        message: "Si el correo existe, recibirás instrucciones para restablecer tu contraseña" 
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    // Generar token de reset (válido por 1 hora)
+    const crypto = await import('crypto');
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetExpires = new Date(Date.now() + 3600000); // 1 hora
+
+    // Guardar token en la base de datos
+    await pool.query(
+      `UPDATE users 
+       SET reset_token = $1, reset_token_expires = $2 
+       WHERE user_id = $3`,
+      [resetToken, resetExpires, user.user_id]
+    );
+
+    console.log(`🔑 Token de reset generado para ${user.email}: ${resetToken}`);
+
+    // Enviar email con el token
+    try {
+      const mailOptions = {
+        from: {
+          name: 'Biyuyo',
+          address: process.env.GMAIL_USER,
+        },
+        to: user.email,
+        subject: 'Recuperación de contraseña - Biyuyo',
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background-color: #2d509e; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+              .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+              .token-box { background-color: white; border: 2px solid #2d509e; padding: 20px; margin: 20px 0; text-align: center; border-radius: 8px; }
+              .token { font-size: 24px; font-weight: bold; color: #2d509e; letter-spacing: 2px; font-family: monospace; word-break: break-all; }
+              .warning { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 20px 0; }
+              .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>Biyuyo</h1>
+                <p>Recuperación de Contraseña</p>
+              </div>
+              <div class="content">
+                <p>Hola ${user.name},</p>
+                <p>Recibimos una solicitud para restablecer tu contraseña. Usa el siguiente código para continuar:</p>
+                
+                <div class="token-box">
+                  <div class="token">${resetToken}</div>
+                </div>
+
+                <div class="warning">
+                  ⚠️ Este código expirará en <strong>1 hora</strong>
+                </div>
+
+                <p><strong>Instrucciones:</strong></p>
+                <ol>
+                  <li>Copia el código de arriba</li>
+                  <li>Regresa a la página de recuperación</li>
+                  <li>Pega el código y crea tu nueva contraseña</li>
+                </ol>
+
+                <p>Si no solicitaste este cambio, ignora este correo. Tu contraseña permanecerá segura.</p>
+                
+                <div class="footer">
+                  <p>Este es un correo automático, por favor no respondas.</p>
+                  <p>&copy; 2024 Biyuyo - Smart Money Management</p>
+                </div>
+              </div>
+            </div>
+          </body>
+          </html>
+        `,
+      };
+
+      await transporter.sendMail(mailOptions);
+      console.log(`📧 Email enviado exitosamente a ${user.email}`);
+
+      res.json({ 
+        success: true, 
+        message: "Si el correo existe, recibirás instrucciones para restablecer tu contraseña",
+      });
+
+    } catch (emailError) {
+      console.error("❌ Error al enviar email:", emailError);
+      
+      // Si falla el email, retornamos el token en desarrollo para testing
+      if (process.env.NODE_ENV === 'development') {
+        res.json({ 
+          success: true, 
+          message: "Error al enviar email. Token de desarrollo:",
+          dev_token: resetToken 
+        });
+      } else {
+        res.status(500).json({ error: "Error al enviar el correo electrónico" });
+      }
+    }
+
+  } catch (err) {
+    console.error("Error en forgot-password:", err);
+    res.status(500).json({ error: "Error al procesar la solicitud" });
+  }
+});
+
+// --- RESET PASSWORD (Cambiar contraseña con token) ---
+app.post("/reset-password", async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  console.log("📥 Reset password request:", { 
+    token: token?.substring(0, 10) + "...", 
+    passwordLength: newPassword?.length 
+  });
+
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: "Token y nueva contraseña son requeridos" });
+  }
+
+  // Validaciones de contraseña
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres" });
+  }
+
+  if (!/[A-Z]/.test(newPassword)) {
+    return res.status(400).json({ error: "La contraseña debe contener al menos una letra mayúscula" });
+  }
+
+  if (!/[.!@#$%^&*()_+\-=\[\]{};':"\\|,<>\/?]/.test(newPassword)) {
+    return res.status(400).json({ error: "La contraseña debe contener al menos un carácter especial" });
+  }
+
+  try {
+    // Buscar usuario con token y obtener tiempo de expiración
+    const userResult = await pool.query(
+      `SELECT user_id, email, name, reset_token_expires
+       FROM users 
+       WHERE reset_token = $1`,
+      [token.trim()]
+    );
+
+    console.log("🔍 Token búsqueda resultado:", userResult.rows.length > 0 ? "Encontrado" : "No encontrado");
+
+    if (userResult.rows.length === 0) {
+      console.log("❌ Token no encontrado en base de datos");
+      return res.status(400).json({ error: "Token inválido" });
+    }
+
+    const user = userResult.rows[0];
+    
+    // Comparar fechas en JavaScript (más confiable)
+    const expiresAt = new Date(user.reset_token_expires);
+    const now = new Date();
+    
+    console.log(`⏱️ Expira en: ${expiresAt.toISOString()}`);
+    console.log(`⏱️ Ahora es: ${now.toISOString()}`);
+    console.log(`⏱️ Diferencia: ${Math.round((expiresAt - now) / 1000 / 60)} minutos`);
+
+    if (now > expiresAt) {
+      console.log("⏰ Token expirado");
+      return res.status(400).json({ error: "El token ha expirado. Solicita uno nuevo." });
+    }
+
+    // Hash de la nueva contraseña
+    const bcrypt = await import('bcrypt');
+    const saltRounds = 10;
+    const password_hash = await bcrypt.hash(newPassword, saltRounds);
+
+    // Actualizar contraseña y limpiar token
+    await pool.query(
+      `UPDATE users 
+       SET password_hash = $1, reset_token = NULL, reset_token_expires = NULL 
+       WHERE user_id = $2`,
+      [password_hash, user.user_id]
+    );
+
+    console.log(`✅ Contraseña actualizada para: ${user.email}`);
+
+    res.json({ 
+      success: true, 
+      message: "Contraseña actualizada exitosamente" 
+    });
+
+  } catch (err) {
+    console.error("Error en reset-password:", err);
+    res.status(500).json({ error: "Error al restablecer la contraseña" });
   }
 });
 

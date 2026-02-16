@@ -1,16 +1,19 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { getApiUrl } from "@/lib/config";
+
+const API_URL = getApiUrl();
 
 interface User {
   name: string;
   email: string;
-  user_id?: string;
+  user_id: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => void;
-  signup: (name: string, email: string, password: string) => void;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -21,31 +24,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem("biyuyo_user");
-    const userId = localStorage.getItem("biyuyo_user_id");
     if (stored) {
-      const userData = JSON.parse(stored);
-      if (userId) {
-        userData.user_id = userId;
-      }
-      setUser(userData);
+      setUser(JSON.parse(stored));
     }
   }, []);
 
-  const login = (email: string, _password: string) => {
-    const userData: User = { 
-      name: localStorage.getItem("biyuyo_user_name") || "Usuario", 
-      email,
-      user_id: localStorage.getItem("biyuyo_user_id") || undefined
-    };
+  const login = async (email: string, password: string) => {
+    const response = await fetch(`${API_URL}/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Error al iniciar sesión");
+    }
+
+    const userData = await response.json();
     localStorage.setItem("biyuyo_user", JSON.stringify(userData));
+    localStorage.setItem("biyuyo_user_id", userData.user_id);
     setUser(userData);
   };
 
-  const signup = (name: string, email: string, _password: string) => {
-    const userId = localStorage.getItem("biyuyo_user_id");
-    const userData: User = { name, email, user_id: userId || undefined };
+  const signup = async (name: string, email: string, password: string) => {
+    const response = await fetch(`${API_URL}/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Error al crear la cuenta");
+    }
+
+    const userData = await response.json();
     localStorage.setItem("biyuyo_user", JSON.stringify(userData));
-    localStorage.setItem("biyuyo_user_name", name);
+    localStorage.setItem("biyuyo_user_id", userData.user_id);
     setUser(userData);
   };
 
