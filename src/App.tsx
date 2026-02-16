@@ -10,11 +10,21 @@ import Analytics from "./pages/Analytics";
 
 const queryClient = new QueryClient();
 
+import { ReminderNotificationManager } from "@/components/ReminderNotificationManager";
+import { usePushNotification } from "@/hooks/use-push-notification";
+
+// Helper component to initialize global hooks inside the context
+const AppInitializer = () => {
+  usePushNotification(); // Initialize FCM
+  return <ReminderNotificationManager />; // Initialize Local Reminders
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <AppInitializer />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
