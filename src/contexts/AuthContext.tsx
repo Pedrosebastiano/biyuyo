@@ -1,9 +1,9 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
 
 interface User {
   name: string;
   email: string;
+  user_id?: string;
 }
 
 interface AuthContextType {
@@ -21,19 +21,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem("biyuyo_user");
+    const userId = localStorage.getItem("biyuyo_user_id");
     if (stored) {
-      setUser(JSON.parse(stored));
+      const userData = JSON.parse(stored);
+      if (userId) {
+        userData.user_id = userId;
+      }
+      setUser(userData);
     }
   }, []);
 
   const login = (email: string, _password: string) => {
-    const userData = { name: localStorage.getItem("biyuyo_user_name") || "Usuario", email };
+    const userData: User = { 
+      name: localStorage.getItem("biyuyo_user_name") || "Usuario", 
+      email,
+      user_id: localStorage.getItem("biyuyo_user_id") || undefined
+    };
     localStorage.setItem("biyuyo_user", JSON.stringify(userData));
     setUser(userData);
   };
 
   const signup = (name: string, email: string, _password: string) => {
-    const userData = { name, email };
+    const userId = localStorage.getItem("biyuyo_user_id");
+    const userData: User = { name, email, user_id: userId || undefined };
     localStorage.setItem("biyuyo_user", JSON.stringify(userData));
     localStorage.setItem("biyuyo_user_name", name);
     setUser(userData);
@@ -41,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem("biyuyo_user");
+    localStorage.removeItem("biyuyo_user_id");
     setUser(null);
   };
 

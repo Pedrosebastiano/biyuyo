@@ -4,6 +4,7 @@ import pg from "pg";
 import cors from "cors";
 import cron from "node-cron";
 import { messaging } from "./firebase-admin-setup.js";
+import bcrypt from 'bcrypt';
 
 const { Pool } = pg;
 const app = express();
@@ -204,6 +205,68 @@ cron.schedule("* * * * *", async () => {
 
   } catch (err) {
     console.error("❌ Error en cron job:", err);
+  }
+});
+
+// --- SIGNUP ---
+app.post("/signup", async (req, res) => {
+  const { name, email, password } = req.body;
+
+  // Validation
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: "Todos los campos son requeridos" });
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres" });
+  }
+
+  try {
+    // Hash password using bcrypt
+    const bcrypt = await import('bcrypt');
+    const saltRounds = 10;
+    const password_hash = await bcrypt.hash(password, saltRounds);
+
+    // Check if user already exists
+    const existingUser = await pool.query(
+      "SELECT user_id FROM users WHERE email = $1",
+      [email.toLowerCase()]
+    );
+
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ error: "Este correo ya está registrado" });
+    }
+
+    // Insert user
+    const userResult = await pool.query(
+      `INSERT INTO users (name, email, password_hash) 
+       VALUES ($1, $2, $3) 
+       RETURNING user_id, name, email, created_at`,
+      [name, email.toLowerCase(), password_hash]
+    );
+
+    const newUser = userResult.rows[0];
+
+    // Create default account for the user
+    await pool.query(
+      `INSERT INTO accounts (user_id, name, balance) 
+       VALUES ($1, $2, $3)`,
+      [newUser.user_id, "Cuenta Principal", 0]
+    );
+
+    console.log(`✅ Usuario creado exitosamente: ${newUser.email}`);
+
+    // Return user data (without password hash)
+    res.json({
+      user_id: newUser.user_id,
+      name: newUser.name,
+      email: newUser.email,
+      created_at: newUser.created_at,
+    });
+
+  } catch (err) {
+    console.error("Error en signup:", err);
+    res.status(500).json({ error: "Error al crear la cuenta" });
   }
 });
 
@@ -466,6 +529,7 @@ app.get("/accounts", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 app.get("/exchange-rates/latest", async (req, res) => {
   try {
