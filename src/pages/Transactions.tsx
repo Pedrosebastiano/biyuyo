@@ -12,6 +12,7 @@ import { TransactionFilters, FilterState } from "@/components/transactions/Trans
 import { AddTransactionDialog } from "@/components/transactions/AddTransactionDialog";
 import { Plus } from "lucide-react";
 import { useTransactions } from "@/hooks/useTransactions";
+import { useAuth } from "@/contexts/AuthContext";
 
 const defaultFilters: FilterState = {
   category: "",
@@ -24,7 +25,8 @@ const defaultFilters: FilterState = {
 };
 
 export default function Transactions() {
-  const { transactions, reminders } = useTransactions();
+  const { user } = useAuth();
+  const { transactions, reminders } = useTransactions(user?.user_id || "");
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("expenses");
   const [expenseFilters, setExpenseFilters] = useState<FilterState>(defaultFilters);
@@ -161,6 +163,16 @@ export default function Transactions() {
 
     return result;
   }, [reminders, reminderFilters]);
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">Por favor inicia sesión para ver tus transacciones</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

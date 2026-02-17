@@ -41,7 +41,7 @@ export interface Account {
   createdAt: string;
 }
 
-export function useTransactions(userId?: string) {
+export function useTransactions(userId: string) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -49,12 +49,18 @@ export function useTransactions(userId?: string) {
 
   // Función para obtener los datos de la NUBE (Render + Supabase) 
   const fetchTransactions = useCallback(async () => {
+    if (!userId) {
+      console.log('[useTransactions] No userId provided, skipping fetch');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const queryParams = userId ? `?userId=${userId}` : "";
+      const queryParams = `?userId=${userId}`;
 
       console.log(`[useTransactions] Fetching data from: ${API_URL}`);
-      console.log(`[useTransactions] UserID: ${userId || 'None'}`);
+      console.log(`[useTransactions] UserID: ${userId}`);
 
       // 1. Pedimos Gastos, Ingresos, Recordatorios y Cuentas al mismo tiempo
       const [resExpenses, resIncomes, resReminders, resAccounts] = await Promise.all([
@@ -168,4 +174,3 @@ export function useTransactions(userId?: string) {
     addReminder: refreshTransactions,
   };
 }
-

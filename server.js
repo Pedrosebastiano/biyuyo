@@ -430,7 +430,7 @@ app.post("/forgot-password", async (req, res) => {
                 
                 <div class="footer">
                   <p>Este es un correo automático, por favor no respondas.</p>
-                  <p>&copy; 2024 Biyuyo - Smart Money Management</p>
+                  <p>&copy; 2026 Biyuyo - Smart Money Management</p>
                 </div>
               </div>
             </div>
@@ -752,10 +752,20 @@ app.post("/reminders", async (req, res) => {
 
 app.get("/reminders", async (req, res) => {
   const { userId } = req.query;
+  
   try {
-    const result = await pool.query(
-      "SELECT * FROM reminders ORDER BY next_payment_date ASC",
-    );
+    let query = "SELECT * FROM reminders";
+    let values = [];
+
+    // ✅ FILTRAR por userId si se proporciona
+    if (userId) {
+      query += " WHERE user_id = $1";
+      values.push(userId);
+    }
+
+    query += " ORDER BY next_payment_date ASC";
+
+    const result = await pool.query(query, values);
 
     const recordatoriosFormateados = result.rows.map((row) => ({
       id: row.reminder_id,
@@ -771,6 +781,7 @@ app.get("/reminders", async (req, res) => {
       cuota_actual: row.installment_number,
     }));
 
+    console.log(`✅ Recordatorios obtenidos para user ${userId || 'todos'}: ${recordatoriosFormateados.length}`);
     res.json(recordatoriosFormateados);
   } catch (err) {
     console.error(err);

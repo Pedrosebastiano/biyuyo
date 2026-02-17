@@ -19,12 +19,10 @@ import {
 import { Camera, X, Loader2 } from "lucide-react";
 import { CurrencySelector, type Currency } from "./CurrencySelector";
 import { useTransactions } from "@/hooks/useTransactions";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { createClient } from "@supabase/supabase-js";
-import { useExchangeRate } from "@/hooks/useExchangeRate"; // Importamos el hook
-
-// TU ID DE SUPABASE
-const USER_ID = "6221431c-7a17-4acc-9c01-43903e30eb21";
+import { useExchangeRate } from "@/hooks/useExchangeRate";
 
 // Configuración de Supabase
 const supabaseUrl = "https://pmjjguyibxydzxnofcjx.supabase.co";
@@ -37,8 +35,8 @@ interface ExpenseFormProps {
 }
 
 export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
-  const { refreshTransactions } = useTransactions();
-  // Obtenemos la tasa del BCV
+  const { user } = useAuth();
+  const { refreshTransactions } = useTransactions(user?.user_id || "");
   const { rate, loading: loadingRate } = useExchangeRate();
 
   const [selectedMacro, setSelectedMacro] = useState<string>("");
@@ -151,6 +149,11 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
   };
 
   const handleSubmit = async () => {
+    if (!user) {
+      toast.error("Debes iniciar sesión para registrar un gasto");
+      return;
+    }
+
     const macroName =
       macroCategories.find((m) => m.id === selectedMacro)?.name || "";
     const categoryName =
@@ -203,7 +206,7 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
         categoria: categoryName,
         negocio: businessName,
         total_amount: finalAmountUSD, // Siempre enviamos USD
-        user_id: USER_ID,
+        user_id: user.user_id, // Usar el ID del usuario autenticado
         receipt_image_url: imageUrl, // Agregar URL de la imagen
       };
 
@@ -225,10 +228,7 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
       }
 
       // ÉXITO - Mensaje personalizado
-      let successMsg = "";
-
-      successMsg = "Gasto registrado exitosamente";
-
+      let successMsg = "Gasto registrado exitosamente";
       if (imageUrl) successMsg += " con imagen.";
 
       toast.success(successMsg);
@@ -423,7 +423,7 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
 
       <Button
         className="w-full"
-        disabled={!isFormValid || isSubmitting}
+        disabled={!isFormValid || isSubmitting || !user}
         onClick={handleSubmit}
       >
         {isSubmitting ? (

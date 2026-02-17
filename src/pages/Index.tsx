@@ -6,8 +6,8 @@ import { TransactionList } from "@/components/dashboard/TransactionList";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { FinancialGoals } from "@/components/dashboard/FinancialGoals";
 import { useTransactions } from "@/hooks/useTransactions";
+import { useAuth } from "@/contexts/AuthContext";
 import { Wallet, TrendingUp, TrendingDown, PiggyBank } from "lucide-react";
-import { APP_CONFIG } from "@/lib/config";
 
 const stats = [
   {
@@ -41,7 +41,20 @@ const stats = [
 ];
 
 const Index = () => {
-  const { transactions } = useTransactions(APP_CONFIG.DEFAULT_USER_ID);
+  const { user } = useAuth();
+  const { transactions } = useTransactions(user?.user_id || "");
+
+  if (!user) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="text-center">
+            <p className="text-muted-foreground">Por favor inicia sesión para ver tus datos</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -50,7 +63,7 @@ const Index = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-[#2d509e]">Dashboard</h1>
           <p className="text-muted-foreground mt-1">
-            ¡Bienvenido de nuevo, John! Aquí está tu resumen financiero.
+            ¡Bienvenido de nuevo, {user.name}! Aquí está tu resumen financiero.
           </p>
         </div>
 

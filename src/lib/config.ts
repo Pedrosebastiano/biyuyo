@@ -1,7 +1,4 @@
 export const APP_CONFIG = {
-    // Global User ID to pull data from
-    DEFAULT_USER_ID: "6221431c-7a17-4acc-9c01-43903e30eb21",
-
     // API URLs
     LOCAL_API: "http://localhost:3001",
     PRODUCTION_API: "https://biyuyo-pruebas.onrender.com"

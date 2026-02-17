@@ -8,15 +8,16 @@ import { useState, useMemo } from "react";
 import { DateRange } from "react-day-picker";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { useTransactions } from "@/hooks/useTransactions";
+import { useAuth } from "@/contexts/AuthContext";
 import { useExchangeRate } from "@/hooks/useExchangeRate";
 import { Currency } from "@/hooks/useCurrency";
-import { APP_CONFIG } from "@/lib/config";
 import { isWithinInterval, parseISO, startOfDay, endOfDay, isBefore } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftRight } from "lucide-react";
 
 const Analytics = () => {
-  const { transactions, reminders, accounts, loading } = useTransactions(APP_CONFIG.DEFAULT_USER_ID);
+  const { user } = useAuth();
+  const { transactions, reminders, accounts, loading } = useTransactions(user?.user_id || "");
   const { rate: exchangeRate } = useExchangeRate();
   const [currency, setCurrency] = useState<Currency>("USD");
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -45,6 +46,18 @@ const Analytics = () => {
       return isWithinInterval(tDate, { start: fromDate, end: toDate });
     });
   }, [transactions, dateRange]);
+
+  if (!user) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="text-center">
+            <p className="text-muted-foreground">Por favor inicia sesión para ver tus estadísticas</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (loading) {
     return (
@@ -99,7 +112,7 @@ const Analytics = () => {
             <div className="max-w-md mx-auto">
               <h3 className="text-xl font-semibold text-[#2d509e] mb-2">No se encontraron datos</h3>
               <p className="text-muted-foreground mb-6">
-                Parece que aún no tienes movimientos registrados para este usuario. Empieza agregando tus primeros gastos o ingresos.
+                Parece que aún no tienes movimientos registrados. Empieza agregando tus primeros gastos o ingresos.
               </p>
             </div>
           </div>

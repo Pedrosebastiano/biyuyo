@@ -31,19 +31,17 @@ import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { CurrencySelector, type Currency } from "./CurrencySelector";
 import { useTransactions } from "@/hooks/useTransactions";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { useExchangeRate } from "@/hooks/useExchangeRate"; // Importamos el hook
-
-// TU ID DE SUPABASE
-const USER_ID = "6221431c-7a17-4acc-9c01-43903e30eb21";
+import { useExchangeRate } from "@/hooks/useExchangeRate";
 
 interface ReminderFormProps {
   onSubmit: () => void;
 }
 
 export function ReminderForm({ onSubmit }: ReminderFormProps) {
-  const { refreshTransactions } = useTransactions();
-  // Obtenemos la tasa del BCV
+  const { user } = useAuth();
+  const { refreshTransactions } = useTransactions(user?.user_id || "");
   const { rate, loading: loadingRate } = useExchangeRate();
 
   const [selectedMacro, setSelectedMacro] = useState<string>("");
@@ -89,6 +87,11 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
   };
 
   const handleSubmit = async () => {
+    if (!user) {
+      toast.error("Debes iniciar sesión para crear un recordatorio");
+      return;
+    }
+
     // Validación de fecha
     if (!nextPaymentDate) {
       toast.error("Por favor selecciona una fecha de pago");
@@ -129,7 +132,7 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
 
     // Preparar objeto
     const nuevoRecordatorio = {
-      user_id: USER_ID,
+      user_id: user.user_id, // Usar el ID del usuario autenticado
       nombre: paymentName,
       macrocategoria: macroName,
       categoria: categoryName,
@@ -170,8 +173,6 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
 
       const resultado = await response.json();
       console.log("✅ Recordatorio guardado:", resultado);
-
-      // Feedback específico dependiendo de la moneda usada
 
       toast.success("Recordatorio guardado exitosamente");
 
@@ -428,7 +429,7 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
 
       <Button
         className="w-full"
-        disabled={!isFormValid || isSubmitting}
+        disabled={!isFormValid || isSubmitting || !user}
         onClick={handleSubmit}
       >
         {isSubmitting ? (

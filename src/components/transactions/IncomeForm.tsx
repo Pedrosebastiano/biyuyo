@@ -20,19 +20,16 @@ import { Camera, X, Loader2 } from "lucide-react";
 import { CurrencySelector, type Currency } from "./CurrencySelector";
 import { toast } from "sonner";
 import { useTransactions } from "@/hooks/useTransactions";
-// Asegúrate de que la ruta sea correcta según tu estructura de carpetas
+import { useAuth } from "@/contexts/AuthContext";
 import { useExchangeRate } from "@/hooks/useExchangeRate";
-
-// TU ID DE SUPABASE
-const USER_ID = "6221431c-7a17-4acc-9c01-43903e30eb21";
 
 interface IncomeFormProps {
   onSubmit: () => void;
 }
 
 export function IncomeForm({ onSubmit }: IncomeFormProps) {
-  const { refreshTransactions } = useTransactions();
-  // Obtenemos la tasa del BCV
+  const { user } = useAuth();
+  const { refreshTransactions } = useTransactions(user?.user_id || "");
   const { rate, loading: loadingRate } = useExchangeRate();
 
   const [selectedMacro, setSelectedMacro] = useState<string>("");
@@ -93,6 +90,11 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
   };
 
   const handleSubmit = async () => {
+    if (!user) {
+      toast.error("Debes iniciar sesión para registrar un ingreso");
+      return;
+    }
+
     const macroName =
       incomeMacroCategories.find((m) => m.id === selectedMacro)?.name || "";
     const categoryName =
@@ -126,8 +128,7 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
       categoria: categoryName,
       negocio: businessName,
       total_amount: finalAmountUSD, // Siempre enviamos el monto en USD
-      user_id: USER_ID,
-      // Nota: Si el backend soporta la imagen, deberías agregarla aquí también.
+      user_id: user.user_id, // Usar el ID del usuario autenticado
     };
 
     setIsSubmitting(true);
@@ -147,8 +148,6 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
       if (!response.ok) {
         throw new Error("Error al guardar en el servidor");
       }
-
-      // Feedback específico dependiendo de la moneda usada
 
       toast.success("Ingreso registrado exitosamente");
 
@@ -297,14 +296,9 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
         )}
       </div>
 
-      {/* Sección de cámara (Visual, tal cual estaba en el original) */}
-      <div>
-        {/* Si necesitas la lógica de subida de imagen, iría aquí, pero no afecta la conversión de moneda */}
-      </div>
-
       <Button
         className="w-full"
-        disabled={!isFormValid || isSubmitting}
+        disabled={!isFormValid || isSubmitting || !user}
         onClick={handleSubmit}
       >
         {isSubmitting ? (
