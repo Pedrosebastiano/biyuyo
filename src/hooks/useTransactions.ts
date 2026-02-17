@@ -88,13 +88,13 @@ export function useTransactions(userId: string) {
         .map((item: any) => ({
           id: `exp-${item.expense_id}`,
           type: "expense",
-          amount: parseFloat(item.total_amount),
+          amount: parseFloat(item.total_amount) || 0,
           currency: "USD",
           macroCategory: item.macrocategoria,
           category: item.categoria,
           business: item.negocio,
           date: item.created_at ? item.created_at.split('T')[0] : new Date().toISOString(),
-          receiptImage: item.receipt_image_url || undefined, // ✅ IMPORTANTE: Agregar la imagen
+          receiptImage: item.receipt_image_url || undefined,
         }));
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,7 +103,7 @@ export function useTransactions(userId: string) {
         .map((item: any) => ({
           id: `inc-${item.income_id}`,
           type: "income",
-          amount: parseFloat(item.total_amount),
+          amount: parseFloat(item.total_amount) || 0,
           currency: "USD",
           macroCategory: item.macrocategoria,
           category: item.categoria,
@@ -118,7 +118,7 @@ export function useTransactions(userId: string) {
         .map((item: any) => ({
           id: item.id,
           name: item.nombre,
-          amount: parseFloat(item.monto),
+          amount: parseFloat(item.monto) || 0,
           currency: "USD" as const,
           macroCategory: item.macrocategoria,
           category: item.categoria,
@@ -134,8 +134,8 @@ export function useTransactions(userId: string) {
       const formattedAccounts: Account[] = accountsData.map((item: any) => ({
         id: item.account_id,
         name: item.name,
-        balance: parseFloat(item.balance),
-        savings: parseFloat(item.savings),
+        balance: parseFloat(item.balance) || 0,
+        savings: parseFloat(item.savings) || 0,
         createdAt: item.created_at,
       }));
 
@@ -170,7 +170,7 @@ export function useTransactions(userId: string) {
     accounts,
     loading,
     refreshTransactions,
-    addTransaction: refreshTransactions, 
+    addTransaction: refreshTransactions,
     addReminder: refreshTransactions,
   };
 }

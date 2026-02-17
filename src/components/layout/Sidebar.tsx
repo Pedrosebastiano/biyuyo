@@ -1,18 +1,19 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  LayoutDashboard, 
-  Wallet, 
-  TrendingUp, 
-  Users, 
+import {
+  LayoutDashboard,
+  Wallet,
+  TrendingUp,
+  Users,
   Target,
   Settings,
   Crown,
-  LogOut
+  LogOut,
+  Sparkles
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useExchangeRate } from "@/hooks/useExchangeRate";
 import biyuyoLogo from "@/assets/biyuyo-logo.png";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +22,7 @@ const navigation = [
   { name: "Dashboard", icon: LayoutDashboard, href: "/", current: true },
   { name: "Transacciones", icon: Wallet, href: "/transactions", current: false },
   { name: "Analytics", icon: TrendingUp, href: "/analytics", current: false },
+  { name: "Predicciones", icon: Sparkles, href: "/ml", current: false },
   { name: "Shared Accounts", icon: Users, href: "/shared", current: false, badge: "Premium" },
   { name: "Goals", icon: Target, href: "/goals", current: false },
 ];
@@ -37,11 +39,18 @@ export function Sidebar({ className }: SidebarProps) {
   const { rate, loading } = useExchangeRate();
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
+
+  const navWithActive = navigation.map(item => ({
+    ...item,
+    current: location.pathname === item.href
+  }));
+
   return (
     <div className={cn("flex flex-col h-full bg-card border-r-2 border-border", className)}>
       {/* Logo */}
@@ -74,7 +83,7 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Navigation */}
       <ScrollArea className="flex-1 px-4 py-6">
         <nav className="space-y-2">
-          {navigation.map((item) => (
+          {navWithActive.map((item) => (
             <Link key={item.name} to={item.href}>
               <Button
                 variant={item.current ? "default" : "ghost"}
@@ -86,7 +95,7 @@ export function Sidebar({ className }: SidebarProps) {
                 <item.icon className="h-5 w-5" />
                 <span className="flex-1 text-left">{item.name}</span>
                 {item.badge && (
-                  <Badge 
+                  <Badge
                     variant={item.badge === "Premium" ? "secondary" : "default"}
                     className="text-xs"
                   >

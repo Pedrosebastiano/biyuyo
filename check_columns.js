@@ -16,7 +16,7 @@ async function checkColumns() {
       WHERE table_name IN ('expenses', 'incomes', 'reminders', 'accounts')
       ORDER BY table_name, ordinal_position;
     `);
-        console.table(res.rows);
+        console.log(JSON.stringify(res.rows, null, 2));
         await pool.end();
     } catch (err) {
         console.error("Error:", err.message);

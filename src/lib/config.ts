@@ -1,7 +1,8 @@
 export const APP_CONFIG = {
     // API URLs
     LOCAL_API: "http://localhost:3001",
-    PRODUCTION_API: "https://biyuyo-pruebas.onrender.com"
+    PRODUCTION_API: "https://biyuyo-pruebas.onrender.com",
+    ML_LOCAL_API: "http://localhost:8000"
 };
 
 export const getApiUrl = () => {
@@ -20,4 +21,9 @@ export const getApiUrl = () => {
     }
 
     return APP_CONFIG.PRODUCTION_API;
+};
+
+export const getMLApiUrl = () => {
+    // For now, ML is always local or uses a specific URL
+    return APP_CONFIG.ML_LOCAL_API;
 };

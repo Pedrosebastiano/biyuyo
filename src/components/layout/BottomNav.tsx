@@ -1,11 +1,12 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Wallet, TrendingUp } from "lucide-react";
+import { LayoutDashboard, Wallet, TrendingUp, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: Wallet, label: "Transacciones", href: "/transactions" },
   { icon: TrendingUp, label: "Estadísticas", href: "/analytics" },
+  { icon: Sparkles, label: "IA", href: "/ml" },
 ];
 
 export function BottomNav() {
@@ -17,15 +18,15 @@ export function BottomNav() {
       <div className="flex items-center justify-around h-full px-6">
         {navItems.map((item) => {
           const isActive = location.pathname === item.href;
-          
+
           return (
             <button
               key={item.href}
               onClick={() => navigate(item.href)}
               className={cn(
                 "flex flex-col items-center justify-center flex-1 h-14 rounded-xl transition-colors mx-2",
-                isActive 
-                  ? "bg-primary text-primary-foreground" 
+                isActive
+                  ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >

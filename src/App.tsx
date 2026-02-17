@@ -12,6 +12,7 @@ import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import Profile from "./pages/Profile";
 import AuthCallback from "./pages/AuthCallback";
+import ML from "./pages/ML";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const AppRoutes = () => (
     <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
     <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
     <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+    <Route path="/ml" element={<ProtectedRoute><ML /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
