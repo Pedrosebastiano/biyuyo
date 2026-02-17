@@ -6,6 +6,7 @@ import cron from "node-cron";
 import { messaging } from "./firebase-admin-setup.js";
 import bcrypt from 'bcrypt';
 import nodemailer from "nodemailer";
+import { calculateAndSaveMLFeatures } from './mlFeatures.js';
 
 const { Pool } = pg;
 const app = express();
@@ -591,8 +592,38 @@ app.post("/expenses", async (req, res) => {
     ];
 
     const result = await pool.query(query, values);
-    console.log("✅ Gasto guardado exitosamente:", result.rows[0]);
-    res.json(result.rows[0]);
+    const newExpense = result.rows[0];
+
+    console.log("✅ Gasto guardado:", newExpense.expense_id);
+    console.log("👤 user_id recibido:", user_id);
+    console.log("📦 newExpense completo:", JSON.stringify(newExpense, null, 2));
+
+    // Responder primero
+    res.json(newExpense);
+
+    // Calcular features DESPUÉS de responder, con await directo
+    if (user_id) {
+      console.log("🚀 [ML] Iniciando cálculo de features...");
+      try {
+        const featureId = await calculateAndSaveMLFeatures(
+          newExpense.expense_id,
+          user_id,
+          {
+            total_amount: newExpense.total_amount,
+            macrocategoria: newExpense.macrocategoria,
+            categoria: newExpense.categoria,
+            created_at: newExpense.created_at,
+          },
+          pool
+        );
+        console.log("🎯 [ML] Feature ID retornado:", featureId);
+      } catch (mlError) {
+        console.error("💥 [ML] Error capturado en endpoint:", mlError);
+      }
+    } else {
+      console.log("⚠️ [ML] No se calcularon features: user_id es null/undefined");
+    }
+
   } catch (err) {
     console.error("Error guardando gasto:", err.message);
     res.status(500).json({ error: err.message });
@@ -1127,6 +1158,77 @@ app.get("/expenses/feedback-stats/:user_id", async (req, res) => {
     res.json({ success: true, stats: result.rows[0] });
   } catch (err) {
     console.error("Error obteniendo stats de feedback:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- VER ML FEATURES DE UN GASTO (útil para debugging y futuro dashboard) ---
+app.get("/expenses/:expense_id/features", async (req, res) => {
+  const { expense_id } = req.params;
+  const { user_id } = req.query;
+
+  if (!user_id) {
+    return res.status(400).json({ error: "user_id es requerido" });
+  }
+
+  try {
+    const query = `
+      SELECT 
+        f.*,
+        e.user_feedback,
+        e.negocio,
+        e.created_at AS expense_date
+      FROM expense_ml_features f
+      JOIN expenses e ON e.expense_id = f.expense_id
+      WHERE f.expense_id = $1 
+        AND f.user_id = $2
+    `;
+    const result = await pool.query(query, [expense_id, user_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Features no encontrados para este gasto" });
+    }
+
+    res.json({ success: true, features: result.rows[0] });
+  } catch (err) {
+    console.error("Error obteniendo features:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- RESUMEN DE ML FEATURES DEL USUARIO (para el futuro entrenamiento) ---
+app.get("/ml/summary/:user_id", async (req, res) => {
+  const { user_id } = req.params;
+
+  try {
+    const query = `
+      SELECT
+        COUNT(*)                                          AS total_expenses_with_features,
+        COUNT(*) FILTER (WHERE e.user_feedback IS NOT NULL) AS labeled_expenses,
+        COUNT(*) FILTER (WHERE e.user_feedback = 1)      AS good_decisions,
+        COUNT(*) FILTER (WHERE e.user_feedback = 0)      AS neutral_decisions,
+        COUNT(*) FILTER (WHERE e.user_feedback = -1)     AS regretted_decisions,
+        ROUND(AVG(f.amount)::numeric, 2)                 AS avg_expense_amount,
+        ROUND(AVG(f.balance_at_time)::numeric, 2)        AS avg_balance_at_time,
+        ROUND(AVG(f.savings_rate)::numeric, 4)           AS avg_savings_rate,
+        ROUND(AVG(f.amount_to_balance_ratio)::numeric, 4) AS avg_amount_to_balance_ratio,
+        ROUND(AVG(f.overdue_reminders_count)::numeric, 2) AS avg_overdue_reminders
+      FROM expense_ml_features f
+      JOIN expenses e ON e.expense_id = f.expense_id
+      WHERE f.user_id = $1
+    `;
+    const result = await pool.query(query, [user_id]);
+
+    res.json({ 
+      success: true, 
+      summary: result.rows[0],
+      ready_for_training: parseInt(result.rows[0].labeled_expenses) >= 50,
+      message: parseInt(result.rows[0].labeled_expenses) < 50
+        ? `Necesitas ${50 - parseInt(result.rows[0].labeled_expenses)} gastos con feedback más para entrenar el modelo`
+        : "¡Tienes suficientes datos para entrenar el modelo!"
+    });
+  } catch (err) {
+    console.error("Error obteniendo resumen ML:", err);
     res.status(500).json({ error: err.message });
   }
 });
