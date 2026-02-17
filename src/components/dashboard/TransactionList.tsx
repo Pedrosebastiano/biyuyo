@@ -27,8 +27,14 @@ const categoryIcons: Record<string, React.ElementType> = {
   reminder: Bell,
 };
 
-export function TransactionList() {
-  const { transactions, reminders } = useTransactions();
+// 1. Definimos que este componente espera recibir un userId
+interface TransactionListProps {
+  userId: string | number;
+}
+
+export function TransactionList({ userId }: TransactionListProps) {
+  // 2. Pasamos ese userId al hook para que busque SOLO los datos de ese usuario
+  const { transactions, reminders } = useTransactions(String(userId));
 
   // Combinar transacciones y recordatorios
   const combinedItems = [
@@ -63,7 +69,7 @@ export function TransactionList() {
           Transacciones Recientes
         </CardTitle>
         <Badge variant="secondary" className="font-mono">
-          {combinedItems.length} transacciones
+          {combinedItems.length} items
         </Badge>
       </CardHeader>
       <CardContent className="p-0">
@@ -71,18 +77,18 @@ export function TransactionList() {
           <div className="divide-y divide-border">
             {combinedItems.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
-                No hay transacciones recientes
+                No hay transacciones recientes para este usuario.
               </div>
             ) : (
               combinedItems.map((item) => {
-                const Icon = categoryIcons.shopping;
+                const Icon = categoryIcons.shopping; // Puedes mejorar esto dinámicamente si tienes la categoría en el item
                 const isIncome = item.type === "income";
                 const isReminder = item.isReminder;
                 const currencySymbol = item.currency === "USD" ? "$" : "Bs.";
 
                 return (
                   <div
-                    key={item.id}
+                    key={`${item.id}-${item.isReminder ? 'rem' : 'tx'}`}
                     className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-4">
@@ -92,8 +98,8 @@ export function TransactionList() {
                           isIncome
                             ? "bg-accent"
                             : isReminder
-                              ? "bg-warning/10"
-                              : "bg-muted",
+                            ? "bg-warning/10"
+                            : "bg-muted",
                         )}
                       >
                         {isReminder ? (
@@ -116,8 +122,8 @@ export function TransactionList() {
                           isIncome
                             ? "text-primary"
                             : isReminder
-                              ? "text-warning"
-                              : "text-foreground",
+                            ? "text-warning"
+                            : "text-foreground",
                         )}
                       >
                         {isIncome ? "+" : isReminder ? "" : "-"}

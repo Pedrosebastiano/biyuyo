@@ -14,32 +14,32 @@ interface User {
   name: string;
   email: string;
   user_id: string;
+  is_premium: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string) => Promise<User>;
   loginWithGoogle: () => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// After Google OAuth, ensure the user exists in your custom `users` table
-// and return the stored user row so the app has user_id etc.
 async function syncGoogleUserToDb(
   supabaseUserId: string,
   email: string,
   name: string
 ): Promise<User> {
-  // Check if user already exists in our custom users table (by email)
   const response = await fetch(`${API_URL}/users`);
   const allUsers: Array<{
     user_id: string;
     name: string;
     email: string;
+    is_premium: boolean;
   }> = await response.json();
 
   const existing = allUsers.find(
@@ -51,11 +51,10 @@ async function syncGoogleUserToDb(
       user_id: existing.user_id,
       name: existing.name,
       email: existing.email,
+      is_premium: existing.is_premium || false,
     };
   }
 
-  // User doesn't exist yet — create via signup endpoint (no password needed for OAuth users)
-  // We generate a random secure password they'll never use
   const randomPassword =
     Math.random().toString(36).slice(-12) +
     "Aa1!" +
@@ -68,10 +67,13 @@ async function syncGoogleUserToDb(
   });
 
   if (!signupRes.ok) {
-    // If signup fails (e.g. race condition where it was just created), try fetching again
     const retryRes = await fetch(`${API_URL}/users`);
-    const retryUsers: Array<{ user_id: string; name: string; email: string }> =
-      await retryRes.json();
+    const retryUsers: Array<{
+      user_id: string;
+      name: string;
+      email: string;
+      is_premium: boolean;
+    }> = await retryRes.json();
     const retryUser = retryUsers.find(
       (u) => u.email.toLowerCase() === email.toLowerCase()
     );
@@ -80,6 +82,7 @@ async function syncGoogleUserToDb(
         user_id: retryUser.user_id,
         name: retryUser.name,
         email: retryUser.email,
+        is_premium: retryUser.is_premium || false,
       };
     throw new Error("Error al registrar usuario de Google en la base de datos");
   }
@@ -89,21 +92,61 @@ async function syncGoogleUserToDb(
     user_id: newUser.user_id,
     name: newUser.name,
     email: newUser.email,
+    is_premium: newUser.is_premium || false,
   };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const stored = localStorage.getItem("biyuyo_user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
 
-  // On mount: load from localStorage AND listen for Supabase auth changes (Google callback)
+  const saveUser = (userData: User) => {
+    localStorage.setItem("biyuyo_user", JSON.stringify(userData));
+    localStorage.setItem("biyuyo_user_id", userData.user_id);
+    setUser(userData);
+  };
+
+  // Refresca is_premium desde el servidor y actualiza localStorage + estado
+  const refreshUser = async () => {
+    try {
+      const stored = localStorage.getItem("biyuyo_user");
+      if (!stored) return;
+      const current = JSON.parse(stored) as User;
+      if (!current?.user_id) return;
+
+      const res = await fetch(`${API_URL}/user/${current.user_id}`);
+      if (!res.ok) return;
+      const data = await res.json();
+
+      saveUser({
+        user_id: data.user_id,
+        name: data.name,
+        email: data.email,
+        is_premium: data.is_premium || false,
+      });
+    } catch {
+      // Si falla el refresh, mantiene los datos actuales
+    }
+  };
+
   useEffect(() => {
-    // Restore session from localStorage (for email/password users)
+    // Restaurar sesión de localStorage (usuarios email/password)
     const stored = localStorage.getItem("biyuyo_user");
     if (stored) {
-      setUser(JSON.parse(stored));
+      try {
+        setUser(JSON.parse(stored));
+      } catch {
+        localStorage.removeItem("biyuyo_user");
+      }
     }
 
-    // Listen for Supabase auth state changes (handles Google OAuth callback)
+    // Escuchar cambios de auth de Supabase (Google OAuth)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -112,11 +155,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session?.user &&
         session.user.app_metadata?.provider === "google"
       ) {
-        // Check if we already have this user stored in localStorage
         const storedUser = localStorage.getItem("biyuyo_user");
         if (storedUser) {
           const parsedUser = JSON.parse(storedUser);
-          // If same email already saved, no need to re-sync
           if (
             parsedUser.email.toLowerCase() ===
             session.user.email?.toLowerCase()
@@ -127,7 +168,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         const email = session.user.email ?? "";
-        // Google provides full_name in user_metadata
         const name =
           session.user.user_metadata?.full_name ||
           session.user.user_metadata?.name ||
@@ -139,9 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email,
             name
           );
-          localStorage.setItem("biyuyo_user", JSON.stringify(syncedUser));
-          localStorage.setItem("biyuyo_user_id", syncedUser.user_id);
-          setUser(syncedUser);
+          saveUser(syncedUser);
         } catch (err) {
           console.error("Error syncing Google user:", err);
         }
@@ -170,12 +208,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const userData = await response.json();
-    localStorage.setItem("biyuyo_user", JSON.stringify(userData));
-    localStorage.setItem("biyuyo_user_id", userData.user_id);
-    setUser(userData);
+    saveUser({
+      user_id: userData.user_id,
+      name: userData.name,
+      email: userData.email,
+      is_premium: userData.is_premium || false,
+    });
   };
 
-  const signup = async (name: string, email: string, password: string) => {
+  const signup = async (
+    name: string,
+    email: string,
+    password: string
+  ): Promise<User> => {
     const response = await fetch(`${API_URL}/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -188,19 +233,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const userData = await response.json();
-    localStorage.setItem("biyuyo_user", JSON.stringify(userData));
-    localStorage.setItem("biyuyo_user_id", userData.user_id);
-    setUser(userData);
+    const newUser: User = {
+      user_id: userData.user_id,
+      name: userData.name,
+      email: userData.email,
+      is_premium: userData.is_premium || false,
+    };
+    saveUser(newUser);
+    return newUser;
   };
 
   const loginWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        // Supabase will redirect here after Google auth
         redirectTo: `${window.location.origin}/auth/callback`,
         queryParams: {
-          // Request the user's profile so we can get their name
           access_type: "offline",
           prompt: "consent",
         },
@@ -210,7 +258,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    // Sign out from Supabase too (for Google users)
     supabase.auth.signOut().catch(() => {});
     localStorage.removeItem("biyuyo_user");
     localStorage.removeItem("biyuyo_user_id");
@@ -226,6 +273,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signup,
         loginWithGoogle,
         logout,
+        refreshUser,
       }}
     >
       {children}

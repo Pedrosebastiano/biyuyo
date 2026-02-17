@@ -1,14 +1,39 @@
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, LogOut, Mail, User } from "lucide-react";
-import biyuyoLogo from "@/assets/biyuyo-logo.png";
+import {
+  ArrowLeft, LogOut, Mail, User,
+  Star, Loader2, Check,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from "@/lib/config";
+
+const API_URL = getApiUrl();
+const UNIMET_DOMAINS = ["correo.unimet.edu.ve", "unimet.edu.ve"];
+
+function isUnimetEmail(email: string) {
+  const domain = email?.split("@")[1]?.toLowerCase();
+  return UNIMET_DOMAINS.includes(domain);
+}
 
 export default function Profile() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const [isSending, setIsSending] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [tokenSent, setTokenSent] = useState(false);
+  const [token, setToken] = useState("");
+
+  // Al entrar al perfil, refresca datos del servidor para tener is_premium actualizado
+  useEffect(() => {
+    refreshUser();
+  }, []);
 
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
@@ -19,27 +44,114 @@ export default function Profile() {
     navigate("/login");
   };
 
+  const handleSendToken = async () => {
+    if (!user) return;
+    setIsSending(true);
+    try {
+      const res = await fetch(`${API_URL}/send-unimet-verification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: user.user_id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error al enviar el código");
+      if (data.dev_token) console.log("🔑 Dev token:", data.dev_token);
+      setTokenSent(true);
+      toast({ title: "¡Código enviado!", description: "Revisa tu correo institucional." });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Error al enviar el código",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleVerify = async () => {
+    if (!user || !token.trim()) return;
+    setIsVerifying(true);
+    try {
+      const res = await fetch(`${API_URL}/verify-unimet-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: user.user_id, token: token.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Token inválido");
+
+      // Refresca el contexto para que is_premium quede en true en localStorage
+      await refreshUser();
+
+      toast({ title: "⭐ ¡Cuenta Premium activada!", description: "Verificación exitosa." });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Token inválido o expirado",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const isPremium = user?.is_premium || false;
+  const showUnimetSection = user?.email && isUnimetEmail(user.email);
+
   return (
     <div className="min-h-screen bg-background px-6 py-8">
-      {/* Back */}
-      <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-primary hover:underline mb-6">
+      <button
+        onClick={() => navigate(-1)}
+        className="flex items-center gap-1 text-sm text-primary hover:underline mb-6"
+      >
         <ArrowLeft className="h-4 w-4" />
         Volver
       </button>
 
       <div className="max-w-sm mx-auto space-y-6">
-        {/* Header */}
+
+        {/* Avatar + nombre */}
         <div className="flex flex-col items-center">
           <Avatar className="h-20 w-20 border-2 border-border mb-3">
-            <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
+            <AvatarFallback
+              className="text-2xl font-bold"
+              style={{
+                background: isPremium
+                  ? "linear-gradient(135deg, #b8860b, #ffd700, #b8860b)"
+                  : "hsl(var(--primary))",
+                color: isPremium ? "#3d2800" : "hsl(var(--primary-foreground))",
+              }}
+            >
               {initials}
             </AvatarFallback>
           </Avatar>
-          <h1 className="text-2xl font-bold text-[#2d509e]">{user?.name || "Usuario"}</h1>
+
+          {/* Nombre en dorado si es premium */}
+          <h1
+            className="text-2xl font-bold"
+            style={{
+              color: isPremium ? "#b8860b" : "#2d509e",
+            }}
+          >
+            {user?.name || "Usuario"}
+            {isPremium && (
+              <Star className="inline-block h-5 w-5 ml-2 fill-yellow-400 text-yellow-400 align-middle" />
+            )}
+          </h1>
+
           <p className="text-sm text-muted-foreground">{user?.email}</p>
+
+          {isPremium && (
+            <div className="flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-xs font-semibold"
+              style={{ background: "#fef9c3", color: "#854d0e" }}>
+              <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
+              Cuenta Premium Verificada
+            </div>
+          )}
         </div>
 
-        {/* Info Card */}
+        {/* Info card */}
         <Card className="border-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Información personal</CardTitle>
@@ -61,6 +173,88 @@ export default function Profile() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Sección Unimet — solo si tiene correo Unimet */}
+        {showUnimetSection && (
+          isPremium ? (
+            /* Ya es premium */
+            <Card className="border-2 border-yellow-300" style={{ background: "#fefce8" }}>
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-yellow-100 p-2 rounded-full">
+                    <Star className="h-6 w-6 fill-yellow-400 text-yellow-500" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-yellow-800">Cuenta Premium activa</p>
+                    <p className="text-xs text-yellow-700">
+                      Tu correo Unimet está verificado. ¡Disfruta todos los beneficios!
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            /* No verificado aún */
+            <Card className="border-2 border-yellow-300" style={{ background: "#fefce8" }}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2 text-yellow-700">
+                  <Star className="h-4 w-4 fill-yellow-400" />
+                  Verificación Premium Unimet
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-yellow-800">
+                  Verifica tu correo institucional y obtén acceso Premium gratis.
+                </p>
+
+                {!tokenSent ? (
+                  <Button
+                    className="w-full text-white"
+                    style={{ background: "#eab308" }}
+                    onClick={handleSendToken}
+                    disabled={isSending}
+                  >
+                    {isSending ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Enviando...</>
+                    ) : (
+                      "Enviar código de verificación"
+                    )}
+                  </Button>
+                ) : (
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Pega el código aquí"
+                      value={token}
+                      onChange={(e) => setToken(e.target.value)}
+                      className="font-mono border-2 border-yellow-300"
+                      disabled={isVerifying}
+                    />
+                    <Button
+                      className="w-full text-white"
+                      style={{ background: "#eab308" }}
+                      onClick={handleVerify}
+                      disabled={isVerifying || !token.trim()}
+                    >
+                      {isVerifying ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verificando...</>
+                      ) : (
+                        "Activar Premium"
+                      )}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={handleSendToken}
+                      disabled={isSending}
+                      className="w-full text-xs text-yellow-700 hover:underline"
+                    >
+                      {isSending ? "Reenviando..." : "¿No recibiste el código? Reenviar"}
+                    </button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )
+        )}
 
         {/* Logout */}
         <Button variant="destructive" className="w-full gap-2" onClick={handleLogout}>

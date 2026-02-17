@@ -75,7 +75,7 @@ export default function ForgotPassword() {
     if (!allChecks) {
       toast.error("La contraseña no cumple con los requisitos");
       return;
-    }
+    } 
 
     setIsSubmitting(true);
 
