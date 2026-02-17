@@ -27,5 +27,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "public/scripts"]
+  "include": ["src", "public/scripts", "mlFeatures.js"]
 }

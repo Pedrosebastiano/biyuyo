@@ -30,7 +30,19 @@ export default function Login() {
 
     try {
       await login(email, password);
-      toast.success("¡Bienvenido de nuevo!");
+      const stored = localStorage.getItem("biyuyo_user");
+      const userData = stored ? JSON.parse(stored) : null;
+      const UNIMET_DOMAINS = ["correo.unimet.edu.ve", "unimet.edu.ve"];
+      const domain = userData?.email?.split("@")[1]?.toLowerCase();
+      const isUnimet = UNIMET_DOMAINS.includes(domain);
+      if (isUnimet && !userData?.is_premium) {
+        toast.warning("⭐ Tienes una cuenta Premium esperando", {
+          description: "Ve a tu perfil para activar tu cuenta Premium Unimet gratis.",
+          duration: 6000,
+        });
+      } else {
+        toast.success("¡Bienvenido de nuevo!");
+      }
       navigate("/");
     } catch (error) {
       console.error("Error en login:", error);

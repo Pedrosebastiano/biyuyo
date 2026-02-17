@@ -6,6 +6,7 @@ import cron from "node-cron";
 import { messaging } from "./firebase-admin-setup.js";
 import bcrypt from 'bcrypt';
 import nodemailer from "nodemailer";
+import { calculateAndSaveMLFeatures } from './mlFeatures.js';
 
 const { Pool } = pg;
 const app = express();
@@ -282,6 +283,7 @@ app.post("/signup", async (req, res) => {
       name: newUser.name,
       email: newUser.email,
       created_at: newUser.created_at,
+      is_premium: newUser.is_premium || false,
     });
 
   } catch (err) {
@@ -328,6 +330,7 @@ app.post("/login", async (req, res) => {
       user_id: user.user_id,
       name: user.name,
       email: user.email,
+      is_premium: user.is_premium || false,
     });
 
   } catch (err) {
@@ -589,8 +592,38 @@ app.post("/expenses", async (req, res) => {
     ];
 
     const result = await pool.query(query, values);
-    console.log("✅ Gasto guardado exitosamente:", result.rows[0]);
-    res.json(result.rows[0]);
+    const newExpense = result.rows[0];
+
+    console.log("✅ Gasto guardado:", newExpense.expense_id);
+    console.log("👤 user_id recibido:", user_id);
+    console.log("📦 newExpense completo:", JSON.stringify(newExpense, null, 2));
+
+    // Responder primero
+    res.json(newExpense);
+
+    // Calcular features DESPUÉS de responder, con await directo
+    if (user_id) {
+      console.log("🚀 [ML] Iniciando cálculo de features...");
+      try {
+        const featureId = await calculateAndSaveMLFeatures(
+          newExpense.expense_id,
+          user_id,
+          {
+            total_amount: newExpense.total_amount,
+            macrocategoria: newExpense.macrocategoria,
+            categoria: newExpense.categoria,
+            created_at: newExpense.created_at,
+          },
+          pool
+        );
+        console.log("🎯 [ML] Feature ID retornado:", featureId);
+      } catch (mlError) {
+        console.error("💥 [ML] Error capturado en endpoint:", mlError);
+      }
+    } else {
+      console.log("⚠️ [ML] No se calcularon features: user_id es null/undefined");
+    }
+
   } catch (err) {
     console.error("Error guardando gasto:", err.message);
     res.status(500).json({ error: err.message });
@@ -750,6 +783,55 @@ app.post("/reminders", async (req, res) => {
   }
 });
 
+// Obtener la suma de los saldos iniciales de todas las cuentas
+app.get('/account-balance/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const result = await pool.query(
+      'SELECT SUM(balance) as total_initial FROM accounts WHERE user_id = $1',
+      [userId]
+    );
+    // Si no tiene cuentas, retorna 0
+    const initialBalance = result.rows[0].total_initial || 0;
+    res.json({ success: true, initialBalance: Number(initialBalance) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener balance' });
+  }
+});
+
+// Crear o actualizar una cuenta (Para el botón de "Ajustar Saldo")
+// Simplificado: Crearemos una cuenta llamada "Principal" si no existe, o actualizaremos su saldo
+app.post('/set-initial-balance', async (req, res) => {
+  const { userId, amount } = req.body;
+  try {
+    // 1. Buscamos si ya tiene una cuenta "Efectivo/Principal"
+    const existing = await pool.query(
+      'SELECT * FROM accounts WHERE user_id = $1 AND name = $2',
+      [userId, 'Principal']
+    );
+
+    if (existing.rows.length > 0) {
+      // Actualizar
+      await pool.query(
+        'UPDATE accounts SET balance = $1 WHERE account_id = $2',
+        [amount, existing.rows[0].account_id]
+      );
+    } else {
+      // Crear nueva
+      await pool.query(
+        'INSERT INTO accounts (user_id, name, balance) VALUES ($1, $2, $3)',
+        [userId, 'Principal', amount]
+      );
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al guardar saldo' });
+  }
+});
+
+
 app.get("/reminders", async (req, res) => {
   const { userId } = req.query;
   
@@ -831,6 +913,322 @@ app.get("/exchange-rates/latest", async (req, res) => {
     res.json(result.rows[0] || null);
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- VERIFICACIÓN UNIMET (Enviar token) ---
+app.post("/send-unimet-verification", async (req, res) => {
+  const { user_id } = req.body;
+
+  if (!user_id) {
+    return res.status(400).json({ error: "user_id es requerido" });
+  }
+
+  try {
+    const userResult = await pool.query(
+      "SELECT user_id, email, name, is_premium FROM users WHERE user_id = $1",
+      [user_id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    const user = userResult.rows[0];
+    const email = user.email.toLowerCase();
+    const isUnimet =
+      email.endsWith("@correo.unimet.edu.ve") ||
+      email.endsWith("@unimet.edu.ve");
+
+    if (!isUnimet) {
+      return res.status(400).json({ error: "El correo no es de dominio Unimet" });
+    }
+
+    if (user.is_premium) {
+      return res.status(400).json({ error: "La cuenta ya está verificada como Premium" });
+    }
+
+    const crypto = await import("crypto");
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const tokenExpires = new Date(Date.now() + 3600000);
+
+    await pool.query(
+      `UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE user_id = $3`,
+      [verificationToken, tokenExpires, user.user_id]
+    );
+
+    try {
+      const mailOptions = {
+        from: { name: "Biyuyo", address: process.env.GMAIL_USER },
+        to: user.email,
+        subject: "Verificación Unimet Premium - Biyuyo",
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background-color: #2d509e; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+              .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+              .token-box { background-color: white; border: 2px solid #2d509e; padding: 20px; margin: 20px 0; text-align: center; border-radius: 8px; }
+              .token { font-size: 18px; font-weight: bold; color: #2d509e; font-family: monospace; word-break: break-all; }
+              .warning { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 20px 0; }
+              .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>Biyuyo</h1>
+                <p>Verificación de Cuenta Unimet</p>
+              </div>
+              <div class="content">
+                <p>Hola ${user.name},</p>
+                <p>Usa el siguiente código para verificar tu cuenta y obtener acceso <strong>Premium</strong>:</p>
+                <div class="token-box">
+                  <div class="token">${verificationToken}</div>
+                </div>
+                <div class="warning">
+                  ⚠️ Este código expirará en <strong>1 hora</strong>
+                </div>
+                <p>Si no solicitaste esto, ignora este correo.</p>
+                <div class="footer">
+                  <p>&copy; 2026 Biyuyo - Smart Money Management</p>
+                </div>
+              </div>
+            </div>
+          </body>
+          </html>
+        `,
+      };
+
+      await transporter.sendMail(mailOptions);
+      console.log(`📧 Token Unimet enviado a ${user.email}`);
+      res.json({ success: true, message: "Código de verificación enviado a tu correo" });
+
+    } catch (emailError) {
+      console.error("❌ Error enviando email Unimet:", emailError);
+      if (process.env.NODE_ENV === "development") {
+        res.json({ success: true, message: "Error de email (dev)", dev_token: verificationToken });
+      } else {
+        res.status(500).json({ error: "Error al enviar el correo de verificación" });
+      }
+    }
+
+  } catch (err) {
+    console.error("Error en send-unimet-verification:", err);
+    res.status(500).json({ error: "Error al procesar la solicitud" });
+  }
+});
+
+// --- VERIFICACIÓN UNIMET (Confirmar token y activar Premium) ---
+app.post("/verify-unimet-token", async (req, res) => {
+  const { user_id, token } = req.body;
+
+  if (!user_id || !token) {
+    return res.status(400).json({ error: "user_id y token son requeridos" });
+  }
+
+  try {
+    const userResult = await pool.query(
+      `SELECT user_id, email, name, reset_token_expires, is_premium
+       FROM users WHERE user_id = $1 AND reset_token = $2`,
+      [user_id, token.trim()]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ error: "Token inválido" });
+    }
+
+    const user = userResult.rows[0];
+    const expiresAt = new Date(user.reset_token_expires);
+    const now = new Date();
+
+    if (now > expiresAt) {
+      return res.status(400).json({ error: "El token ha expirado. Solicita uno nuevo." });
+    }
+
+    await pool.query(
+      `UPDATE users SET is_premium = true, reset_token = NULL, reset_token_expires = NULL WHERE user_id = $1`,
+      [user.user_id]
+    );
+
+    console.log(`⭐ Usuario ${user.email} verificado como Premium`);
+    res.json({ success: true, message: "¡Cuenta verificada! Ahora tienes acceso Premium." });
+
+  } catch (err) {
+    console.error("Error en verify-unimet-token:", err);
+    res.status(500).json({ error: "Error al verificar el token" });
+  }
+});
+
+// --- OBTENER DATOS DE USUARIO ---
+app.get("/user/:user_id", async (req, res) => {
+  const { user_id } = req.params;
+  try {
+    const result = await pool.query(
+      "SELECT user_id, name, email, is_premium FROM users WHERE user_id = $1",
+      [user_id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error en GET /user/:user_id:", err);
+    res.status(500).json({ error: "Error al obtener usuario" });
+  }
+});
+
+// --- FEEDBACK DE GASTOS (para ML) ---
+app.post("/expenses/:expense_id/feedback", async (req, res) => {
+  const { expense_id } = req.params;
+  const { user_id, feedback } = req.body;
+
+  // Validar que feedback sea 1, 0 o -1
+  if (feedback === undefined || feedback === null || ![1, 0, -1].includes(Number(feedback))) {
+    return res.status(400).json({ 
+      error: "Feedback inválido. Debe ser 1 (buena decisión), 0 (neutral) o -1 (me arrepentí)" 
+    });
+  }
+
+  if (!expense_id || !user_id) {
+    return res.status(400).json({ error: "expense_id y user_id son requeridos" });
+  }
+
+  try {
+    // Verificar que el gasto pertenece al usuario
+    const checkQuery = `
+      SELECT expense_id FROM expenses 
+      WHERE expense_id = $1 AND user_id = $2
+    `;
+    const checkResult = await pool.query(checkQuery, [expense_id, user_id]);
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: "Gasto no encontrado o no pertenece al usuario" });
+    }
+
+    // Guardar el feedback
+    const updateQuery = `
+      UPDATE expenses 
+      SET user_feedback = $1 
+      WHERE expense_id = $2 AND user_id = $3
+      RETURNING expense_id, user_feedback
+    `;
+    const result = await pool.query(updateQuery, [Number(feedback), expense_id, user_id]);
+
+    // También actualizar el label en expense_ml_features si existe
+    await pool.query(
+      `UPDATE expense_ml_features 
+       SET label = $1, updated_at = NOW() 
+       WHERE expense_id = $2`,
+      [Number(feedback), expense_id]
+    );
+
+    console.log(`✅ Feedback guardado: gasto ${expense_id} → ${feedback}`);
+    res.json({ 
+      success: true, 
+      expense_id: result.rows[0].expense_id,
+      feedback: result.rows[0].user_feedback
+    });
+
+  } catch (err) {
+    console.error("Error guardando feedback:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Obtener estadísticas de feedback de un usuario (útil para el futuro modelo)
+app.get("/expenses/feedback-stats/:user_id", async (req, res) => {
+  const { user_id } = req.params;
+  try {
+    const query = `
+      SELECT 
+        COUNT(*) FILTER (WHERE user_feedback = 1)  AS good_decisions,
+        COUNT(*) FILTER (WHERE user_feedback = 0)  AS neutral_decisions,
+        COUNT(*) FILTER (WHERE user_feedback = -1) AS regretted_decisions,
+        COUNT(*) FILTER (WHERE user_feedback IS NULL) AS no_feedback,
+        COUNT(*) AS total_expenses
+      FROM expenses
+      WHERE user_id = $1
+    `;
+    const result = await pool.query(query, [user_id]);
+    res.json({ success: true, stats: result.rows[0] });
+  } catch (err) {
+    console.error("Error obteniendo stats de feedback:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- VER ML FEATURES DE UN GASTO (útil para debugging y futuro dashboard) ---
+app.get("/expenses/:expense_id/features", async (req, res) => {
+  const { expense_id } = req.params;
+  const { user_id } = req.query;
+
+  if (!user_id) {
+    return res.status(400).json({ error: "user_id es requerido" });
+  }
+
+  try {
+    const query = `
+      SELECT 
+        f.*,
+        e.user_feedback,
+        e.negocio,
+        e.created_at AS expense_date
+      FROM expense_ml_features f
+      JOIN expenses e ON e.expense_id = f.expense_id
+      WHERE f.expense_id = $1 
+        AND f.user_id = $2
+    `;
+    const result = await pool.query(query, [expense_id, user_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Features no encontrados para este gasto" });
+    }
+
+    res.json({ success: true, features: result.rows[0] });
+  } catch (err) {
+    console.error("Error obteniendo features:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- RESUMEN DE ML FEATURES DEL USUARIO (para el futuro entrenamiento) ---
+app.get("/ml/summary/:user_id", async (req, res) => {
+  const { user_id } = req.params;
+
+  try {
+    const query = `
+      SELECT
+        COUNT(*)                                          AS total_expenses_with_features,
+        COUNT(*) FILTER (WHERE e.user_feedback IS NOT NULL) AS labeled_expenses,
+        COUNT(*) FILTER (WHERE e.user_feedback = 1)      AS good_decisions,
+        COUNT(*) FILTER (WHERE e.user_feedback = 0)      AS neutral_decisions,
+        COUNT(*) FILTER (WHERE e.user_feedback = -1)     AS regretted_decisions,
+        ROUND(AVG(f.amount)::numeric, 2)                 AS avg_expense_amount,
+        ROUND(AVG(f.balance_at_time)::numeric, 2)        AS avg_balance_at_time,
+        ROUND(AVG(f.savings_rate)::numeric, 4)           AS avg_savings_rate,
+        ROUND(AVG(f.amount_to_balance_ratio)::numeric, 4) AS avg_amount_to_balance_ratio,
+        ROUND(AVG(f.overdue_reminders_count)::numeric, 2) AS avg_overdue_reminders
+      FROM expense_ml_features f
+      JOIN expenses e ON e.expense_id = f.expense_id
+      WHERE f.user_id = $1
+    `;
+    const result = await pool.query(query, [user_id]);
+
+    res.json({ 
+      success: true, 
+      summary: result.rows[0],
+      ready_for_training: parseInt(result.rows[0].labeled_expenses) >= 50,
+      message: parseInt(result.rows[0].labeled_expenses) < 50
+        ? `Necesitas ${50 - parseInt(result.rows[0].labeled_expenses)} gastos con feedback más para entrenar el modelo`
+        : "¡Tienes suficientes datos para entrenar el modelo!"
+    });
+  } catch (err) {
+    console.error("Error obteniendo resumen ML:", err);
     res.status(500).json({ error: err.message });
   }
 });
