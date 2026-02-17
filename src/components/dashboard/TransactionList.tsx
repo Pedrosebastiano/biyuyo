@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTransactions } from "@/hooks/useTransactions";
+import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -28,7 +29,8 @@ const categoryIcons: Record<string, React.ElementType> = {
 };
 
 export function TransactionList() {
-  const { transactions, reminders } = useTransactions();
+  const { user } = useAuth();
+  const { transactions, reminders } = useTransactions(user?.user_id || "");
 
   // Combinar transacciones y recordatorios
   const combinedItems = [

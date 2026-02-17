@@ -26,18 +26,6 @@ const COLORS = [
 ];
 
 
-// Dummy data for visualization
-const MOCK_DATA = [
-  { macroCategory: "🧾 Alimentos y bebidas", category: "Supermercados", amount: 450.00, type: "expense" },
-  { macroCategory: "🧾 Alimentos y bebidas", category: "Restaurantes", amount: 180.00, type: "expense" },
-  { macroCategory: "🏠 Vivienda y hogar", category: "Alquiler", amount: 1200.00, type: "expense" },
-  { macroCategory: "🏠 Vivienda y hogar", category: "Servicios", amount: 150.00, type: "expense" },
-  { macroCategory: "🚗 Transporte y movilidad", category: "Gasolina", amount: 120.00, type: "expense" },
-  { macroCategory: "🚗 Transporte y movilidad", category: "Mantenimiento", amount: 250.00, type: "expense" },
-  { macroCategory: "🏥 Salud y bienestar", category: "Farmacia", amount: 85.00, type: "expense" },
-  { macroCategory: "🎮 Entretenimiento y ocio", category: "Cine", amount: 45.00, type: "expense" },
-  { macroCategory: "🎮 Entretenimiento y ocio", category: "Suscripciones", amount: 25.00, type: "expense" },
-];
 
 export function ExpenseChart({
   transactions,
@@ -52,13 +40,7 @@ export function ExpenseChart({
 
   const chartData = useMemo(() => {
     // 1. Filter expenses
-    let expenses = transactions.filter((t) => t.type === "expense");
-
-    // Fallback to dummy data if no real data exists
-    if (expenses.length === 0) {
-      // @ts-ignore
-      expenses = MOCK_DATA;
-    }
+    const expenses = transactions.filter((t) => t.type === "expense");
 
     if (expenses.length === 0) return [];
 
@@ -169,7 +151,7 @@ export function ExpenseChart({
     <Card className="border-2">
       <CardHeader className="flex flex-row items-center justify-between pb-0 pt-6 px-6">
         <CardTitle className="text-lg sm:text-2xl font-bold text-[#2d509e] flex-1">
-            Gastos por Categoría
+          Gastos por Categoría
         </CardTitle>
         <Popover>
           <PopoverTrigger asChild>

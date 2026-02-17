@@ -99,7 +99,7 @@ export function EmergencyFund({
 
     const monthlyExpenses = useMemo(() => {
         const expenses = transactions.filter(t => t.type === "expense");
-        if (expenses.length === 0) return 400; // Fallback razonable
+        if (expenses.length === 0) return 0; // No hardcoded fallback
 
         const grouped: Record<string, number> = {};
         expenses.forEach(e => {
