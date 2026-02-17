@@ -5,8 +5,11 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ReceiptText } from "lucide-react";
 import InvoiceButton from './InvoiceButton';
+import { FeedbackButtons } from "./FeedbackButtons";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface TransactionCardProps {
+  id: string;
   type: "expense" | "income";
   amount: number;
   currency: "USD" | "VES";
@@ -15,9 +18,11 @@ interface TransactionCardProps {
   business: string;
   date: string;
   receiptImage?: string;
+  userFeedback?: number | null;
 }
 
 export function TransactionCard({
+  id,
   type,
   amount,
   currency,
@@ -26,7 +31,9 @@ export function TransactionCard({
   business,
   date,
   receiptImage,
+  userFeedback = null,
 }: TransactionCardProps) {
+  const { user } = useAuth();
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const isExpense = type === "expense";
   const currencySymbol = currency === "USD" ? "$" : "Bs.";
@@ -46,8 +53,19 @@ export function TransactionCard({
               <p className="font-bold truncate text-foreground">{category}</p>
               <p className="text-sm text-muted-foreground truncate italic">{business}</p>
               <p className="text-xs text-muted-foreground pt-1">{date}</p>
+
+              {/* Feedback — solo en gastos */}
+              {isExpense && user && (
+                <div className="pt-2">
+                  <FeedbackButtons
+                    expenseId={id}
+                    userId={user.user_id}
+                    initialFeedback={userFeedback}
+                  />
+                </div>
+              )}
             </div>
-            
+
             {/* Columna Derecha: Monto + Botón Factura */}
             <div className="flex flex-col items-end gap-3 shrink-0">
               <span
@@ -61,10 +79,9 @@ export function TransactionCard({
                 {amount.toLocaleString("es-VE", { minimumFractionDigits: 2 })}
               </span>
 
-              {/* Botón de factura (solo si existe la imagen) */}
               {receiptImage && (
-                <InvoiceButton 
-                  invoiceNumber={`REC-${business.substring(0,3).toUpperCase()}`}
+                <InvoiceButton
+                  invoiceNumber={`REC-${business.substring(0, 3).toUpperCase()}`}
                   onClick={() => setImageDialogOpen(true)}
                   className="scale-90 origin-right"
                 />
@@ -84,7 +101,7 @@ export function TransactionCard({
                 Comprobante de Pago
               </DialogTitle>
             </DialogHeader>
-            
+
             <div className="relative overflow-hidden rounded-xl border-4 border-white shadow-inner bg-white">
               <img
                 src={receiptImage}
@@ -92,7 +109,7 @@ export function TransactionCard({
                 className="w-full h-auto max-h-[70vh] object-contain"
               />
             </div>
-            
+
             <div className="mt-4 flex justify-between items-center text-[10px] text-muted-foreground font-mono uppercase">
               <span>{business}</span>
               <span>{date}</span>
@@ -103,4 +120,3 @@ export function TransactionCard({
     </>
   );
 }
-

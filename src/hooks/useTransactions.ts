@@ -16,6 +16,7 @@ export interface Transaction {
   business: string;
   date: string;
   receiptImage?: string;
+  userFeedback?: number | null;
 }
 
 export interface Reminder {
@@ -94,7 +95,8 @@ export function useTransactions(userId: string) {
           category: item.categoria,
           business: item.negocio,
           date: item.created_at ? item.created_at.split('T')[0] : new Date().toISOString(),
-          receiptImage: item.receipt_image_url || undefined, // ✅ IMPORTANTE: Agregar la imagen
+          receiptImage: item.receipt_image_url || undefined,
+          userFeedback: item.user_feedback ?? null, // ← AGREGAR ESTA LÍNEA
         }));
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

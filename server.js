@@ -1051,6 +1051,86 @@ app.get("/user/:user_id", async (req, res) => {
   }
 });
 
+// --- FEEDBACK DE GASTOS (para ML) ---
+app.post("/expenses/:expense_id/feedback", async (req, res) => {
+  const { expense_id } = req.params;
+  const { user_id, feedback } = req.body;
+
+  // Validar que feedback sea 1, 0 o -1
+  if (feedback === undefined || feedback === null || ![1, 0, -1].includes(Number(feedback))) {
+    return res.status(400).json({ 
+      error: "Feedback inválido. Debe ser 1 (buena decisión), 0 (neutral) o -1 (me arrepentí)" 
+    });
+  }
+
+  if (!expense_id || !user_id) {
+    return res.status(400).json({ error: "expense_id y user_id son requeridos" });
+  }
+
+  try {
+    // Verificar que el gasto pertenece al usuario
+    const checkQuery = `
+      SELECT expense_id FROM expenses 
+      WHERE expense_id = $1 AND user_id = $2
+    `;
+    const checkResult = await pool.query(checkQuery, [expense_id, user_id]);
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: "Gasto no encontrado o no pertenece al usuario" });
+    }
+
+    // Guardar el feedback
+    const updateQuery = `
+      UPDATE expenses 
+      SET user_feedback = $1 
+      WHERE expense_id = $2 AND user_id = $3
+      RETURNING expense_id, user_feedback
+    `;
+    const result = await pool.query(updateQuery, [Number(feedback), expense_id, user_id]);
+
+    // También actualizar el label en expense_ml_features si existe
+    await pool.query(
+      `UPDATE expense_ml_features 
+       SET label = $1, updated_at = NOW() 
+       WHERE expense_id = $2`,
+      [Number(feedback), expense_id]
+    );
+
+    console.log(`✅ Feedback guardado: gasto ${expense_id} → ${feedback}`);
+    res.json({ 
+      success: true, 
+      expense_id: result.rows[0].expense_id,
+      feedback: result.rows[0].user_feedback
+    });
+
+  } catch (err) {
+    console.error("Error guardando feedback:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Obtener estadísticas de feedback de un usuario (útil para el futuro modelo)
+app.get("/expenses/feedback-stats/:user_id", async (req, res) => {
+  const { user_id } = req.params;
+  try {
+    const query = `
+      SELECT 
+        COUNT(*) FILTER (WHERE user_feedback = 1)  AS good_decisions,
+        COUNT(*) FILTER (WHERE user_feedback = 0)  AS neutral_decisions,
+        COUNT(*) FILTER (WHERE user_feedback = -1) AS regretted_decisions,
+        COUNT(*) FILTER (WHERE user_feedback IS NULL) AS no_feedback,
+        COUNT(*) AS total_expenses
+      FROM expenses
+      WHERE user_id = $1
+    `;
+    const result = await pool.query(query, [user_id]);
+    res.json({ success: true, stats: result.rows[0] });
+  } catch (err) {
+    console.error("Error obteniendo stats de feedback:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- CONFIGURACIÓN DEL PUERTO ---
 const PORT = process.env.PORT || 3001;
 
