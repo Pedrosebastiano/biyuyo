@@ -12,7 +12,7 @@ const { Pool } = pg;
 const app = express();
 
 // Enable CORS for all origins to avoid issues with Vercel deployment
-app.use(cors());
+app.use(cors({ origin: 'https://biyuyo-sand.vercel.app' }));
 app.use(express.json());
 
 // MiddleWare de Logging
