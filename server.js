@@ -1233,6 +1233,36 @@ app.get("/ml/summary/:user_id", async (req, res) => {
   }
 });
 
+app.get("/ml/last-features/:user_id", async (req, res) => {
+  const { user_id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT
+         monthly_income_avg,
+         monthly_expense_avg,
+         savings_rate,
+         upcoming_reminders_amount,
+         overdue_reminders_count,
+         balance_at_time,
+         updated_at
+       FROM expense_ml_features
+       WHERE user_id = $1
+       ORDER BY updated_at DESC
+       LIMIT 1`,
+      [user_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({ success: true, features: null });
+    }
+
+    res.json({ success: true, features: result.rows[0] });
+  } catch (err) {
+    console.error("Error en /ml/last-features:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- CONFIGURACIÓN DEL PUERTO ---
 const PORT = process.env.PORT || 3001;
 

@@ -1,11 +1,11 @@
 {
   "model_type": "RandomForestClassifier",
-  "trained_at": "2026-02-18T00:31:13.632673",
-  "n_total_samples": 51,
+  "trained_at": "2026-02-18T03:48:51.611024",
+  "n_total_samples": 152,
   "label_distribution": {
-    "1": 37,
-    "0": 8,
-    "-1": 6
+    "1": 98,
+    "-1": 30,
+    "0": 24
   },
   "features": [
     "amount",
@@ -29,51 +29,51 @@
     "macrocategoria_encoded"
   ],
   "metrics": {
-    "cv_f1_mean": 0.6533424908424907,
-    "cv_f1_std": 0.09462884516090464,
-    "test_accuracy": 0.7272727272727273,
-    "test_f1_weighted": 0.6124401913875598,
-    "n_train": 40,
-    "n_test": 11,
+    "cv_f1_mean": 0.7211035052910054,
+    "cv_f1_std": 0.03547186558759389,
+    "test_accuracy": 0.8709677419354839,
+    "test_f1_weighted": 0.8341013824884792,
+    "n_train": 121,
+    "n_test": 31,
     "confusion_matrix": [
       [
+        6,
         0,
-        0,
-        1
+        0
       ],
       [
-        0,
-        0,
+        2,
+        1,
         2
       ],
       [
         0,
         0,
-        8
+        20
       ]
     ],
     "feature_importance": {
-      "amount": 0.08495960736669059,
-      "category_necessity_score": 0.1526223662565942,
-      "balance_at_time": 0.03987681574548451,
-      "amount_to_balance_ratio": 0.06408397507983267,
-      "monthly_income_avg": 0.03963990395526617,
-      "monthly_expense_avg": 0.05118872521539178,
-      "savings_rate": 0.028274696809747483,
-      "upcoming_reminders_amount": 0.025209545196002926,
+      "amount": 0.13427644506857608,
+      "category_necessity_score": 0.11623751993369574,
+      "balance_at_time": 0.034624473754503574,
+      "amount_to_balance_ratio": 0.1135848871827274,
+      "monthly_income_avg": 0.030906719440088475,
+      "monthly_expense_avg": 0.04044899340788875,
+      "savings_rate": 0.028379956499675882,
+      "upcoming_reminders_amount": 0.021422619779899735,
       "overdue_reminders_count": 0.0,
-      "reminders_to_balance_ratio": 0.026432825758402487,
-      "day_of_month": 0.07581438375983206,
-      "day_of_week": 0.05154484794927337,
-      "days_to_end_of_month": 0.07598608787061151,
-      "is_weekend": 0.021691701367189394,
-      "times_bought_this_category": 0.029821371372049276,
-      "avg_amount_this_category": 0.055408931849701394,
-      "amount_vs_category_avg": 0.06629704181908969,
-      "days_since_last_same_category": 0.03047439309901769,
-      "macrocategoria_encoded": 0.08067277952982281
+      "reminders_to_balance_ratio": 0.02586330272539613,
+      "day_of_month": 0.06693148643286423,
+      "day_of_week": 0.021261043397823157,
+      "days_to_end_of_month": 0.06755422170802589,
+      "is_weekend": 0.005411748032401948,
+      "times_bought_this_category": 0.03746017050160892,
+      "avg_amount_this_category": 0.06679143571137196,
+      "amount_vs_category_avg": 0.059670947480154723,
+      "days_since_last_same_category": 0.06408402099916495,
+      "macrocategoria_encoded": 0.06509000794413253
     },
-    "classification_report": "                precision    recall  f1-score   support\n\n  Me arrepent\u00ed       0.00      0.00      0.00         1\n       Neutral       0.00      0.00      0.00         2\nBuena decisi\u00f3n       0.73      1.00      0.84         8\n\n      accuracy                           0.73        11\n     macro avg       0.24      0.33      0.28        11\n  weighted avg       0.53      0.73      0.61        11\n"
+    "classification_report": "                precision    recall  f1-score   support\n\n  Me arrepent\u00ed       0.75      1.00      0.86         6\n       Neutral       1.00      0.20      0.33         5\nBuena decisi\u00f3n       0.91      1.00      0.95        20\n\n      accuracy                           0.87        31\n     macro avg       0.89      0.73      0.71        31\n  weighted avg       0.89      0.87      0.83        31\n"
   },
   "version": "2.0"
 }
