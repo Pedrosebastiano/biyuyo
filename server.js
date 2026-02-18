@@ -31,13 +31,27 @@ const connectionString =
     },
   });
   
-  import { Resend } from 'resend';
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  import { MailerSend, EmailParams, Sender, Recipient } from "mailersend";
+
+  const mailerSend = new MailerSend({ apiKey: process.env.MAILERSEND_API_KEY });
+  const FROM_EMAIL = "MS_EZEOZi@test-z0vklo6veopl7qrx.mlsender.net"; // ej: noreply@trial-abc123.mlsender.net  mssp.SU0Xp2B.k68zxl2y7o94j905.1Xqtq63
+  const FROM_NAME = "Biyuyo";
   
-  if (process.env.RESEND_API_KEY) {
-    console.log("✅ Resend configurado correctamente");
+  if (process.env.MAILERSEND_API_KEY) {
+    console.log("✅ MailerSend configurado");
   } else {
-    console.error("❌ RESEND_API_KEY no está configurada");
+    console.error("❌ MAILERSEND_API_KEY no está configurada");
+  }
+
+  async function sendEmail(toEmail, toName, subject, htmlContent) {
+    const sentFrom = new Sender(FROM_EMAIL, FROM_NAME);
+    const recipients = [new Recipient(toEmail, toName)];
+    const emailParams = new EmailParams()
+      .setFrom(sentFrom)
+      .setTo(recipients)
+      .setSubject(subject)
+      .setHtml(htmlContent);
+    return await mailerSend.email.send(emailParams);
   }
 
 // --- RUTA DE PRUEBA ---
@@ -71,7 +85,6 @@ app.post("/save-token", async (req, res) => {
   }
 });
 
-// --- CRON JOB: RECORDATORIOS ---
 // --- CRON JOB: RECORDATORIOS ---
 cron.schedule("* * * * *", async () => {
   const now = new Date();
@@ -379,73 +392,36 @@ app.post("/forgot-password", async (req, res) => {
 
     // Enviar email con el token
     try {
-      const { data, error } = await resend.emails.send({
-        from: 'Biyuyo <onboarding@resend.dev>',
-        to: user.email,
-        subject: 'Recuperación de contraseña - Biyuyo',
-        html: `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background-color: #2d509e; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-              .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
-              .token-box { background-color: white; border: 2px solid #2d509e; padding: 20px; margin: 20px 0; text-align: center; border-radius: 8px; }
-              .token { font-size: 24px; font-weight: bold; color: #2d509e; letter-spacing: 2px; font-family: monospace; word-break: break-all; }
-              .warning { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 20px 0; }
-              .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>Biyuyo</h1>
-                <p>Recuperación de Contraseña</p>
-              </div>
-              <div class="content">
-                <p>Hola ${user.name},</p>
-                <p>Recibimos una solicitud para restablecer tu contraseña. Usa el siguiente código para continuar:</p>
-                <div class="token-box">
-                  <div class="token">${resetToken}</div>
-                </div>
-                <div class="warning">
-                  ⚠️ Este código expirará en <strong>1 hora</strong>
-                </div>
-                <p><strong>Instrucciones:</strong></p>
-                <ol>
-                  <li>Copia el código de arriba</li>
-                  <li>Regresa a la página de recuperación</li>
-                  <li>Pega el código y crea tu nueva contraseña</li>
-                </ol>
-                <p>Si no solicitaste este cambio, ignora este correo. Tu contraseña permanecerá segura.</p>
-                <div class="footer">
-                  <p>Este es un correo automático, por favor no respondas.</p>
-                  <p>&copy; 2026 Biyuyo - Smart Money Management</p>
-                </div>
-              </div>
+      await sendEmail(
+        user.email,
+        user.name,
+        'Recuperación de contraseña - Biyuyo',
+        `<!DOCTYPE html><html><head><style>
+          body{font-family:Arial,sans-serif;color:#333}
+          .container{max-width:600px;margin:0 auto;padding:20px}
+          .header{background:#2d509e;color:white;padding:20px;text-align:center;border-radius:8px 8px 0 0}
+          .content{background:#f9f9f9;padding:30px;border-radius:0 0 8px 8px}
+          .token-box{background:white;border:2px solid #2d509e;padding:20px;margin:20px 0;text-align:center;border-radius:8px}
+          .token{font-size:22px;font-weight:bold;color:#2d509e;font-family:monospace;word-break:break-all}
+          .warning{background:#fff3cd;border-left:4px solid #ffc107;padding:12px;margin:20px 0}
+        </style></head><body>
+          <div class="container">
+            <div class="header"><h1>Biyuyo</h1><p>Recuperación de Contraseña</p></div>
+            <div class="content">
+              <p>Hola ${user.name},</p>
+              <p>Usa este código para restablecer tu contraseña:</p>
+              <div class="token-box"><div class="token">${resetToken}</div></div>
+              <div class="warning">⚠️ Este código expira en <strong>1 hora</strong></div>
+              <p>Si no solicitaste este cambio, ignora este correo.</p>
             </div>
-          </body>
-          </html>
-        `,
-      });
-
-      if (error) throw new Error(error.message);
-
-      console.log(`📧 Email de recuperación enviado a ${user.email} (id: ${data?.id})`);
-      res.json({ 
-        success: true, 
-        message: "Si el correo existe, recibirás instrucciones para restablecer tu contraseña",
-      });
-
+          </div>
+        </body></html>`
+      );
+      console.log(`📧 Email de recuperación enviado a ${user.email}`);
+      res.json({ success: true, message: "Si el correo existe, recibirás instrucciones para restablecerla" });
     } catch (emailError) {
-      console.error("❌ Error al enviar email con Resend:", emailError);
-      if (process.env.NODE_ENV === 'development') {
-        res.json({ success: true, message: "Error email dev", dev_token: resetToken });
-      } else {
-        res.status(500).json({ error: `Error al enviar el correo electrónico: ${emailError?.message}` });
-      }
+      console.error("❌ Error MailerSend:", emailError);
+      res.status(500).json({ error: `Error al enviar el correo: ${emailError?.message}` });
     }
 
   } catch (err) {
@@ -942,63 +918,36 @@ app.post("/send-unimet-verification", async (req, res) => {
     );
 
     try {
-      const { data, error } = await resend.emails.send({
-        from: 'Biyuyo <onboarding@resend.dev>',
-        to: user.email,
-        subject: 'Verificación Unimet Premium - Biyuyo',
-        html: `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background-color: #2d509e; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-              .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
-              .token-box { background-color: white; border: 2px solid #2d509e; padding: 20px; margin: 20px 0; text-align: center; border-radius: 8px; }
-              .token { font-size: 18px; font-weight: bold; color: #2d509e; font-family: monospace; word-break: break-all; }
-              .warning { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 20px 0; }
-              .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>Biyuyo</h1>
-                <p>Verificación de Cuenta Unimet</p>
-              </div>
-              <div class="content">
-                <p>Hola ${user.name},</p>
-                <p>Usa el siguiente código para verificar tu cuenta y obtener acceso <strong>Premium</strong>:</p>
-                <div class="token-box">
-                  <div class="token">${verificationToken}</div>
-                </div>
-                <div class="warning">
-                  ⚠️ Este código expirará en <strong>1 hora</strong>
-                </div>
-                <p>Si no solicitaste esto, ignora este correo.</p>
-                <div class="footer">
-                  <p>&copy; 2026 Biyuyo - Smart Money Management</p>
-                </div>
-              </div>
+      await sendEmail(
+        user.email,
+        user.name,
+        'Verificación Unimet Premium - Biyuyo',
+        `<!DOCTYPE html><html><head><style>
+          body{font-family:Arial,sans-serif;color:#333}
+          .container{max-width:600px;margin:0 auto;padding:20px}
+          .header{background:#2d509e;color:white;padding:20px;text-align:center;border-radius:8px 8px 0 0}
+          .content{background:#f9f9f9;padding:30px;border-radius:0 0 8px 8px}
+          .token-box{background:white;border:2px solid #2d509e;padding:20px;margin:20px 0;text-align:center;border-radius:8px}
+          .token{font-size:18px;font-weight:bold;color:#2d509e;font-family:monospace;word-break:break-all}
+          .warning{background:#fff3cd;border-left:4px solid #ffc107;padding:12px;margin:20px 0}
+        </style></head><body>
+          <div class="container">
+            <div class="header"><h1>Biyuyo</h1><p>Verificación Unimet</p></div>
+            <div class="content">
+              <p>Hola ${user.name},</p>
+              <p>Tu código para activar <strong>Premium</strong>:</p>
+              <div class="token-box"><div class="token">${verificationToken}</div></div>
+              <div class="warning">⚠️ Expira en <strong>1 hora</strong></div>
+              <p>Si no solicitaste esto, ignora este correo.</p>
             </div>
-          </body>
-          </html>
-        `,
-      });
-
-      if (error) throw new Error(error.message);
-
-      console.log(`📧 Token Unimet enviado a ${user.email} (id: ${data?.id})`);
+          </div>
+        </body></html>`
+      );
+      console.log(`📧 Token Unimet enviado a ${user.email}`);
       res.json({ success: true, message: "Código de verificación enviado a tu correo" });
-
     } catch (emailError) {
-      console.error("❌ Error enviando email Unimet con Resend:", emailError);
-      if (process.env.NODE_ENV === "development") {
-        res.json({ success: true, message: "Error de email (dev)", dev_token: verificationToken });
-      } else {
-        res.status(500).json({ error: `Error al enviar el correo de verificación: ${emailError?.message}` });
-      }
+      console.error("❌ Error MailerSend Unimet:", emailError);
+      res.status(500).json({ error: `Error al enviar el correo: ${emailError?.message}` });
     }
 
   } catch (err) {
