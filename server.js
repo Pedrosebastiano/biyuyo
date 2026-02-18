@@ -25,31 +25,31 @@ app.use((req, res, next) => {
 const connectionString =
   "postgresql://postgres.pmjjguyibxydzxnofcjx:ZyMDIx2p3EErqtaG@aws-0-us-west-2.pooler.supabase.com:6543/postgres";
 
-  const pool = new Pool({
-    connectionString,
-    ssl: {
-      rejectUnauthorized: false,
-    },
-  });
-  
-  // ← AGREGAR ESTE BLOQUE COMPLETO AQUÍ
-  // Configuración de Nodemailer con Gmail
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-  });
-  
-  // Verificar configuración de email al iniciar
-  transporter.verify((error, success) => {
-    if (error) {
-      console.error("❌ Error en configuración de email:", error);
-    } else {
-      console.log("✅ Servidor de email listo para enviar mensajes");
-    }
-  });
+const pool = new Pool({
+  connectionString,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
+
+// ← AGREGAR ESTE BLOQUE COMPLETO AQUÍ
+// Configuración de Nodemailer con Gmail
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+});
+
+// Verificar configuración de email al iniciar
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("❌ Error en configuración de email:", error);
+  } else {
+    console.log("✅ Servidor de email listo para enviar mensajes");
+  }
+});
 
 // --- RUTA DE PRUEBA ---
 app.get("/", (req, res) => {
@@ -357,9 +357,9 @@ app.post("/forgot-password", async (req, res) => {
 
     if (userResult.rows.length === 0) {
       // Por seguridad, no revelamos si el email existe o no
-      return res.json({ 
-        success: true, 
-        message: "Si el correo existe, recibirás instrucciones para restablecer tu contraseña" 
+      return res.json({
+        success: true,
+        message: "Si el correo existe, recibirás instrucciones para restablecer tu contraseña"
       });
     }
 
@@ -445,20 +445,20 @@ app.post("/forgot-password", async (req, res) => {
       await transporter.sendMail(mailOptions);
       console.log(`📧 Email enviado exitosamente a ${user.email}`);
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         message: "Si el correo existe, recibirás instrucciones para restablecer tu contraseña",
       });
 
     } catch (emailError) {
       console.error("❌ Error al enviar email:", emailError);
-      
+
       // Si falla el email, retornamos el token en desarrollo para testing
       if (process.env.NODE_ENV === 'development') {
-        res.json({ 
-          success: true, 
+        res.json({
+          success: true,
           message: "Error al enviar email. Token de desarrollo:",
-          dev_token: resetToken 
+          dev_token: resetToken
         });
       } else {
         res.status(500).json({ error: "Error al enviar el correo electrónico" });
@@ -475,9 +475,9 @@ app.post("/forgot-password", async (req, res) => {
 app.post("/reset-password", async (req, res) => {
   const { token, newPassword } = req.body;
 
-  console.log("📥 Reset password request:", { 
-    token: token?.substring(0, 10) + "...", 
-    passwordLength: newPassword?.length 
+  console.log("📥 Reset password request:", {
+    token: token?.substring(0, 10) + "...",
+    passwordLength: newPassword?.length
   });
 
   if (!token || !newPassword) {
@@ -514,11 +514,11 @@ app.post("/reset-password", async (req, res) => {
     }
 
     const user = userResult.rows[0];
-    
+
     // Comparar fechas en JavaScript (más confiable)
     const expiresAt = new Date(user.reset_token_expires);
     const now = new Date();
-    
+
     console.log(`⏱️ Expira en: ${expiresAt.toISOString()}`);
     console.log(`⏱️ Ahora es: ${now.toISOString()}`);
     console.log(`⏱️ Diferencia: ${Math.round((expiresAt - now) / 1000 / 60)} minutos`);
@@ -543,9 +543,9 @@ app.post("/reset-password", async (req, res) => {
 
     console.log(`✅ Contraseña actualizada para: ${user.email}`);
 
-    res.json({ 
-      success: true, 
-      message: "Contraseña actualizada exitosamente" 
+    res.json({
+      success: true,
+      message: "Contraseña actualizada exitosamente"
     });
 
   } catch (err) {
@@ -834,7 +834,7 @@ app.post('/set-initial-balance', async (req, res) => {
 
 app.get("/reminders", async (req, res) => {
   const { userId } = req.query;
-  
+
   try {
     let query = "SELECT * FROM reminders";
     let values = [];
@@ -1064,6 +1064,59 @@ app.post("/verify-unimet-token", async (req, res) => {
   }
 });
 
+// --- ACTUALIZAR DATOS DE USUARIO ---
+app.put("/user/:user_id", async (req, res) => {
+  const { user_id } = req.params;
+  const { name, email } = req.body;
+
+  if (!name || !email) {
+    return res.status(400).json({ error: "Nombre y correo son requeridos" });
+  }
+
+  // Validación de nombre: Solo letras y espacios, máximo 30 caracteres
+  const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
+  if (!nameRegex.test(name)) {
+    return res.status(400).json({ error: "El nombre solo puede contener letras y espacios" });
+  }
+  if (name.length > 30) {
+    return res.status(400).json({ error: "El nombre no puede exceder los 30 caracteres" });
+  }
+
+  // Validación de formato de correo
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ error: "El formato de correo no es válido" });
+  }
+
+  try {
+    // Verificar si el correo ya está en uso por OTRO usuario
+    const emailCheck = await pool.query(
+      "SELECT user_id FROM users WHERE email = $1 AND user_id != $2",
+      [email.toLowerCase(), user_id]
+    );
+
+    if (emailCheck.rows.length > 0) {
+      return res.status(400).json({ error: "Este correo ya está registrado por otro usuario" });
+    }
+
+    // Actualizar usuario
+    const result = await pool.query(
+      "UPDATE users SET name = $1, email = $2 WHERE user_id = $3 RETURNING user_id, name, email, is_premium",
+      [name, email.toLowerCase(), user_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    console.log(`✅ Usuario actualizado: ${result.rows[0].email}`);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error en PUT /user/:user_id:", err);
+    res.status(500).json({ error: "Error al actualizar el usuario" });
+  }
+});
+
 // --- OBTENER DATOS DE USUARIO ---
 app.get("/user/:user_id", async (req, res) => {
   const { user_id } = req.params;
@@ -1089,8 +1142,8 @@ app.post("/expenses/:expense_id/feedback", async (req, res) => {
 
   // Validar que feedback sea 1, 0 o -1
   if (feedback === undefined || feedback === null || ![1, 0, -1].includes(Number(feedback))) {
-    return res.status(400).json({ 
-      error: "Feedback inválido. Debe ser 1 (buena decisión), 0 (neutral) o -1 (me arrepentí)" 
+    return res.status(400).json({
+      error: "Feedback inválido. Debe ser 1 (buena decisión), 0 (neutral) o -1 (me arrepentí)"
     });
   }
 
@@ -1128,8 +1181,8 @@ app.post("/expenses/:expense_id/feedback", async (req, res) => {
     );
 
     console.log(`✅ Feedback guardado: gasto ${expense_id} → ${feedback}`);
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       expense_id: result.rows[0].expense_id,
       feedback: result.rows[0].user_feedback
     });
@@ -1219,8 +1272,8 @@ app.get("/ml/summary/:user_id", async (req, res) => {
     `;
     const result = await pool.query(query, [user_id]);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       summary: result.rows[0],
       ready_for_training: parseInt(result.rows[0].labeled_expenses) >= 50,
       message: parseInt(result.rows[0].labeled_expenses) < 50

@@ -20,6 +20,8 @@ function isUnimetEmail(email: string) {
   return UNIMET_DOMAINS.includes(domain);
 }
 
+const NAME_REGEX = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
+
 export default function Profile() {
   const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
@@ -30,10 +32,23 @@ export default function Profile() {
   const [tokenSent, setTokenSent] = useState(false);
   const [token, setToken] = useState("");
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+
   // Al entrar al perfil, refresca datos del servidor para tener is_premium actualizado
   useEffect(() => {
     refreshUser();
   }, []);
+
+  // Sincronizar campos de edición cuando el usuario cambia
+  useEffect(() => {
+    if (user && !isEditing) {
+      setEditName(user.name);
+      setEditEmail(user.email);
+    }
+  }, [user, isEditing]);
 
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
@@ -96,6 +111,44 @@ export default function Profile() {
     }
   };
 
+  const handleUpdateProfile = async () => {
+    if (!user) return;
+
+    // Validaciones frontend (mismos criterios que backend)
+    if (!NAME_REGEX.test(editName)) {
+      toast({ title: "Error", description: "El nombre solo puede contener letras y espacios", variant: "destructive" });
+      return;
+    }
+    if (editName.length > 30) {
+      toast({ title: "Error", description: "El nombre no puede exceder los 30 caracteres", variant: "destructive" });
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const res = await fetch(`${API_URL}/user/${user.user_id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editName, email: editEmail }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Error al actualizar perfil");
+
+      await refreshUser();
+      setIsEditing(false);
+      toast({ title: "¡Perfil actualizado!", description: "Tus cambios se han guardado exitosamente." });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Error al actualizar perfil",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const isPremium = user?.is_premium || false;
   const showUnimetSection = user?.email && isUnimetEmail(user.email);
 
@@ -153,24 +206,69 @@ export default function Profile() {
 
         {/* Info card */}
         <Card className="border-2">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-lg">Información personal</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => isEditing ? handleUpdateProfile() : setIsEditing(true)}
+              disabled={isUpdating}
+              className="text-primary hover:text-primary/80"
+            >
+              {isUpdating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isEditing ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                "Editar"
+              )}
+            </Button>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3">
               <User className="h-4 w-4 text-muted-foreground" />
-              <div>
+              <div className="flex-1">
                 <p className="text-xs text-muted-foreground">Nombre</p>
-                <p className="text-sm font-medium">{user?.name || "—"}</p>
+                {isEditing ? (
+                  <Input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="h-8 text-sm mt-1"
+                    placeholder="Tu nombre"
+                  />
+                ) : (
+                  <p className="text-sm font-medium">{user?.name || "—"}</p>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-3">
               <Mail className="h-4 w-4 text-muted-foreground" />
-              <div>
+              <div className="flex-1">
                 <p className="text-xs text-muted-foreground">Correo electrónico</p>
-                <p className="text-sm font-medium">{user?.email || "—"}</p>
+                {isEditing ? (
+                  <Input
+                    type="email"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    className="h-8 text-sm mt-1"
+                    placeholder="tu@correo.com"
+                  />
+                ) : (
+                  <p className="text-sm font-medium">{user?.email || "—"}</p>
+                )}
               </div>
             </div>
+            {isEditing && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs h-8"
+                onClick={() => setIsEditing(false)}
+                disabled={isUpdating}
+              >
+                Cancelar
+              </Button>
+            )}
           </CardContent>
         </Card>
 
