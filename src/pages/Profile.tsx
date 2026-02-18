@@ -124,6 +124,12 @@ export default function Profile() {
       return;
     }
 
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!EMAIL_REGEX.test(editEmail)) {
+      toast({ title: "Error", description: "El correo electrónico no es válido", variant: "destructive" });
+      return;
+    }
+
     setIsUpdating(true);
     try {
       const res = await fetch(`${API_URL}/user/${user.user_id}`, {
