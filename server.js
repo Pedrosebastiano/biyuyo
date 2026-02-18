@@ -5,7 +5,6 @@ import cors from "cors";
 import cron from "node-cron";
 import { messaging } from "./firebase-admin-setup.js";
 import bcrypt from 'bcrypt';
-import nodemailer from "nodemailer";
 import { calculateAndSaveMLFeatures } from './mlFeatures.js';
 
 const { Pool } = pg;
@@ -32,35 +31,14 @@ const connectionString =
     },
   });
   
-  // ← AGREGAR ESTE BLOQUE COMPLETO AQUÍ
-  // Configuración de Nodemailer con Gmail
-  // Configuración de Nodemailer con Gmail
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-  });
-
-  // Verificar configuración de email al iniciar
-  transporter.verify((error, success) => {
-    if (error) {
-      console.error("❌ Error en configuración de email:", error.message);
-      console.error("❌ Código:", error.code);
-      console.error("❌ GMAIL_USER configurado:", !!process.env.GMAIL_USER);
-      console.error("❌ GMAIL_APP_PASSWORD configurado:", !!process.env.GMAIL_APP_PASSWORD);
-      console.error("❌ GMAIL_USER valor:", process.env.GMAIL_USER);
-    } else {
-      console.log("✅ Servidor de email listo para enviar mensajes");
-      console.log("✅ Usando cuenta:", process.env.GMAIL_USER);
-    }
-  });
+  import { Resend } from 'resend';
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  
+  if (process.env.RESEND_API_KEY) {
+    console.log("✅ Resend configurado correctamente");
+  } else {
+    console.error("❌ RESEND_API_KEY no está configurada");
+  }
 
 // --- RUTA DE PRUEBA ---
 app.get("/", (req, res) => {
@@ -401,11 +379,8 @@ app.post("/forgot-password", async (req, res) => {
 
     // Enviar email con el token
     try {
-      const mailOptions = {
-        from: {
-          name: 'Biyuyo',
-          address: process.env.GMAIL_USER,
-        },
+      const { data, error } = await resend.emails.send({
+        from: 'Biyuyo <onboarding@resend.dev>',
         to: user.email,
         subject: 'Recuperación de contraseña - Biyuyo',
         html: `
@@ -432,24 +407,19 @@ app.post("/forgot-password", async (req, res) => {
               <div class="content">
                 <p>Hola ${user.name},</p>
                 <p>Recibimos una solicitud para restablecer tu contraseña. Usa el siguiente código para continuar:</p>
-                
                 <div class="token-box">
                   <div class="token">${resetToken}</div>
                 </div>
-
                 <div class="warning">
                   ⚠️ Este código expirará en <strong>1 hora</strong>
                 </div>
-
                 <p><strong>Instrucciones:</strong></p>
                 <ol>
                   <li>Copia el código de arriba</li>
                   <li>Regresa a la página de recuperación</li>
                   <li>Pega el código y crea tu nueva contraseña</li>
                 </ol>
-
                 <p>Si no solicitaste este cambio, ignora este correo. Tu contraseña permanecerá segura.</p>
-                
                 <div class="footer">
                   <p>Este es un correo automático, por favor no respondas.</p>
                   <p>&copy; 2026 Biyuyo - Smart Money Management</p>
@@ -459,31 +429,22 @@ app.post("/forgot-password", async (req, res) => {
           </body>
           </html>
         `,
-      };
+      });
 
-      await transporter.sendMail(mailOptions);
-      console.log(`📧 Email enviado exitosamente a ${user.email}`);
+      if (error) throw new Error(error.message);
 
+      console.log(`📧 Email de recuperación enviado a ${user.email} (id: ${data?.id})`);
       res.json({ 
         success: true, 
         message: "Si el correo existe, recibirás instrucciones para restablecer tu contraseña",
       });
 
     } catch (emailError) {
-      console.error("❌ Error al enviar email:", emailError);
-      console.error("❌ Código de error:", emailError?.code);
-      console.error("❌ Respuesta SMTP:", emailError?.response);
-      
+      console.error("❌ Error al enviar email con Resend:", emailError);
       if (process.env.NODE_ENV === 'development') {
-        res.json({ 
-          success: true, 
-          message: "Error al enviar email. Token de desarrollo:",
-          dev_token: resetToken 
-        });
+        res.json({ success: true, message: "Error email dev", dev_token: resetToken });
       } else {
-        res.status(500).json({ 
-          error: `Error al enviar el correo: ${emailError?.message || 'Error desconocido'}` 
-        });
+        res.status(500).json({ error: `Error al enviar el correo electrónico: ${emailError?.message}` });
       }
     }
 
@@ -981,10 +942,10 @@ app.post("/send-unimet-verification", async (req, res) => {
     );
 
     try {
-      const mailOptions = {
-        from: { name: "Biyuyo", address: process.env.GMAIL_USER },
+      const { data, error } = await resend.emails.send({
+        from: 'Biyuyo <onboarding@resend.dev>',
         to: user.email,
-        subject: "Verificación Unimet Premium - Biyuyo",
+        subject: 'Verificación Unimet Premium - Biyuyo',
         html: `
           <!DOCTYPE html>
           <html>
@@ -1024,18 +985,19 @@ app.post("/send-unimet-verification", async (req, res) => {
           </body>
           </html>
         `,
-      };
+      });
 
-      await transporter.sendMail(mailOptions);
-      console.log(`📧 Token Unimet enviado a ${user.email}`);
+      if (error) throw new Error(error.message);
+
+      console.log(`📧 Token Unimet enviado a ${user.email} (id: ${data?.id})`);
       res.json({ success: true, message: "Código de verificación enviado a tu correo" });
 
     } catch (emailError) {
-      console.error("❌ Error enviando email Unimet:", emailError);
+      console.error("❌ Error enviando email Unimet con Resend:", emailError);
       if (process.env.NODE_ENV === "development") {
         res.json({ success: true, message: "Error de email (dev)", dev_token: verificationToken });
       } else {
-        res.status(500).json({ error: "Error al enviar el correo de verificación" });
+        res.status(500).json({ error: `Error al enviar el correo de verificación: ${emailError?.message}` });
       }
     }
 
