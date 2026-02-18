@@ -1,0 +1,79 @@
+{
+  "model_type": "RandomForestClassifier",
+  "trained_at": "2026-02-18T00:31:13.632673",
+  "n_total_samples": 51,
+  "label_distribution": {
+    "1": 37,
+    "0": 8,
+    "-1": 6
+  },
+  "features": [
+    "amount",
+    "category_necessity_score",
+    "balance_at_time",
+    "amount_to_balance_ratio",
+    "monthly_income_avg",
+    "monthly_expense_avg",
+    "savings_rate",
+    "upcoming_reminders_amount",
+    "overdue_reminders_count",
+    "reminders_to_balance_ratio",
+    "day_of_month",
+    "day_of_week",
+    "days_to_end_of_month",
+    "is_weekend",
+    "times_bought_this_category",
+    "avg_amount_this_category",
+    "amount_vs_category_avg",
+    "days_since_last_same_category",
+    "macrocategoria_encoded"
+  ],
+  "metrics": {
+    "cv_f1_mean": 0.6533424908424907,
+    "cv_f1_std": 0.09462884516090464,
+    "test_accuracy": 0.7272727272727273,
+    "test_f1_weighted": 0.6124401913875598,
+    "n_train": 40,
+    "n_test": 11,
+    "confusion_matrix": [
+      [
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        8
+      ]
+    ],
+    "feature_importance": {
+      "amount": 0.08495960736669059,
+      "category_necessity_score": 0.1526223662565942,
+      "balance_at_time": 0.03987681574548451,
+      "amount_to_balance_ratio": 0.06408397507983267,
+      "monthly_income_avg": 0.03963990395526617,
+      "monthly_expense_avg": 0.05118872521539178,
+      "savings_rate": 0.028274696809747483,
+      "upcoming_reminders_amount": 0.025209545196002926,
+      "overdue_reminders_count": 0.0,
+      "reminders_to_balance_ratio": 0.026432825758402487,
+      "day_of_month": 0.07581438375983206,
+      "day_of_week": 0.05154484794927337,
+      "days_to_end_of_month": 0.07598608787061151,
+      "is_weekend": 0.021691701367189394,
+      "times_bought_this_category": 0.029821371372049276,
+      "avg_amount_this_category": 0.055408931849701394,
+      "amount_vs_category_avg": 0.06629704181908969,
+      "days_since_last_same_category": 0.03047439309901769,
+      "macrocategoria_encoded": 0.08067277952982281
+    },
+    "classification_report": "                precision    recall  f1-score   support\n\n  Me arrepent\u00ed       0.00      0.00      0.00         1\n       Neutral       0.00      0.00      0.00         2\nBuena decisi\u00f3n       0.73      1.00      0.84         8\n\n      accuracy                           0.73        11\n     macro avg       0.24      0.33      0.28        11\n  weighted avg       0.53      0.73      0.61        11\n"
+  },
+  "version": "2.0"
+}

@@ -1,0 +1,14 @@
+# requirements_decision.txt
+# Dependencias para el Modelo de Decisión de Biyuyo
+# Instalar con: pip install -r requirements_decision.txt
+
+# Fase 2 — Entrenamiento
+scikit-learn
+pandas
+numpy
+psycopg2-binary
+
+# Fase 3 — API (Sin versiones fijas para compatibilidad con Python 3.13)
+fastapi
+uvicorn
+pydantic
