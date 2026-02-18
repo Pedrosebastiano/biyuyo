@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Brain, Database, ThumbsUp, ThumbsDown, Minus, RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getApiUrl } from "@/lib/config";
+import { getApiUrl, getMLApiUrl } from "@/lib/config"; // ← agregado getMLApiUrl
 
-const ML_API = "http://localhost:8001";
+const ML_API  = getMLApiUrl(); // ← antes era "http://localhost:8001" hardcodeado
 const API_URL = getApiUrl();
 
 interface ModelMeta {
@@ -126,7 +126,7 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
             </div>
           ) : !meta ? (
             <p className="text-sm text-muted-foreground">
-              Microservicio offline — asegúrate de que FastAPI esté corriendo en puerto 8001.
+              Microservicio offline — verifica que el servicio de IA esté activo.
             </p>
           ) : (
             <>

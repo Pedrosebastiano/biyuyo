@@ -1,150 +1,195 @@
 """
-decision_api.py
-===============
-Fase 3 — Microservicio FastAPI que sirve predicciones del modelo de decisión.
-
-Uso:
-    uvicorn decision_api:app --reload --port 8001
+decision_api.py  —  Biyuyo ML Decision API (Cloud / Render)
+============================================================
+Carga el modelo RandomForest desde Supabase Storage.
+Sin dependencia de archivos locales → funciona en Render (efímero).
 
 Endpoints:
-    GET  /health            → Estado del servicio
-    POST /predict-decision  → Predicción para un gasto antes de guardarlo
-    POST /retrain           → Re-entrena el modelo con datos actuales de la BD
-    GET  /model-info        → Métricas y metadata del modelo activo
+    GET  /health
+    POST /predict-decision
+    POST /retrain
+    POST /reload-model
+    GET  /model-info
 """
 
+import io
 import os
 import json
 import pickle
 import logging
-import subprocess
-from pathlib import Path
 from datetime import datetime
 
 import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from supabase import create_client, Client
 
-# ─── Configuración ────────────────────────────────────────────────────────────
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+# ─── Logging ──────────────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
 log = logging.getLogger(__name__)
 
-MODEL_PATH = Path("decision_model.pkl")
-META_PATH  = Path("decision_model_meta.json")
+# ─── Supabase ─────────────────────────────────────────────────────────────────
+SUPABASE_URL = os.getenv(
+    "SUPABASE_URL",
+    "https://pmjjguyibxydzxnofcjx.supabase.co",
+)
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")   # obligatorio en Render env vars
+ML_BUCKET    = os.getenv("ML_BUCKET", "MLmodels")
 
+MODEL_REMOTE = "decision_model.pkl"
+META_REMOTE  = "decision_model_meta.json"
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# ─── App ──────────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="Biyuyo Decision Model API",
-    description="Predice si un gasto será una buena, neutral o mala decisión financiera.",
-    version="2.0.0",
+    description="Predice si un gasto será buena, neutral o mala decisión financiera.",
+    version="3.0.0",
 )
 
-# Permitir llamadas desde el frontend / server.js
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],          # restringir al dominio de Vercel en producción
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ─── Carga del modelo ─────────────────────────────────────────────────────────
+# ─── Supabase Storage helpers ─────────────────────────────────────────────────
 
-def load_model():
-    if not MODEL_PATH.exists():
-        raise FileNotFoundError(
-            "decision_model.pkl no encontrado. "
-            "Ejecuta primero: python train_decision_model.py"
+def download_bytes(remote_name: str) -> bytes | None:
+    try:
+        data = supabase.storage.from_(ML_BUCKET).download(remote_name)
+        log.info(f"✅ Descargado {remote_name} ({len(data):,} bytes)")
+        return data
+    except Exception as e:
+        log.error(f"❌ Error descargando {remote_name}: {e}")
+        return None
+
+
+def upload_bytes(data: bytes, remote_name: str) -> bool:
+    try:
+        supabase.storage.from_(ML_BUCKET).upload(
+            path=remote_name,
+            file=data,
+            file_options={"cache-control": "3600", "upsert": "true"},
         )
-    with open(MODEL_PATH, "rb") as f:
-        return pickle.load(f)
+        log.info(f"✅ Subido {remote_name} ({len(data):,} bytes)")
+        return True
+    except Exception as e:
+        log.error(f"❌ Error subiendo {remote_name}: {e}")
+        return False
 
-# Carga en memoria al iniciar el servidor
-try:
-    MODEL_BUNDLE = load_model()
-    log.info(f"✅ Modelo cargado (entrenado: {MODEL_BUNDLE['trained_at']})")
-except FileNotFoundError as e:
-    log.error(f"❌ {e}")
-    MODEL_BUNDLE = None
+
+def load_model_bundle() -> dict | None:
+    raw = download_bytes(MODEL_REMOTE)
+    if not raw:
+        return None
+    try:
+        bundle = pickle.load(io.BytesIO(raw))
+        log.info(f"✅ Modelo en memoria (entrenado: {bundle.get('trained_at', '?')})")
+        return bundle
+    except Exception as e:
+        log.error(f"❌ Error deserializando modelo: {e}")
+        return None
+
+
+def load_meta() -> dict | None:
+    raw = download_bytes(META_REMOTE)
+    if not raw:
+        return None
+    try:
+        return json.loads(raw.decode("utf-8"))
+    except Exception as e:
+        log.error(f"❌ Error leyendo metadata: {e}")
+        return None
+
+
+# ─── Estado global del modelo ─────────────────────────────────────────────────
+MODEL_BUNDLE: dict | None = None
+
+
+@app.on_event("startup")
+def startup_event():
+    global MODEL_BUNDLE
+    log.info("🚀 Servidor iniciando — cargando modelo desde Supabase Storage…")
+    MODEL_BUNDLE = load_model_bundle()
+    if MODEL_BUNDLE is None:
+        log.warning(
+            "⚠️  Modelo no encontrado. "
+            "Ejecuta upload_model_to_supabase.py o llama a POST /retrain."
+        )
+
 
 # ─── Schemas ──────────────────────────────────────────────────────────────────
 
 class PredictRequest(BaseModel):
-    """
-    Los mismos datos que calcula mlFeatures.js.
-    El frontend/server.js los envía antes de guardar el gasto.
-    """
-    # Identificadores (no son features, solo para logging)
     user_id: str
     expense_id: str | None = None
 
-    # Features del gasto
-    macrocategoria: str = Field(..., description="Ej: '🧾 Alimentos y bebidas'")
+    macrocategoria: str          = Field(..., description="Ej: '🧾 Alimentos y bebidas'")
     amount: float
     category_necessity_score: float
 
-    # Contexto financiero
     balance_at_time: float
     amount_to_balance_ratio: float
     monthly_income_avg: float
     monthly_expense_avg: float
     savings_rate: float
 
-    # Recordatorios
     upcoming_reminders_amount: float = 0.0
-    overdue_reminders_count: int = 0
+    overdue_reminders_count: int     = 0
     reminders_to_balance_ratio: float = 0.0
 
-    # Temporales
     day_of_month: int
     day_of_week: int
     days_to_end_of_month: int
     is_weekend: bool
 
-    # Historial de categoría
-    times_bought_this_category: int = 0
-    avg_amount_this_category: float = 0.0
-    amount_vs_category_avg: float = 1.0
+    times_bought_this_category: int    = 0
+    avg_amount_this_category: float    = 0.0
+    amount_vs_category_avg: float      = 1.0
     days_since_last_same_category: int = -1
 
 
 class PredictResponse(BaseModel):
-    prediction: int                  # -1, 0 ó 1
-    prediction_label: str            # "buena_decision" | "neutral" | "arrepentido"
-    prediction_emoji: str            # 😊 | 😐 | 😰
-    confidence: float                # Probabilidad de la clase predicha (0-1)
-    probabilities: dict              # {"-1": x, "0": y, "1": z}
-    advice: str                      # Mensaje corto para mostrar al usuario
+    prediction: int
+    prediction_label: str
+    prediction_emoji: str
+    confidence: float
+    probabilities: dict
+    advice: str
     model_trained_at: str
 
 
-# ─── Lógica de predicción ─────────────────────────────────────────────────────
-
+# ─── Mapas ────────────────────────────────────────────────────────────────────
 LABEL_MAP = {
-    1:  {"label": "buena_decision", "emoji": "😊"},
-    0:  {"label": "neutral",        "emoji": "😐"},
+     1: {"label": "buena_decision", "emoji": "😊"},
+     0: {"label": "neutral",        "emoji": "😐"},
     -1: {"label": "arrepentido",    "emoji": "😰"},
 }
 
 ADVICE_MAP = {
-    1:  "Este gasto está alineado con tus hábitos. ¡Adelante!",
-    0:  "Gasto dentro de lo normal. Evalúalo antes de confirmar.",
+     1: "Este gasto está alineado con tus hábitos. ¡Adelante!",
+     0: "Gasto dentro de lo normal. Evalúalo antes de confirmar.",
     -1: "Cuidado: gastos similares te han generado arrepentimiento. ¿Es necesario ahora?",
 }
 
+
+# ─── Feature builder ─────────────────────────────────────────────────────────
+
 def build_feature_vector(req: PredictRequest, bundle: dict) -> np.ndarray:
-    """
-    Construye el vector de features en el mismo orden que usó el entrenamiento.
-    """
-    model         = bundle["model"]
     macro_encoder = bundle["macro_encoder"]
     feature_cols  = bundle["feature_columns"]
 
-    # Codificar macrocategoria (si es nueva/desconocida, usa 0)
     try:
         macro_encoded = int(macro_encoder.transform([req.macrocategoria])[0])
     except ValueError:
-        log.warning(f"Macrocategoria desconocida: '{req.macrocategoria}' → usando 0")
+        log.warning(f"Macrocategoría desconocida: '{req.macrocategoria}' → usando 0")
         macro_encoded = 0
 
     raw = {
@@ -169,9 +214,7 @@ def build_feature_vector(req: PredictRequest, bundle: dict) -> np.ndarray:
         "macrocategoria_encoded":        macro_encoded,
     }
 
-    # Respetar el orden exacto con el que fue entrenado
-    vector = [raw[col] for col in feature_cols]
-    return np.array([vector])
+    return np.array([[raw[col] for col in feature_cols]])
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
@@ -182,6 +225,7 @@ def health():
         "status": "ok",
         "model_loaded": MODEL_BUNDLE is not None,
         "model_trained_at": MODEL_BUNDLE["trained_at"] if MODEL_BUNDLE else None,
+        "supabase_bucket": ML_BUCKET,
     }
 
 
@@ -190,27 +234,20 @@ def predict_decision(req: PredictRequest):
     if MODEL_BUNDLE is None:
         raise HTTPException(
             status_code=503,
-            detail="Modelo no cargado. Ejecuta train_decision_model.py primero."
+            detail="Modelo no cargado. Llama a POST /retrain o sube el modelo manualmente.",
         )
 
     model = MODEL_BUNDLE["model"]
+    X     = build_feature_vector(req, MODEL_BUNDLE)
 
-    # Construir vector
-    X = build_feature_vector(req, MODEL_BUNDLE)
-
-    # Predicción
     pred_class = int(model.predict(X)[0])
     proba      = model.predict_proba(X)[0]
     confidence = float(max(proba))
-
-    # Mapear probabilidades a sus clases reales
-    prob_dict = {str(int(c)): float(p) for c, p in zip(model.classes_, proba)}
+    prob_dict  = {str(int(c)): float(p) for c, p in zip(model.classes_, proba)}
 
     log.info(
-        f"[PREDICT] user={req.user_id} | "
-        f"macro={req.macrocategoria} | "
-        f"amount=${req.amount} | "
-        f"pred={pred_class} | conf={confidence:.2f}"
+        f"[PREDICT] user={req.user_id} | {req.macrocategoria} | "
+        f"${req.amount} | pred={pred_class} | conf={confidence:.2f}"
     )
 
     return PredictResponse(
@@ -226,43 +263,48 @@ def predict_decision(req: PredictRequest):
 
 @app.post("/retrain")
 def retrain():
-    """
-    Re-entrena el modelo con los datos más recientes de la BD.
-    Útil para llamar manualmente o via cron cuando haya suficientes datos nuevos.
-    """
-    log.info("🔄 Re-entrenamiento solicitado...")
+    """Re-entrena el modelo desde Supabase DB y sube el resultado a Supabase Storage."""
+    import subprocess, sys
+    log.info("🔄 Re-entrenamiento solicitado…")
     try:
         result = subprocess.run(
-            ["python", "train_decision_model.py"],
-            capture_output=True,
-            text=True,
-            timeout=120,
+            [sys.executable, "train_decision_model.py"],
+            capture_output=True, text=True, timeout=180,
         )
         if result.returncode != 0:
-            raise RuntimeError(result.stderr)
+            raise RuntimeError(result.stderr[-2000:])
 
-        # Recargar el modelo en memoria
         global MODEL_BUNDLE
-        MODEL_BUNDLE = load_model()
+        MODEL_BUNDLE = load_model_bundle()
+        if MODEL_BUNDLE is None:
+            raise RuntimeError("Entrenamiento ok pero modelo no pudo recargarse.")
 
         log.info("✅ Re-entrenamiento completado y modelo recargado")
-        return {
-            "success": True,
-            "message": "Modelo re-entrenado y recargado exitosamente",
-            "trained_at": MODEL_BUNDLE["trained_at"],
-        }
+        return {"success": True, "trained_at": MODEL_BUNDLE["trained_at"]}
     except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=504, detail="El entrenamiento tardó demasiado (>120s)")
+        raise HTTPException(status_code=504, detail="Entrenamiento tardó demasiado (>180s)")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/reload-model")
+def reload_model():
+    """Recarga el modelo desde Supabase Storage sin re-entrenar."""
+    global MODEL_BUNDLE
+    MODEL_BUNDLE = load_model_bundle()
+    if MODEL_BUNDLE is None:
+        raise HTTPException(status_code=503, detail="No se pudo recargar el modelo.")
+    return {"success": True, "trained_at": MODEL_BUNDLE["trained_at"]}
+
+
 @app.get("/model-info")
 def model_info():
-    if not META_PATH.exists():
-        raise HTTPException(status_code=404, detail="decision_model_meta.json no encontrado")
-
-    with open(META_PATH, "r") as f:
-        meta = json.load(f)
-
+    meta = load_meta()
+    if meta is None:
+        raise HTTPException(status_code=404, detail="Metadata no encontrada en Supabase.")
     return meta
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8001)))

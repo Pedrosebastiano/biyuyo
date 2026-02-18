@@ -8,9 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Zap, AlertTriangle, CheckCircle2, MinusCircle } from "lucide-react";
 import { macroCategories } from "@/data/categories";
 import { toast } from "sonner";
-import { getApiUrl } from "@/lib/config";
+import { getApiUrl, getMLApiUrl } from "@/lib/config"; // ← agregado getMLApiUrl
 
-const ML_API = "http://localhost:8001";
+// ↓ ÚNICO CAMBIO REAL: antes era const ML_API = "http://localhost:8001" hardcodeado
+const ML_API  = getMLApiUrl();
 const API_URL = getApiUrl();
 
 interface PredictResponse {
@@ -60,18 +61,16 @@ const NECESSITY_MAP: Record<string, number> = {
   "🧾 Otros gastos controlados": 45,
 };
 
-/** Groups an array of {total_amount, created_at} rows by "YYYY-MM" and returns monthly totals */
 function groupByMonth(rows: Array<{ total_amount: string; created_at: string }>) {
   const map: Record<string, number> = {};
   for (const r of rows) {
-    const key = r.created_at?.substring(0, 7); // "YYYY-MM"
+    const key = r.created_at?.substring(0, 7);
     if (!key) continue;
     map[key] = (map[key] ?? 0) + parseFloat(r.total_amount ?? "0");
   }
   return map;
 }
 
-/** Average of the values in a monthly map, only for the last N months relative to a reference date */
 function rollingAvg(
   monthlyMap: Record<string, number>,
   referenceDate: Date,
@@ -102,16 +101,13 @@ export const DecisionPredictor: React.FC<Props> = ({ userId }) => {
     setLoadingCtx(true);
 
     try {
-      // ── 1. Fetch everything in parallel ─────────────────────────────────────
       const [balRes, expRes, incRes, lastFeatRes] = await Promise.all([
         fetch(`${API_URL}/account-balance/${userId}`),
         fetch(`${API_URL}/expenses?userId=${userId}`),
         fetch(`${API_URL}/incomes?userId=${userId}`),
-        // Optional: may 404 if endpoint not deployed yet — handled below
         fetch(`${API_URL}/ml/last-features/${userId}`).catch(() => null),
       ]);
 
-      // ── 2. Real balance (same formula as Index.tsx StatCard) ─────────────────
       const balData        = await balRes.json();
       const initialBalance = parseFloat(balData.initialBalance ?? "0");
 
@@ -124,7 +120,6 @@ export const DecisionPredictor: React.FC<Props> = ({ userId }) => {
       const totalExpense = expList.reduce((s, r) => s + parseFloat(r.total_amount ?? "0"), 0);
       const realBalance  = initialBalance + totalIncome - totalExpense;
 
-      // ── 3. Try last-features endpoint first ──────────────────────────────────
       let monthlyIncomeAvg  = 0;
       let monthlyExpenseAvg = 0;
       let savingsRate       = -1;
@@ -145,18 +140,15 @@ export const DecisionPredictor: React.FC<Props> = ({ userId }) => {
         }
       }
 
-      // ── 4. Fallback: calculate rolling averages from raw transactions ────────
       if (!usedMLFeatures) {
-        const now          = new Date();
-        const incByMonth   = groupByMonth(incList);
-        const expByMonth   = groupByMonth(expList);
+        const now        = new Date();
+        const incByMonth = groupByMonth(incList);
+        const expByMonth = groupByMonth(expList);
 
-        monthlyIncomeAvg  = rollingAvg(incByMonth,  now, 3);
-        monthlyExpenseAvg = rollingAvg(expByMonth,  now, 3);
+        monthlyIncomeAvg  = rollingAvg(incByMonth, now, 3);
+        monthlyExpenseAvg = rollingAvg(expByMonth, now, 3);
 
-        // If no transactions in the last 3 months, fall back to all-time monthly avg
         if (monthlyIncomeAvg === 0 && totalIncome > 0) {
-          // Count distinct months in incomes
           const incMonths = Object.keys(incByMonth).length || 1;
           monthlyIncomeAvg = totalIncome / incMonths;
         }
@@ -165,7 +157,6 @@ export const DecisionPredictor: React.FC<Props> = ({ userId }) => {
           monthlyExpenseAvg = totalExpense / expMonths;
         }
 
-        // savings_rate = (income - expense) / income
         savingsRate = monthlyIncomeAvg > 0
           ? parseFloat(((monthlyIncomeAvg - monthlyExpenseAvg) / monthlyIncomeAvg).toFixed(4))
           : -1;

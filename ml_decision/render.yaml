@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: biyuyo-ml-decision
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn decision_api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: SUPABASE_URL
+        value: https://pmjjguyibxydzxnofcjx.supabase.co
+      - key: ML_BUCKET
+        value: MLmodels
+      - key: SUPABASE_KEY
+        sync: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtampndXlpYnh5ZHp4bm9mY2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwODE2NTAsImV4cCI6MjA4NTY1NzY1MH0.ZYTzwvzdcjgiiJHollA7vyNZ7ZF8hIN1NuTOq5TdtjI        # <-- pegar manualmente en el dashboard de Render
+      - key: SUPABASE_DB_URL
+        sync: postgresql://postgres.pmjjguyibxydzxnofcjx:ZyMDIx2p3EErqtaG@aws-0-us-west-2.pooler.supabase.com:6543/postgres  
