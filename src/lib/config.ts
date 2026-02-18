@@ -3,7 +3,7 @@ export const APP_CONFIG = {
     LOCAL_API:         "http://localhost:3001",
     PRODUCTION_API:    "https://biyuyo-pruebas.onrender.com",
     ML_LOCAL_API:      "http://localhost:8000",
-    ML_PRODUCTION_API: "https://biyuyo-ml-decision.onrender.com", // ← actualiza con tu URL real de Render después del deploy
+    ML_PRODUCTION_API: "https://biyuyo-ml.onrender.com", // ← actualiza con tu URL real de Render después del deploy
   };
   
   export const getApiUrl = () => {
