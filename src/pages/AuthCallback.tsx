@@ -3,31 +3,70 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 
 /**
- * This page handles the redirect from Google after OAuth.
- * Supabase automatically processes the URL hash/query params.
- * The onAuthStateChange listener in AuthContext will fire SIGNED_IN
- * and sync the user to your custom DB.
+ * Handles the redirect from Google OAuth.
+ * Supabase sends tokens either as URL hash (#access_token=...) or query params.
+ * This page lets Supabase process them, then redirects based on auth state.
  */
 export default function AuthCallback() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Supabase processes the OAuth tokens from the URL automatically.
-    // We just need to wait briefly, then the onAuthStateChange in AuthContext
-    // will handle syncing the user and setting state.
-    // After a short delay (to let the auth state update), redirect home.
-    const timeout = setTimeout(() => {
-      // Check if we ended up authenticated
-      supabase.auth.getSession().then(({ data }) => {
-        if (data.session) {
-          navigate("/", { replace: true });
-        } else {
-          navigate("/login", { replace: true });
-        }
-      });
-    }, 1500);
+    // Give Supabase time to process the OAuth tokens from the URL
+    // The onAuthStateChange in AuthContext will fire SIGNED_IN and sync the user
+    const handleCallback = async () => {
+      try {
+        // Supabase automatically parses the URL hash/params
+        const { data, error } = await supabase.auth.getSession();
 
-    return () => clearTimeout(timeout);
+        if (error) {
+          console.error("[AuthCallback] Session error:", error.message);
+          navigate("/login", { replace: true });
+          return;
+        }
+
+        if (data.session) {
+          // Session found — wait briefly for AuthContext onAuthStateChange to sync user
+          setTimeout(() => {
+            navigate("/", { replace: true });
+          }, 1000);
+        } else {
+          // No session yet — wait for the auth state to settle (hash processing)
+          const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === "SIGNED_IN" && session) {
+              subscription.unsubscribe();
+              setTimeout(() => {
+                navigate("/", { replace: true });
+              }, 800);
+            } else if (event === "SIGNED_OUT" || (!session && event !== "INITIAL_SESSION")) {
+              subscription.unsubscribe();
+              navigate("/login", { replace: true });
+            }
+          });
+
+          // Fallback timeout
+          const fallback = setTimeout(() => {
+            subscription.unsubscribe();
+            supabase.auth.getSession().then(({ data }) => {
+              if (data.session) {
+                navigate("/", { replace: true });
+              } else {
+                navigate("/login", { replace: true });
+              }
+            });
+          }, 4000);
+
+          return () => {
+            clearTimeout(fallback);
+            subscription.unsubscribe();
+          };
+        }
+      } catch (err) {
+        console.error("[AuthCallback] Unexpected error:", err);
+        navigate("/login", { replace: true });
+      }
+    };
+
+    handleCallback();
   }, [navigate]);
 
   return (

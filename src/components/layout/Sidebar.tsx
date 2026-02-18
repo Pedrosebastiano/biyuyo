@@ -22,7 +22,7 @@ const navigation = [
   { name: "Dashboard", icon: LayoutDashboard, href: "/", current: true },
   { name: "Transacciones", icon: Wallet, href: "/transactions", current: false },
   { name: "Analytics", icon: TrendingUp, href: "/analytics", current: false },
-  { name: "Predicciones", icon: Sparkles, href: "/ml", current: false },
+  { name: "Predictor IA", icon: Sparkles, href: "/ml", current: false },
   { name: "Shared Accounts", icon: Users, href: "/shared", current: false, badge: "Premium" },
   { name: "Goals", icon: Target, href: "/goals", current: false },
 ];

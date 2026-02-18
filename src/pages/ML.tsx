@@ -6,46 +6,70 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTransactions } from "@/hooks/useTransactions";
 import { getMLApiUrl } from "@/lib/config";
 import { toast } from "sonner";
-import { AlertCircle, BrainCircuit, CheckCircle2, Info, Loader2, Sparkles, TrendingUp, Zap } from "lucide-react";
+import { BrainCircuit, Loader2, Sparkles, TrendingUp } from "lucide-react";
 import { macroCategories } from "@/data/categories";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 
-interface ImpactAnalysis {
-    monto_planeado: number;
-    saldo_proyectado: number;
-    riesgo_negativo_score: number;
-    mensaje: string;
-}
-
-interface PredictionData {
-    prediccion_gasto: number;
-    trust_score: number;
-    impact_analysis: ImpactAnalysis | null;
-    behavioral_insight: string;
-}
+import { DecisionPredictor } from "@/components/ml/DecisionPredictor";
+import { MLStats } from "@/components/ml/MLStats";
+import { ExpensePredictionHistory } from "@/components/ml/ExpensePredictionHistory";
 
 const ML = () => {
     const { user } = useAuth();
-    const [isPredicting, setIsPredicting] = useState(false);
-    const [prediction, setPrediction] = useState<PredictionData | null>(null);
+    const { transactions, refreshTransactions } = useTransactions(user?.user_id || "");
 
-    // Form State
+    const [isTraining, setIsTraining]   = useState(false);
+    const [isPredicting, setIsPredicting] = useState(false);
+    const [prediction, setPrediction]   = useState<number | null>(null);
     const [macroCategory, setMacroCategory] = useState("");
-    const [plannedAmount, setPlannedAmount] = useState("");
+    const [income, setIncome]           = useState("");
+    const [savings, setSavings]         = useState("");
+
+    // Every time a new expense/income is added, increment this key so
+    // DecisionPredictor re-fetches its context with fresh data.
+    const [predictorKey, setPredictorKey] = useState(0);
+
+    const handleTransactionSaved = () => {
+        refreshTransactions();
+        setPredictorKey((k) => k + 1);   // forces DecisionPredictor to reload context
+    };
+
+    const handleTrain = async () => {
+        if (!user?.user_id) return;
+        setIsTraining(true);
+        try {
+            const response = await fetch(`${getMLApiUrl()}/train/${user.user_id}`, {
+                method: "POST",
+            });
+            const data = await response.json();
+            if (response.ok) {
+                toast.success("¡Modelo entrenado con éxito!", {
+                    description: "Tu predictor personal ahora está actualizado con tus datos más recientes.",
+                });
+            } else {
+                toast.error("Error al entrenar el modelo", {
+                    description: data.detail || "Ocurrió un error inesperado.",
+                });
+            }
+        } catch {
+            toast.error("Error de conexión", {
+                description: "No se pudo conectar con el servidor de IA.",
+            });
+        } finally {
+            setIsTraining(false);
+        }
+    };
 
     const handlePredict = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user?.user_id || !macroCategory) {
+        if (!user?.user_id || !macroCategory || !income || !savings) {
             toast.warning("Campos incompletos", {
-                description: "Por favor selecciona una categoría para obtener una predicción."
+                description: "Por favor llena todos los campos para obtener una predicción.",
             });
             return;
         }
-
         setIsPredicting(true);
         try {
             const response = await fetch(`${getMLApiUrl()}/predict`, {
@@ -54,228 +78,210 @@ const ML = () => {
                 body: JSON.stringify({
                     user_id: user.user_id,
                     macrocategoria: macroCategory,
-                    monto_planeado: plannedAmount ? parseFloat(plannedAmount) : null,
+                    ingreso_mensual: parseFloat(income),
+                    ahorro_actual: parseFloat(savings),
                 }),
             });
             const data = await response.json();
             if (response.ok) {
-                setPrediction(data);
+                setPrediction(data.prediccion_gasto);
                 toast.success("Predicción generada");
             } else {
                 toast.error("Error en la predicción", {
-                    description: data.detail || "Asegúrate de haber entrenado tu modelo primero."
+                    description: data.detail || "Asegúrate de haber entrenado tu modelo primero.",
                 });
             }
-        } catch (error) {
+        } catch {
             toast.error("Error de conexión", {
-                description: "No se pudo conectar con el servidor de IA."
+                description: "No se pudo conectar con el servidor de IA.",
             });
         } finally {
             setIsPredicting(false);
         }
     };
 
-    const getTrustColor = (score: number) => {
-        if (score > 80) return "text-green-600 bg-green-50 border-green-200";
-        if (score > 50) return "text-amber-600 bg-amber-50 border-amber-200";
-        return "text-red-600 bg-red-50 border-red-200";
-    };
+    const expenses = transactions
+        .filter((t) => t.type === "expense")
+        .map((t) => ({
+            ...t,
+            type: "expense" as const,
+            rawId: t.id.replace("exp-", ""),
+            userFeedback: t.userFeedback ?? null, // Ensure userFeedback is always present
+        }));
+
+    if (!user) {
+        return (
+            <DashboardLayout>
+                <div className="flex justify-center h-[60vh] pt-20 text-muted-foreground">
+                    Cargando…
+                </div>
+            </DashboardLayout>
+        );
+    }
 
     return (
         <DashboardLayout>
-            <div className="space-y-6 max-w-5xl mx-auto">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight text-[#2d509e] flex items-center gap-2">
-                            <BrainCircuit className="h-8 w-8" />
-                            IA Predictor
-                        </h1>
-                        <p className="text-muted-foreground mt-1">
-                            Análisis financiero avanzado impulsado por inteligencia artificial.
-                        </p>
-                    </div>
+            <div className="space-y-8 max-w-5xl mx-auto pb-10">
+
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-[#2d509e] flex items-center gap-2">
+                        <BrainCircuit className="h-8 w-8" />
+                        IA Predictor
+                    </h1>
+                    <p className="text-muted-foreground mt-1">
+                        Entrena tu modelo, simula gastos futuros y consulta si tu próximo gasto es una buena decisión.
+                    </p>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Prediction Form */}
-                    <Card className="lg:col-span-2 border-2 shadow-sm">
-                        <CardHeader>
-                            <CardTitle className="text-[#2d509e] text-xl flex items-center gap-2">
-                                <Sparkles className="h-5 w-5" />
-                                Simulador de Gastos
-                            </CardTitle>
-                            <CardDescription>
-                                Proyecta tus gastos y analiza el impacto de futuras compras en tu salud financiera.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={handlePredict} className="space-y-6">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="category">Macro Categoría</Label>
-                                        <Select onValueChange={setMacroCategory} value={macroCategory}>
-                                            <SelectTrigger id="category">
-                                                <SelectValue placeholder="Selecciona categoría" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {macroCategories.map((macro) => (
-                                                    <SelectItem key={macro.id} value={macro.name}>
-                                                        {macro.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="plannedAmount">Monto de Compra (Opcional)</Label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
+                {/* ── Sección 1: Simulador original (sin tocar) ── */}
+                <section className="space-y-2">
+                    <SectionLabel number={1} title="Simulador de Gastos" />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <Card className="md:col-span-1 border-2 shadow-sm h-fit">
+                            <CardHeader>
+                                <CardTitle className="text-[#2d509e] text-xl flex items-center gap-2">
+                                    <TrendingUp className="h-5 w-5" />
+                                    Entrenamiento
+                                </CardTitle>
+                                <CardDescription>
+                                    Sincroniza tu modelo con tus transacciones de Supabase.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="bg-muted p-4 rounded-lg text-sm">
+                                    <p className="font-medium text-[#2d509e] mb-1">¿Cómo funciona?</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Al entrenar, la IA analiza tus gastos históricos para aprender
+                                        tus patrones de consumo personalizados.
+                                    </p>
+                                </div>
+                                <Button
+                                    onClick={handleTrain}
+                                    disabled={isTraining}
+                                    className="w-full bg-[#29488e] hover:bg-[#1e356d] text-white font-bold h-12"
+                                >
+                                    {isTraining
+                                        ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Entrenando...</>
+                                        : "Entrenar Mi IA"
+                                    }
+                                </Button>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="md:col-span-2 border-2 shadow-sm">
+                            <CardHeader>
+                                <CardTitle className="text-[#2d509e] text-xl flex items-center gap-2">
+                                    <Sparkles className="h-5 w-5" />
+                                    Simulador de Gastos
+                                </CardTitle>
+                                <CardDescription>
+                                    Descubre cuánto podrías gastar en una categoría según tu situación actual.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <form onSubmit={handlePredict} className="space-y-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="category">Macro Categoría</Label>
+                                            <Select onValueChange={setMacroCategory} value={macroCategory}>
+                                                <SelectTrigger id="category">
+                                                    <SelectValue placeholder="Selecciona macro-categoría" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {macroCategories.map((macro) => (
+                                                        <SelectItem key={macro.id} value={macro.name}>
+                                                            {macro.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="income">Ingreso Mensual ($)</Label>
                                             <Input
-                                                id="plannedAmount"
+                                                id="income"
                                                 type="number"
-                                                placeholder="Ej: 500 para analizar impacto"
-                                                className="pl-7"
-                                                value={plannedAmount}
-                                                onChange={(e) => setPlannedAmount(e.target.value)}
+                                                placeholder="Ej: 2500"
+                                                value={income}
+                                                onChange={(e) => setIncome(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="savings">Ahorro Actual ($)</Label>
+                                            <Input
+                                                id="savings"
+                                                type="number"
+                                                placeholder="Ej: 5000"
+                                                value={savings}
+                                                onChange={(e) => setSavings(e.target.value)}
                                             />
                                         </div>
                                     </div>
-                                </div>
-
-                                <Button
-                                    type="submit"
-                                    disabled={isPredicting}
-                                    className="w-full bg-[#29488e] hover:bg-[#1e356d] text-white font-bold h-12"
-                                >
-                                    {isPredicting ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Analizando datos...
-                                        </>
-                                    ) : (
-                                        "Generar Análisis de IA"
-                                    )}
-                                </Button>
-                            </form>
-
-                            {prediction && (
-                                <div className="mt-8 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {/* Result Card */}
-                                        <div className="p-4 rounded-xl border border-[#c5d3f7] bg-[#f0f4ff]">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <span className="text-[#29488e] text-sm font-medium">Gasto Estimado</span>
-                                                <Badge variant="outline" className={cn("font-bold", getTrustColor(prediction.trust_score))}>
-                                                    {prediction.trust_score}% Confianza
-                                                </Badge>
+                                    <div className="flex flex-col sm:flex-row items-center gap-4 pt-4 border-t">
+                                        <Button
+                                            type="submit"
+                                            disabled={isPredicting}
+                                            className="w-full sm:w-auto bg-[#29488e] hover:bg-[#1e356d] text-white font-bold px-8 h-12"
+                                        >
+                                            {isPredicting
+                                                ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Calculando...</>
+                                                : "Generar Predicción"
+                                            }
+                                        </Button>
+                                        {prediction !== null && (
+                                            <div className="flex-1 w-full bg-[#f0f4ff] p-4 rounded-xl border border-[#c5d3f7] flex items-center justify-between">
+                                                <span className="text-[#29488e] font-medium">Gasto estimado:</span>
+                                                <span className="text-2xl font-bold text-[#29488e]">
+                                                    ${prediction.toLocaleString(undefined, {
+                                                        minimumFractionDigits: 2,
+                                                        maximumFractionDigits: 2,
+                                                    })}
+                                                </span>
                                             </div>
-                                            <div className="text-3xl font-bold text-[#29488e] mb-2">
-                                                ${prediction.prediccion_gasto.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                            </div>
-                                            <Progress value={prediction.trust_score} className="h-1.5" />
-                                        </div>
-
-                                        {/* Temporal Card */}
-                                        <div className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/50 flex flex-col justify-center">
-                                            <div className="flex items-center gap-2 text-indigo-700 font-semibold mb-1">
-                                                <Zap className="h-4 w-4" />
-                                                Insight de Comportamiento
-                                            </div>
-                                            <p className="text-sm text-indigo-900 leading-tight">
-                                                {prediction.behavioral_insight}
-                                            </p>
-                                        </div>
+                                        )}
                                     </div>
-
-                                    {/* Impact Analysis */}
-                                    {prediction.impact_analysis && (
-                                        <div className={cn(
-                                            "p-5 rounded-xl border flex gap-4 items-start",
-                                            prediction.impact_analysis.riesgo_negativo_score >= 75
-                                                ? "bg-red-50 border-red-200 text-red-900"
-                                                : prediction.impact_analysis.riesgo_negativo_score >= 30
-                                                    ? "bg-amber-50 border-amber-200 text-amber-900"
-                                                    : "bg-green-50 border-green-200 text-green-900"
-                                        )}>
-                                            <div className="mt-0.5">
-                                                {prediction.impact_analysis.riesgo_negativo_score >= 75
-                                                    ? <AlertCircle className="h-6 w-6 text-red-600" />
-                                                    : <CheckCircle2 className="h-6 w-6 text-green-600" />
-                                                }
-                                            </div>
-                                            <div>
-                                                <div className="font-bold text-lg leading-tight mb-1">Análisis de la Compra</div>
-                                                <p className="text-sm opacity-90 mb-2">
-                                                    {prediction.impact_analysis.mensaje}
-                                                </p>
-                                                <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-wider">
-                                                    <div>
-                                                        Saldo Proyectado:
-                                                        <span className="ml-1 text-base block normal-case font-black">
-                                                            ${prediction.impact_analysis.saldo_proyectado.toLocaleString(undefined, { minimumFractionDigits: 0 })}
-                                                        </span>
-                                                    </div>
-                                                    <div>
-                                                        Riesgo de impacto:
-                                                        <span className="ml-1 text-base block normal-case font-black">
-                                                            {prediction.impact_analysis.riesgo_negativo_score}%
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Info Card */}
-                    <div className="space-y-6">
-                        <Card className="bg-[#2d509e] text-white border-none shadow-lg">
-                            <CardHeader>
-                                <CardTitle className="text-white flex items-center gap-2">
-                                    <Info className="h-5 w-5" />
-                                    ¿Cómo funciona?
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4 text-white/90 text-sm">
-                                <p>
-                                    Nuestra IA analiza tus últimos meses de transacciones para entender tus <strong>patrones naturales de consumo</strong>.
-                                </p>
-                                <div className="space-y-2">
-                                    <div className="flex gap-2">
-                                        <div className="h-5 w-5 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold">1</div>
-                                        <span>Calcula el gasto promedio según tus ingresos.</span>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <div className="h-5 w-5 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold">2</div>
-                                        <span>Detecta sesgos temporales (ej: gastos de fin de semana).</span>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <div className="h-5 w-5 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold">3</div>
-                                        <span>Proyecta tu flujo de caja para alertas de riesgo.</span>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="border-2 border-dashed border-muted-foreground/20 bg-muted/5">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                                    <TrendingUp className="h-4 w-4" />
-                                    Consejo Pro
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="text-xs text-muted-foreground">
-                                Mientras más transacciones registres, mayor será el **score de confianza** de las predicciones. Intenta mantener tus registros al día.
+                                </form>
                             </CardContent>
                         </Card>
                     </div>
-                </div>
+                </section>
+
+                {/* ── Sección 2: Predictor de Decisión ── */}
+                <section className="space-y-2">
+                    <SectionLabel number={2} title="Predictor de Decisión" />
+                    {/* key prop forces a full remount (and context re-fetch) after new transaction */}
+                    <DecisionPredictor key={predictorKey} userId={user.user_id} />
+                </section>
+
+                {/* ── Sección 3: Estado del modelo ── */}
+                <section className="space-y-2">
+                    <SectionLabel number={3} title="Estado del Modelo y Tus Datos" />
+                    <MLStats userId={user.user_id} />
+                </section>
+
+                {/* ── Sección 4: Historial ── */}
+                <section className="space-y-2">
+                    <SectionLabel number={4} title="Historial de Gastos y Feedback" />
+                    <ExpensePredictionHistory
+                        userId={user.user_id}
+                        expenses={expenses}
+                        onFeedbackSaved={handleTransactionSaved}
+                    />
+                </section>
+
             </div>
         </DashboardLayout>
     );
 };
+
+const SectionLabel: React.FC<{ number: number; title: string }> = ({ number, title }) => (
+    <div className="flex items-center gap-3">
+        <span className="flex items-center justify-center w-7 h-7 rounded-full bg-[#2d509e] text-white text-xs font-bold shrink-0">
+            {number}
+        </span>
+        <h2 className="text-base font-semibold text-foreground">{title}</h2>
+        <div className="flex-1 h-px bg-border" />
+    </div>
+);
 
 export default ML;
