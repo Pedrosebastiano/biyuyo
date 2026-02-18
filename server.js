@@ -34,7 +34,7 @@ const connectionString =
   import { MailerSend, EmailParams, Sender, Recipient } from "mailersend";
 
   const mailerSend = new MailerSend({ apiKey: process.env.MAILERSEND_API_KEY });
-  const FROM_EMAIL = "MS_EZEOZi@test-z0vklo6veopl7qrx.mlsender.net"; // ej: noreply@trial-abc123.mlsender.net  mssp.SU0Xp2B.k68zxl2y7o94j905.1Xqtq63
+  const FROM_EMAIL = "noreply@test-z0vklo6veopl7qrx.mlsender.net"; // ej: noreply@trial-abc123.mlsender.net  mssp.SU0Xp2B.k68zxl2y7o94j905.1Xqtq63
   const FROM_NAME = "Biyuyo";
   
   if (process.env.MAILERSEND_API_KEY) {
