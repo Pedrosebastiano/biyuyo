@@ -34,20 +34,31 @@ const connectionString =
   
   // ← AGREGAR ESTE BLOQUE COMPLETO AQUÍ
   // Configuración de Nodemailer con Gmail
+  // Configuración de Nodemailer con Gmail
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
     auth: {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_APP_PASSWORD,
     },
+    tls: {
+      rejectUnauthorized: false,
+    },
   });
-  
+
   // Verificar configuración de email al iniciar
   transporter.verify((error, success) => {
     if (error) {
-      console.error("❌ Error en configuración de email:", error);
+      console.error("❌ Error en configuración de email:", error.message);
+      console.error("❌ Código:", error.code);
+      console.error("❌ GMAIL_USER configurado:", !!process.env.GMAIL_USER);
+      console.error("❌ GMAIL_APP_PASSWORD configurado:", !!process.env.GMAIL_APP_PASSWORD);
+      console.error("❌ GMAIL_USER valor:", process.env.GMAIL_USER);
     } else {
       console.log("✅ Servidor de email listo para enviar mensajes");
+      console.log("✅ Usando cuenta:", process.env.GMAIL_USER);
     }
   });
 
@@ -380,6 +391,14 @@ app.post("/forgot-password", async (req, res) => {
 
     console.log(`🔑 Token de reset generado para ${user.email}: ${resetToken}`);
 
+    // AGREGAR ESTO - verificar que las env vars están configuradas
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      console.error("❌ GMAIL_USER o GMAIL_APP_PASSWORD no están configuradas en las variables de entorno");
+      return res.status(500).json({ 
+        error: "El servicio de email no está configurado. Contacta al administrador." 
+      });
+    }
+
     // Enviar email con el token
     try {
       const mailOptions = {
@@ -452,8 +471,9 @@ app.post("/forgot-password", async (req, res) => {
 
     } catch (emailError) {
       console.error("❌ Error al enviar email:", emailError);
+      console.error("❌ Código de error:", emailError?.code);
+      console.error("❌ Respuesta SMTP:", emailError?.response);
       
-      // Si falla el email, retornamos el token en desarrollo para testing
       if (process.env.NODE_ENV === 'development') {
         res.json({ 
           success: true, 
@@ -461,7 +481,9 @@ app.post("/forgot-password", async (req, res) => {
           dev_token: resetToken 
         });
       } else {
-        res.status(500).json({ error: "Error al enviar el correo electrónico" });
+        res.status(500).json({ 
+          error: `Error al enviar el correo: ${emailError?.message || 'Error desconocido'}` 
+        });
       }
     }
 
