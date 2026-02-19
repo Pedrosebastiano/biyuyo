@@ -10,7 +10,8 @@ import { calculateAndSaveMLFeatures } from './mlFeatures.js';
 const { Pool } = pg;
 const app = express();
 
-// Enable CORS for multiple origins (Production + Local Development)
+// Enable CORS for all origins to avoid issues with Vercel deployment
+// Enable CORS for all origins to avoid issues with Vercel deployment and Localhost
 const allowedOrigins = [
   'https://biyuyo-sand.vercel.app',
   'http://localhost:8080',
@@ -22,13 +23,12 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.startsWith('http://localhost:')) {
+      return callback(null, true);
     }
-    return callback(null, true);
-  },
-  credentials: true
+    var msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+    return callback(new Error(msg), false);
+  }
 }));
 app.use(express.json());
 

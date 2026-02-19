@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import CombinedBubble from "@/BubbleButton/Button";
 import { getApiUrl } from "@/lib/config";
 
 const API_URL = getApiUrl();
@@ -24,10 +25,10 @@ const API_URL = getApiUrl();
 const Index = () => {
   const { user } = useAuth();
   const { transactions } = useTransactions(user?.user_id || "");
-  
+
   // Estado para el saldo inicial que viene de la tabla 'accounts'
   const [dbInitialBalance, setDbInitialBalance] = useState(0);
-  
+
   const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
   const [newBalance, setNewBalance] = useState("");
   const { toast } = useToast();
@@ -49,7 +50,7 @@ const Index = () => {
     if (!user) return [];
 
     const currentMonth = new Date();
-    
+
     // Total histórico de ingresos y gastos
     const totalIncomeAllTime = transactions
       .filter(t => t.type === 'income')
@@ -71,7 +72,7 @@ const Index = () => {
     // FÓRMULA MAESTRA:
     // Saldo en Cuentas (base) + Ingresos Históricos - Gastos Históricos
     const totalBalance = dbInitialBalance + totalIncomeAllTime - totalExpenseAllTime;
-    
+
     return [
       {
         title: "Balance Total",
@@ -104,9 +105,9 @@ const Index = () => {
       const response = await fetch(`${API_URL}/set-initial-balance`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId: user.user_id, 
-          amount: parseFloat(newBalance) 
+        body: JSON.stringify({
+          userId: user.user_id,
+          amount: parseFloat(newBalance)
         })
       });
 
@@ -134,7 +135,7 @@ const Index = () => {
               Hola, {user.name}. Aquí está tu resumen financiero.
             </p>
           </div>
-          
+
           <Dialog open={isBalanceModalOpen} onOpenChange={setIsBalanceModalOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2">
@@ -152,9 +153,9 @@ const Index = () => {
                 </p>
                 <div className="space-y-2">
                   <Label>Monto</Label>
-                  <Input 
-                    type="number" 
-                    placeholder="Ej: 5000" 
+                  <Input
+                    type="number"
+                    placeholder="Ej: 5000"
                     value={newBalance}
                     onChange={(e) => setNewBalance(e.target.value)}
                   />
@@ -186,6 +187,7 @@ const Index = () => {
           </div>
         </div>
       </div>
+      <CombinedBubble />
     </DashboardLayout>
   );
 };
