@@ -12,7 +12,7 @@ import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import Profile from "./pages/Profile";
 import AuthCallback from "./pages/AuthCallback";
-import Consent from "./pages/consent"; // Changed to match the correct casing
+import Consent from "./pages/Consent"; // Changed to match the correct casing
 import ML from "./pages/ML";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
