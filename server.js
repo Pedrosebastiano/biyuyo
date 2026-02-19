@@ -10,8 +10,26 @@ import { calculateAndSaveMLFeatures } from './mlFeatures.js';
 const { Pool } = pg;
 const app = express();
 
-// Enable CORS for all origins to avoid issues with Vercel deployment
-app.use(cors({ origin: 'https://biyuyo-sand.vercel.app' }));
+// Enable CORS for multiple origins (Production + Local Development)
+const allowedOrigins = [
+  'https://biyuyo-sand.vercel.app',
+  'http://localhost:8080',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 // MiddleWare de Logging
@@ -24,35 +42,35 @@ app.use((req, res, next) => {
 const connectionString =
   "postgresql://postgres.pmjjguyibxydzxnofcjx:ZyMDIx2p3EErqtaG@aws-0-us-west-2.pooler.supabase.com:6543/postgres";
 
-  const pool = new Pool({
-    connectionString,
-    ssl: {
-      rejectUnauthorized: false,
-    },
-  });
-  
-  import { MailerSend, EmailParams, Sender, Recipient } from "mailersend";
+const pool = new Pool({
+  connectionString,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
 
-  const mailerSend = new MailerSend({ apiKey: process.env.MAILERSEND_API_KEY });
-  const FROM_EMAIL = "noreply@test-z0vklo6veopl7qrx.mlsender.net"; // ej: noreply@trial-abc123.mlsender.net  mssp.SU0Xp2B.k68zxl2y7o94j905.1Xqtq63
-  const FROM_NAME = "Biyuyo";
-  
-  if (process.env.MAILERSEND_API_KEY) {
-    console.log("✅ MailerSend configurado");
-  } else {
-    console.error("❌ MAILERSEND_API_KEY no está configurada");
-  }
+import { MailerSend, EmailParams, Sender, Recipient } from "mailersend";
 
-  async function sendEmail(toEmail, toName, subject, htmlContent) {
-    const sentFrom = new Sender(FROM_EMAIL, FROM_NAME);
-    const recipients = [new Recipient(toEmail, toName)];
-    const emailParams = new EmailParams()
-      .setFrom(sentFrom)
-      .setTo(recipients)
-      .setSubject(subject)
-      .setHtml(htmlContent);
-    return await mailerSend.email.send(emailParams);
-  }
+const mailerSend = new MailerSend({ apiKey: process.env.MAILERSEND_API_KEY });
+const FROM_EMAIL = "noreply@test-z0vklo6veopl7qrx.mlsender.net"; // ej: noreply@trial-abc123.mlsender.net  mssp.SU0Xp2B.k68zxl2y7o94j905.1Xqtq63
+const FROM_NAME = "Biyuyo";
+
+if (process.env.MAILERSEND_API_KEY) {
+  console.log("✅ MailerSend configurado");
+} else {
+  console.error("❌ MAILERSEND_API_KEY no está configurada");
+}
+
+async function sendEmail(toEmail, toName, subject, htmlContent) {
+  const sentFrom = new Sender(FROM_EMAIL, FROM_NAME);
+  const recipients = [new Recipient(toEmail, toName)];
+  const emailParams = new EmailParams()
+    .setFrom(sentFrom)
+    .setTo(recipients)
+    .setSubject(subject)
+    .setHtml(htmlContent);
+  return await mailerSend.email.send(emailParams);
+}
 
 // --- RUTA DE PRUEBA ---
 app.get("/", (req, res) => {
@@ -359,9 +377,9 @@ app.post("/forgot-password", async (req, res) => {
 
     if (userResult.rows.length === 0) {
       // Por seguridad, no revelamos si el email existe o no
-      return res.json({ 
-        success: true, 
-        message: "Si el correo existe, recibirás instrucciones para restablecer tu contraseña" 
+      return res.json({
+        success: true,
+        message: "Si el correo existe, recibirás instrucciones para restablecer tu contraseña"
       });
     }
 
@@ -385,8 +403,8 @@ app.post("/forgot-password", async (req, res) => {
     // AGREGAR ESTO - verificar que las env vars están configuradas
     if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
       console.error("❌ GMAIL_USER o GMAIL_APP_PASSWORD no están configuradas en las variables de entorno");
-      return res.status(500).json({ 
-        error: "El servicio de email no está configurado. Contacta al administrador." 
+      return res.status(500).json({
+        error: "El servicio de email no está configurado. Contacta al administrador."
       });
     }
 
@@ -434,9 +452,9 @@ app.post("/forgot-password", async (req, res) => {
 app.post("/reset-password", async (req, res) => {
   const { token, newPassword } = req.body;
 
-  console.log("📥 Reset password request:", { 
-    token: token?.substring(0, 10) + "...", 
-    passwordLength: newPassword?.length 
+  console.log("📥 Reset password request:", {
+    token: token?.substring(0, 10) + "...",
+    passwordLength: newPassword?.length
   });
 
   if (!token || !newPassword) {
@@ -473,11 +491,11 @@ app.post("/reset-password", async (req, res) => {
     }
 
     const user = userResult.rows[0];
-    
+
     // Comparar fechas en JavaScript (más confiable)
     const expiresAt = new Date(user.reset_token_expires);
     const now = new Date();
-    
+
     console.log(`⏱️ Expira en: ${expiresAt.toISOString()}`);
     console.log(`⏱️ Ahora es: ${now.toISOString()}`);
     console.log(`⏱️ Diferencia: ${Math.round((expiresAt - now) / 1000 / 60)} minutos`);
@@ -502,9 +520,9 @@ app.post("/reset-password", async (req, res) => {
 
     console.log(`✅ Contraseña actualizada para: ${user.email}`);
 
-    res.json({ 
-      success: true, 
-      message: "Contraseña actualizada exitosamente" 
+    res.json({
+      success: true,
+      message: "Contraseña actualizada exitosamente"
     });
 
   } catch (err) {
@@ -793,7 +811,7 @@ app.post('/set-initial-balance', async (req, res) => {
 
 app.get("/reminders", async (req, res) => {
   const { userId } = req.query;
-  
+
   try {
     let query = "SELECT * FROM reminders";
     let values = [];
@@ -1022,8 +1040,8 @@ app.post("/expenses/:expense_id/feedback", async (req, res) => {
 
   // Validar que feedback sea 1, 0 o -1
   if (feedback === undefined || feedback === null || ![1, 0, -1].includes(Number(feedback))) {
-    return res.status(400).json({ 
-      error: "Feedback inválido. Debe ser 1 (buena decisión), 0 (neutral) o -1 (me arrepentí)" 
+    return res.status(400).json({
+      error: "Feedback inválido. Debe ser 1 (buena decisión), 0 (neutral) o -1 (me arrepentí)"
     });
   }
 
@@ -1061,8 +1079,8 @@ app.post("/expenses/:expense_id/feedback", async (req, res) => {
     );
 
     console.log(`✅ Feedback guardado: gasto ${expense_id} → ${feedback}`);
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       expense_id: result.rows[0].expense_id,
       feedback: result.rows[0].user_feedback
     });
@@ -1152,8 +1170,8 @@ app.get("/ml/summary/:user_id", async (req, res) => {
     `;
     const result = await pool.query(query, [user_id]);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       summary: result.rows[0],
       ready_for_training: parseInt(result.rows[0].labeled_expenses) >= 50,
       message: parseInt(result.rows[0].labeled_expenses) < 50
@@ -1199,6 +1217,15 @@ app.get("/ml/last-features/:user_id", async (req, res) => {
 // --- CONFIGURACIÓN DEL PUERTO ---
 const PORT = process.env.PORT || 3001;
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Backend corriendo en el puerto ${PORT}`);
+
+  // Verificar la conexión a la base de datos al iniciar
+  try {
+    const client = await pool.connect();
+    console.log("✅ Conexión a la base de datos exitosa");
+    client.release();
+  } catch (err) {
+    console.error("❌ Error al conectar a la base de datos:", err);
+  }
 });
