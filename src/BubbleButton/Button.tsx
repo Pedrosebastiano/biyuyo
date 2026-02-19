@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaUsers } from 'react-icons/fa';
 import { useAuth } from "@/contexts/AuthContext";
 import './Button.css';
+import { Sidebar } from './Sidebar';
 
 // Definir los tipos para las props (aunque este componente no recibe props)
 interface CombinedBubbleProps { }
@@ -29,29 +30,25 @@ const CombinedBubble: React.FC<CombinedBubbleProps> = () => {
   }
 
   return (
-    <div
-      className="combined-bubble whatsapp"
-      onClick={handleWhatsAppClick}
-      aria-label="Contactar por WhatsApp"
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e: React.KeyboardEvent): void => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          handleWhatsAppClick();
-        }
-      }}
-    >
-      <div className="bubble-core">
-        <div className="icon-container">
-          <FaUsers className="bubble-icon" />
+    <Sidebar>
+      <div
+        className="combined-bubble whatsapp"
+        aria-label="Menú de Perfiles"
+        role="button"
+        tabIndex={0}
+      >
+        <div className="bubble-core">
+          <div className="icon-container">
+            <FaUsers className="bubble-icon" />
+          </div>
+        </div>
+
+        {/* Tooltip siempre visible */}
+        <div className="tooltip always-visible">
+          Menú
         </div>
       </div>
-
-      {/* Tooltip siempre visible */}
-      <div className="tooltip always-visible">
-        Contactar por WhatsApp
-      </div>
-    </div>
+    </Sidebar>
   );
 };
 
