@@ -258,7 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    supabase.auth.signOut().catch(() => {});
+    supabase.auth.signOut().catch(() => { });
     localStorage.removeItem("biyuyo_user");
     localStorage.removeItem("biyuyo_user_id");
     setUser(null);

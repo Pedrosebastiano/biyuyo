@@ -42,7 +42,7 @@ export interface Account {
   createdAt: string;
 }
 
-export function useTransactions(userId: string) {
+export function useTransactions(userId: string, sharedId?: string | null) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -58,10 +58,17 @@ export function useTransactions(userId: string) {
 
     try {
       setLoading(true);
-      const queryParams = `?userId=${userId}`;
+
+      // Build query params based on active profile
+      let queryParams: string;
+      if (sharedId) {
+        queryParams = `?sharedId=${sharedId}`;
+      } else {
+        queryParams = `?userId=${userId}`;
+      }
 
       console.log(`[useTransactions] Fetching data from: ${API_URL}`);
-      console.log(`[useTransactions] UserID: ${userId}`);
+      console.log(`[useTransactions] UserID: ${userId}, SharedID: ${sharedId || 'none (personal)'}`);
 
       // 1. Pedimos Gastos, Ingresos, Recordatorios y Cuentas al mismo tiempo
       const [resExpenses, resIncomes, resReminders, resAccounts] = await Promise.all([
@@ -96,7 +103,7 @@ export function useTransactions(userId: string) {
           business: item.negocio,
           date: item.created_at ? item.created_at.split('T')[0] : new Date().toISOString(),
           receiptImage: item.receipt_image_url || undefined,
-          userFeedback: item.user_feedback ?? null, // ← AGREGAR ESTA LÍNEA
+          userFeedback: item.user_feedback ?? null,
         }));
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -155,7 +162,7 @@ export function useTransactions(userId: string) {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, sharedId]);
 
   // Cargar datos al abrir la app
   useEffect(() => {

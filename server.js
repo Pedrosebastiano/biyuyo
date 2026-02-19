@@ -542,6 +542,168 @@ app.get("/users", async (req, res) => {
   }
 });
 
+// --- PERFILES COMPARTIDOS (SHARED PROFILES) ---
+
+// Crear perfil compartido
+app.post("/shared", async (req, res) => {
+  const { name, user_id } = req.body;
+
+  if (!name || !user_id) {
+    return res.status(400).json({ error: "Nombre y user_id son requeridos" });
+  }
+
+  try {
+    // Generar un share_code único de 8 caracteres alfanuméricos
+    const crypto = await import("crypto");
+    const share_code = crypto.randomBytes(4).toString("hex").toUpperCase();
+
+    // 1. Crear el perfil compartido
+    const sharedResult = await pool.query(
+      `INSERT INTO shared (name, share_code, created_at) VALUES ($1, $2, NOW()) RETURNING *`,
+      [name, share_code]
+    );
+    const newShared = sharedResult.rows[0];
+
+    // 2. Asociar al creador
+    await pool.query(
+      `INSERT INTO shared_account (shared_id, user_id) VALUES ($1, $2)`,
+      [newShared.shared_id, user_id]
+    );
+
+    // 3. Crear cuenta por defecto para el perfil compartido
+    await pool.query(
+      `INSERT INTO accounts (user_id, name, balance, shared_id) VALUES ($1, $2, $3, $4)`,
+      [user_id, "Cuenta Principal", 0, newShared.shared_id]
+    );
+
+    console.log(`✅ Perfil compartido creado: ${newShared.name} (Code: ${newShared.share_code})`);
+    res.json(newShared);
+  } catch (err) {
+    console.error("Error creando perfil compartido:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Obtener perfiles compartidos de un usuario
+app.get("/shared/user/:userId", async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT s.*, 
+              (SELECT COUNT(*) FROM shared_account sa2 WHERE sa2.shared_id = s.shared_id) as member_count
+       FROM shared s
+       JOIN shared_account sa ON s.shared_id = sa.shared_id
+       WHERE sa.user_id = $1
+       ORDER BY s.created_at DESC`,
+      [userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error obteniendo perfiles compartidos:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Obtener un perfil compartido por ID
+app.get("/shared/:sharedId", async (req, res) => {
+  const { sharedId } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT s.*, 
+              (SELECT COUNT(*) FROM shared_account sa WHERE sa.shared_id = s.shared_id) as member_count
+       FROM shared s WHERE s.shared_id = $1`,
+      [sharedId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Perfil compartido no encontrado" });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error obteniendo perfil compartido:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Obtener un perfil compartido por Share Code
+app.get("/shared/code/:shareCode", async (req, res) => {
+  const { shareCode } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT s.*, 
+              (SELECT COUNT(*) FROM shared_account sa WHERE sa.shared_id = s.shared_id) as member_count
+       FROM shared s WHERE s.share_code = $1`,
+      [shareCode.toUpperCase()]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Perfil compartido no encontrado" });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error obteniendo perfil compartido por código:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Unirse a un perfil compartido
+app.post("/shared/join", async (req, res) => {
+  const { share_code, user_id } = req.body;
+
+  if (!share_code || !user_id) {
+    return res.status(400).json({ error: "share_code y user_id son requeridos" });
+  }
+
+  try {
+    // Verificar que el perfil existe mediante el share_code
+    const sharedExists = await pool.query(
+      `SELECT shared_id, name, share_code FROM shared WHERE share_code = $1`,
+      [share_code.toUpperCase()]
+    );
+    if (sharedExists.rows.length === 0) {
+      return res.status(404).json({ error: "Perfil compartido no encontrado con ese código" });
+    }
+
+    const { shared_id, name } = sharedExists.rows[0];
+
+    // Verificar que el usuario no esté ya asociado
+    const alreadyJoined = await pool.query(
+      `SELECT * FROM shared_account WHERE shared_id = $1 AND user_id = $2`,
+      [shared_id, user_id]
+    );
+    if (alreadyJoined.rows.length > 0) {
+      return res.status(400).json({ error: "Ya perteneces a este perfil compartido" });
+    }
+
+    await pool.query(
+      `INSERT INTO shared_account (shared_id, user_id) VALUES ($1, $2)`,
+      [shared_id, user_id]
+    );
+
+    console.log(`✅ Usuario ${user_id} se unió al perfil compartido ${name} (Code: ${share_code})`);
+    res.json({ success: true, profile: sharedExists.rows[0] });
+  } catch (err) {
+    console.error("Error uniéndose al perfil compartido:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Obtener miembros de un perfil compartido
+app.get("/shared/:sharedId/members", async (req, res) => {
+  const { sharedId } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT u.user_id, u.name, u.email
+       FROM shared_account sa
+       JOIN users u ON sa.user_id = u.user_id
+       WHERE sa.shared_id = $1`,
+      [sharedId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error obteniendo miembros:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- GASTOS (EXPENSES) ---
 app.post("/expenses", async (req, res) => {
   const {
@@ -551,12 +713,13 @@ app.post("/expenses", async (req, res) => {
     total_amount,
     user_id,
     receipt_image_url,
+    shared_id,
   } = req.body;
 
   try {
     const query = `
-      INSERT INTO expenses (macrocategoria, categoria, negocio, total_amount, user_id, receipt_image_url)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO expenses (macrocategoria, categoria, negocio, total_amount, user_id, receipt_image_url, shared_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *;
     `;
     const values = [
@@ -566,6 +729,7 @@ app.post("/expenses", async (req, res) => {
       total_amount,
       user_id,
       receipt_image_url || null,
+      shared_id || null,
     ];
 
     const result = await pool.query(query, values);
@@ -608,14 +772,23 @@ app.post("/expenses", async (req, res) => {
 });
 
 app.get("/expenses", async (req, res) => {
-  const { userId } = req.query;
+  const { userId, sharedId } = req.query;
   try {
     let query = "SELECT * FROM expenses";
     let values = [];
+    let conditions = [];
 
-    if (userId) {
-      query += " WHERE user_id = $1";
+    if (sharedId) {
+      conditions.push(`shared_id = $${conditions.length + 1}`);
+      values.push(sharedId);
+    } else if (userId) {
+      conditions.push(`user_id = $${conditions.length + 1}`);
       values.push(userId);
+      conditions.push(`shared_id IS NULL`);
+    }
+
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
     }
 
     query += " ORDER BY created_at DESC";
@@ -630,16 +803,16 @@ app.get("/expenses", async (req, res) => {
 
 // --- INGRESOS (INCOMES) ---
 app.post("/incomes", async (req, res) => {
-  const { macrocategoria, categoria, negocio, total_amount, user_id } =
+  const { macrocategoria, categoria, negocio, total_amount, user_id, shared_id } =
     req.body;
 
   try {
     const query = `
-      INSERT INTO incomes (macrocategoria, categoria, negocio, total_amount, user_id)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO incomes (macrocategoria, categoria, negocio, total_amount, user_id, shared_id)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *;
     `;
-    const values = [macrocategoria, categoria, negocio, total_amount, user_id];
+    const values = [macrocategoria, categoria, negocio, total_amount, user_id, shared_id || null];
 
     const result = await pool.query(query, values);
     res.json(result.rows[0]);
@@ -650,14 +823,23 @@ app.post("/incomes", async (req, res) => {
 });
 
 app.get("/incomes", async (req, res) => {
-  const { userId } = req.query;
+  const { userId, sharedId } = req.query;
   try {
     let query = "SELECT * FROM incomes";
     let values = [];
+    let conditions = [];
 
-    if (userId) {
-      query += " WHERE user_id = $1";
+    if (sharedId) {
+      conditions.push(`shared_id = $${conditions.length + 1}`);
+      values.push(sharedId);
+    } else if (userId) {
+      conditions.push(`user_id = $${conditions.length + 1}`);
       values.push(userId);
+      conditions.push(`shared_id IS NULL`);
+    }
+
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
     }
 
     query += " ORDER BY created_at DESC";
@@ -683,6 +865,7 @@ app.post("/reminders", async (req, res) => {
     frecuencia,
     es_cuota,
     cuota_actual,
+    shared_id,
   } = req.body;
 
   try {
@@ -697,9 +880,10 @@ app.post("/reminders", async (req, res) => {
         next_payment_date, 
         payment_frequency, 
         is_installment, 
-        installment_number
+        installment_number,
+        shared_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *;
     `;
 
@@ -714,6 +898,7 @@ app.post("/reminders", async (req, res) => {
       frecuencia,
       es_cuota,
       cuota_actual,
+      shared_id || null,
     ];
 
     const result = await pool.query(query, values);
@@ -810,16 +995,24 @@ app.post('/set-initial-balance', async (req, res) => {
 
 
 app.get("/reminders", async (req, res) => {
-  const { userId } = req.query;
+  const { userId, sharedId } = req.query;
 
   try {
     let query = "SELECT * FROM reminders";
     let values = [];
+    let conditions = [];
 
-    // ✅ FILTRAR por userId si se proporciona
-    if (userId) {
-      query += " WHERE user_id = $1";
+    if (sharedId) {
+      conditions.push(`shared_id = $${conditions.length + 1}`);
+      values.push(sharedId);
+    } else if (userId) {
+      conditions.push(`user_id = $${conditions.length + 1}`);
       values.push(userId);
+      conditions.push(`shared_id IS NULL`);
+    }
+
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
     }
 
     query += " ORDER BY next_payment_date ASC";
@@ -840,7 +1033,7 @@ app.get("/reminders", async (req, res) => {
       cuota_actual: row.installment_number,
     }));
 
-    console.log(`✅ Recordatorios obtenidos para user ${userId || 'todos'}: ${recordatoriosFormateados.length}`);
+    console.log(`✅ Recordatorios obtenidos para ${sharedId ? 'shared ' + sharedId : 'user ' + (userId || 'todos')}: ${recordatoriosFormateados.length}`);
     res.json(recordatoriosFormateados);
   } catch (err) {
     console.error(err);
@@ -863,14 +1056,23 @@ app.get("/exchange-rates", async (req, res) => {
 
 // --- CUENTAS (ACCOUNTS) ---
 app.get("/accounts", async (req, res) => {
-  const { userId } = req.query;
+  const { userId, sharedId } = req.query;
   try {
     let query = "SELECT * FROM accounts";
     let values = [];
+    let conditions = [];
 
-    if (userId) {
-      query += " WHERE user_id = $1";
+    if (sharedId) {
+      conditions.push(`shared_id = $${conditions.length + 1}`);
+      values.push(sharedId);
+    } else if (userId) {
+      conditions.push(`user_id = $${conditions.length + 1}`);
       values.push(userId);
+      conditions.push(`shared_id IS NULL`);
+    }
+
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
     }
 
     const result = await pool.query(query, values);

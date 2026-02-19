@@ -2,27 +2,32 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Bell, Search, Plus } from "lucide-react";
+import { Bell, Search, Plus, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AddTransactionDialog } from "@/components/transactions/AddTransactionDialog";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useNavigate } from "react-router-dom";
 import { differenceInDays } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSharedProfile } from "@/contexts/SharedProfileContext";
 
 export function Header() {
   const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
-  const { reminders } = useTransactions();
-  const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { activeSharedProfile, setActiveProfile } = useSharedProfile();
+  const { reminders } = useTransactions(
+    user?.user_id || "",
+    activeSharedProfile?.shared_id || null
+  );
+  const navigate = useNavigate();
 
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
@@ -46,12 +51,28 @@ export function Header() {
   return (
     <>
       <header className="h-16 border-b-2 border-border bg-card px-6 flex items-center justify-between gap-4">
-        {/* Left side - Search */}
+        {/* Left side - Search + Shared Profile Indicator */}
         <div className="flex items-center gap-4">
+          {activeSharedProfile && (
+            <div className="flex items-center gap-2 bg-primary/10 border border-primary/30 rounded-lg px-3 py-1.5">
+              <Users className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium text-primary">
+                {activeSharedProfile.name}
+              </span>
+              <button
+                onClick={() => {
+                  setActiveProfile(null);
+                }}
+                className="text-xs text-muted-foreground hover:text-primary ml-1"
+              >
+                ✕
+              </button>
+            </div>
+          )}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Buscar transacciones..." 
+            <Input
+              placeholder="Buscar transacciones..."
               className="w-64 pl-9 border-2"
             />
           </div>
@@ -59,7 +80,7 @@ export function Header() {
 
         {/* Right side */}
         <div className="flex items-center gap-3">
-          <Button 
+          <Button
             className="flex gap-2"
             onClick={() => setIsTransactionDialogOpen(true)}
           >
@@ -67,9 +88,9 @@ export function Header() {
             Agregar Transacción
           </Button>
 
-          <Button 
-            variant="outline" 
-            size="icon" 
+          <Button
+            variant="outline"
+            size="icon"
             className="relative border-2"
             onClick={handleNotificationClick}
           >
@@ -104,9 +125,9 @@ export function Header() {
         </div>
       </header>
 
-      <AddTransactionDialog 
-        open={isTransactionDialogOpen} 
-        onOpenChange={setIsTransactionDialogOpen} 
+      <AddTransactionDialog
+        open={isTransactionDialogOpen}
+        onOpenChange={setIsTransactionDialogOpen}
       />
     </>
   );

@@ -13,7 +13,10 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Profile from "./pages/Profile";
 import AuthCallback from "./pages/AuthCallback";
 import ML from "./pages/ML";
+import SharedProfiles from "./pages/SharedProfiles";
+import JoinSharedProfile from "./pages/JoinSharedProfile";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { SharedProfileProvider } from "@/contexts/SharedProfileContext";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +53,8 @@ const AppRoutes = () => (
     <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
     <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
     <Route path="/ml" element={<ProtectedRoute><ML /></ProtectedRoute>} />
+    <Route path="/shared" element={<ProtectedRoute><SharedProfiles /></ProtectedRoute>} />
+    <Route path="/shared/join/:shareCode" element={<ProtectedRoute><JoinSharedProfile /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
@@ -61,8 +66,10 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <AppInitializer />
-          <AppRoutes />
+          <SharedProfileProvider>
+            <AppInitializer />
+            <AppRoutes />
+          </SharedProfileProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

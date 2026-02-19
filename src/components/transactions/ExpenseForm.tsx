@@ -20,9 +20,11 @@ import { Camera, X, Loader2 } from "lucide-react";
 import { CurrencySelector, type Currency } from "./CurrencySelector";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSharedProfile } from "@/contexts/SharedProfileContext";
 import { toast } from "sonner";
 import { createClient } from "@supabase/supabase-js";
 import { useExchangeRate } from "@/hooks/useExchangeRate";
+import { getApiUrl } from "@/lib/config";
 
 // Configuración de Supabase
 const supabaseUrl = "https://pmjjguyibxydzxnofcjx.supabase.co";
@@ -36,7 +38,11 @@ interface ExpenseFormProps {
 
 export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
   const { user } = useAuth();
-  const { refreshTransactions } = useTransactions(user?.user_id || "");
+  const { activeSharedProfile } = useSharedProfile();
+  const { refreshTransactions } = useTransactions(
+    user?.user_id || "",
+    activeSharedProfile?.shared_id || null
+  );
   const { rate, loading: loadingRate } = useExchangeRate();
 
   const [selectedMacro, setSelectedMacro] = useState<string>("");
@@ -205,15 +211,17 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
         macrocategoria: macroName,
         categoria: categoryName,
         negocio: businessName,
-        total_amount: finalAmountUSD, // Siempre enviamos USD
-        user_id: user.user_id, // Usar el ID del usuario autenticado
-        receipt_image_url: imageUrl, // Agregar URL de la imagen
+        total_amount: finalAmountUSD,
+        user_id: user.user_id,
+        receipt_image_url: imageUrl,
+        shared_id: activeSharedProfile?.shared_id || null,
       };
 
       console.log("📤 Enviando gasto a la base de datos:", nuevoGasto);
 
+      const API_URL = getApiUrl();
       const response = await fetch(
-        "https://biyuyo-pruebas.onrender.com/expenses",
+        `${API_URL}/expenses`,
         {
           method: "POST",
           headers: {

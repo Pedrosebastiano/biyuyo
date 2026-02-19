@@ -32,8 +32,10 @@ import { cn } from "@/lib/utils";
 import { CurrencySelector, type Currency } from "./CurrencySelector";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSharedProfile } from "@/contexts/SharedProfileContext";
 import { toast } from "sonner";
 import { useExchangeRate } from "@/hooks/useExchangeRate";
+import { getApiUrl } from "@/lib/config";
 
 interface ReminderFormProps {
   onSubmit: () => void;
@@ -41,7 +43,11 @@ interface ReminderFormProps {
 
 export function ReminderForm({ onSubmit }: ReminderFormProps) {
   const { user } = useAuth();
-  const { refreshTransactions } = useTransactions(user?.user_id || "");
+  const { activeSharedProfile } = useSharedProfile();
+  const { refreshTransactions } = useTransactions(
+    user?.user_id || "",
+    activeSharedProfile?.shared_id || null
+  );
   const { rate, loading: loadingRate } = useExchangeRate();
 
   const [selectedMacro, setSelectedMacro] = useState<string>("");
@@ -132,12 +138,12 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
 
     // Preparar objeto
     const nuevoRecordatorio = {
-      user_id: user.user_id, // Usar el ID del usuario autenticado
+      user_id: user.user_id,
       nombre: paymentName,
       macrocategoria: macroName,
       categoria: categoryName,
       negocio: businessName || null,
-      monto: finalAmountUSD, // Siempre enviamos USD
+      monto: finalAmountUSD,
       fecha_proximo_pago: formattedDate,
       frecuencia: frequency,
       es_cuota: hasInstallments,
@@ -145,14 +151,16 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
         hasInstallments && totalInstallments
           ? parseInt(totalInstallments)
           : null,
+      shared_id: activeSharedProfile?.shared_id || null,
     };
 
     console.log("📤 Enviando recordatorio:", nuevoRecordatorio);
     setIsSubmitting(true);
 
     try {
+      const API_URL = getApiUrl();
       const response = await fetch(
-        "https://biyuyo-pruebas.onrender.com/reminders",
+        `${API_URL}/reminders`,
         {
           method: "POST",
           headers: {

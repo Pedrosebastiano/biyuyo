@@ -14,10 +14,12 @@ import {
 import biyuyoLogo from "@/assets/biyuyo-logo.png";
 import { CurrencyConverterDialog } from "@/components/ui/CurrencyConverterDialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSharedProfile } from "@/contexts/SharedProfileContext";
 
 export function MobileHeader() {
   const { rate, rateDate, loading } = useExchangeRate();
   const { user, logout } = useAuth();
+  const { activeSharedProfile } = useSharedProfile();
   const navigate = useNavigate();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -35,13 +37,13 @@ export function MobileHeader() {
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      
+
       if (currentScrollY > lastScrollY && currentScrollY > 60) {
         setIsVisible(false);
       } else {
         setIsVisible(true);
       }
-      
+
       setLastScrollY(currentScrollY);
     };
 
@@ -65,7 +67,14 @@ export function MobileHeader() {
                 {initials}
               </AvatarFallback>
             </Avatar>
-            <span className="font-medium text-xs">{user?.name || "Usuario"}</span>
+            <div className="flex flex-col items-start">
+              <span className="font-medium text-xs">{user?.name || "Usuario"}</span>
+              {activeSharedProfile && (
+                <span className="text-[10px] text-primary font-medium leading-tight">
+                  📋 {activeSharedProfile.name}
+                </span>
+              )}
+            </div>
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48 border-2">

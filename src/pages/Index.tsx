@@ -8,6 +8,7 @@ import { QuickActions } from "@/components/dashboard/QuickActions";
 import { FinancialGoals } from "@/components/dashboard/FinancialGoals";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSharedProfile } from "@/contexts/SharedProfileContext";
 import { Wallet, TrendingUp, TrendingDown, PiggyBank, PenLine } from "lucide-react";
 import { isSameMonth, parseISO } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,11 @@ const API_URL = getApiUrl();
 
 const Index = () => {
   const { user } = useAuth();
-  const { transactions } = useTransactions(user?.user_id || "");
+  const { activeSharedProfile } = useSharedProfile();
+  const { transactions } = useTransactions(
+    user?.user_id || "",
+    activeSharedProfile?.shared_id || null
+  );
 
   // Estado para el saldo inicial que viene de la tabla 'accounts'
   const [dbInitialBalance, setDbInitialBalance] = useState(0);
@@ -132,7 +137,9 @@ const Index = () => {
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-[#2d509e]">Dashboard</h1>
             <p className="text-muted-foreground mt-1">
-              Hola, {user.name}. Aquí está tu resumen financiero.
+              {activeSharedProfile
+                ? `Perfil compartido: ${activeSharedProfile.name}`
+                : `Hola, ${user.name}. Aquí está tu resumen financiero.`}
             </p>
           </div>
 
@@ -183,7 +190,7 @@ const Index = () => {
 
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <TransactionList userId={user.user_id} />
+            <TransactionList userId={user.user_id} sharedId={activeSharedProfile?.shared_id || null} />
           </div>
         </div>
       </div>

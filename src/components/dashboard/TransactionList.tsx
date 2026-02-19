@@ -32,11 +32,12 @@ const categoryIcons: Record<string, React.ElementType> = {
 // 1. Definimos que este componente espera recibir un userId
 interface TransactionListProps {
   userId: string | number;
+  sharedId?: string | null;
 }
 
-export function TransactionList({ userId }: TransactionListProps) {
+export function TransactionList({ userId, sharedId }: TransactionListProps) {
   // 2. Pasamos ese userId al hook para que busque SOLO los datos de ese usuario
-  const { transactions, reminders } = useTransactions(String(userId));
+  const { transactions, reminders } = useTransactions(String(userId), sharedId || null);
 
   // Combinar transacciones y recordatorios
   const combinedItems = [
@@ -101,8 +102,8 @@ export function TransactionList({ userId }: TransactionListProps) {
                           isIncome
                             ? "bg-accent"
                             : isReminder
-                            ? "bg-warning/10"
-                            : "bg-muted",
+                              ? "bg-warning/10"
+                              : "bg-muted",
                         )}
                       >
                         {isReminder ? (
@@ -125,8 +126,8 @@ export function TransactionList({ userId }: TransactionListProps) {
                           isIncome
                             ? "text-primary"
                             : isReminder
-                            ? "text-warning"
-                            : "text-foreground",
+                              ? "text-warning"
+                              : "text-foreground",
                         )}
                       >
                         {isIncome ? "+" : isReminder ? "" : "-"}

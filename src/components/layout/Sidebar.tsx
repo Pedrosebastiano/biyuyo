@@ -23,7 +23,7 @@ const navigation = [
   { name: "Transacciones", icon: Wallet, href: "/transactions", current: false },
   { name: "Analytics", icon: TrendingUp, href: "/analytics", current: false },
   { name: "Predictor IA", icon: Sparkles, href: "/ml", current: false },
-  { name: "Shared Accounts", icon: Users, href: "/shared", current: false, badge: "Premium" },
+  { name: "Perfiles Compartidos", icon: Users, href: "/shared", current: false },
   { name: "Goals", icon: Target, href: "/goals", current: false },
 ];
 

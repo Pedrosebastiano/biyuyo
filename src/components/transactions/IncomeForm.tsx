@@ -21,7 +21,9 @@ import { CurrencySelector, type Currency } from "./CurrencySelector";
 import { toast } from "sonner";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSharedProfile } from "@/contexts/SharedProfileContext";
 import { useExchangeRate } from "@/hooks/useExchangeRate";
+import { getApiUrl } from "@/lib/config";
 
 interface IncomeFormProps {
   onSubmit: () => void;
@@ -29,7 +31,11 @@ interface IncomeFormProps {
 
 export function IncomeForm({ onSubmit }: IncomeFormProps) {
   const { user } = useAuth();
-  const { refreshTransactions } = useTransactions(user?.user_id || "");
+  const { activeSharedProfile } = useSharedProfile();
+  const { refreshTransactions } = useTransactions(
+    user?.user_id || "",
+    activeSharedProfile?.shared_id || null
+  );
   const { rate, loading: loadingRate } = useExchangeRate();
 
   const [selectedMacro, setSelectedMacro] = useState<string>("");
@@ -127,15 +133,17 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
       macrocategoria: macroName,
       categoria: categoryName,
       negocio: businessName,
-      total_amount: finalAmountUSD, // Siempre enviamos el monto en USD
-      user_id: user.user_id, // Usar el ID del usuario autenticado
+      total_amount: finalAmountUSD,
+      user_id: user.user_id,
+      shared_id: activeSharedProfile?.shared_id || null,
     };
 
     setIsSubmitting(true);
 
     try {
+      const API_URL = getApiUrl();
       const response = await fetch(
-        "https://biyuyo-pruebas.onrender.com/incomes",
+        `${API_URL}/incomes`,
         {
           method: "POST",
           headers: {
