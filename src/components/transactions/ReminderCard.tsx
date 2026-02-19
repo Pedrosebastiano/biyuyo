@@ -1,3 +1,4 @@
+import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalendarClock } from "lucide-react";
@@ -30,6 +31,7 @@ interface ReminderCardProps {
   currentInstallment?: number;
   totalInstallments?: number;
   invoiceImageUrl?: string;
+  creatorName?: string;
 }
 
 export function ReminderCard({
@@ -44,10 +46,11 @@ export function ReminderCard({
   isInstallment,
   currentInstallment,
   totalInstallments,
+  creatorName,
 }: ReminderCardProps) {
   const currencySymbol = currency === "USD" ? "$" : "Bs.";
   const daysUntilDue = differenceInDays(nextDueDate, new Date());
-  
+
   const getDueBadgeVariant = () => {
     if (daysUntilDue < 0 || daysUntilDue <= 3) return "destructive";
     if (daysUntilDue <= 7) return "secondary";
@@ -95,7 +98,7 @@ export function ReminderCard({
               </Badge>
             </div>
           </div>
-          
+
           {/* Columna de Acción (Derecha) */}
           <div className="flex flex-col items-end gap-3 shrink-0">
             <div className="text-right">
@@ -106,6 +109,11 @@ export function ReminderCard({
               <p className="text-[10px] uppercase tracking-tighter text-muted-foreground font-semibold">
                 {translateFrequency(frequency)}
               </p>
+              {creatorName && (
+                <p className="text-[9px] mt-1 text-primary/70 font-medium whitespace-nowrap">
+                  Por: {creatorName}
+                </p>
+              )}
             </div>
           </div>
         </div>

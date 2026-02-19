@@ -4,7 +4,7 @@ import { MonthlySavingsChart } from "@/components/dashboard/MonthlySavingsChart"
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { EmergencyFund } from "@/components/dashboard/EmergencyFund";
 import { DebtRatio } from "@/components/dashboard/DebtRatio";
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { DateRange } from "react-day-picker";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { useTransactions } from "@/hooks/useTransactions";
@@ -14,10 +14,15 @@ import { Currency } from "@/hooks/useCurrency";
 import { isWithinInterval, parseISO, startOfDay, endOfDay, isBefore } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftRight } from "lucide-react";
+import { useSharedProfile } from "@/contexts/SharedProfileContext";
 
 const Analytics = () => {
   const { user } = useAuth();
-  const { transactions, reminders, accounts, loading } = useTransactions(user?.user_id || "");
+  const { activeSharedProfile } = useSharedProfile();
+  const { transactions, reminders, accounts, loading } = useTransactions(
+    user?.user_id || "",
+    activeSharedProfile?.shared_id
+  );
   const { rate: exchangeRate } = useExchangeRate();
   const [currency, setCurrency] = useState<Currency>("USD");
   const [dateRange, setDateRange] = useState<DateRange | undefined>({

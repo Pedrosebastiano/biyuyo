@@ -1,3 +1,4 @@
+import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ interface TransactionCardProps {
   date: string;
   receiptImage?: string;
   userFeedback?: number | null;
+  creatorName?: string;
 }
 
 export function TransactionCard({
@@ -32,6 +34,7 @@ export function TransactionCard({
   date,
   receiptImage,
   userFeedback = null,
+  creatorName,
 }: TransactionCardProps) {
   const { user } = useAuth();
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
@@ -52,7 +55,17 @@ export function TransactionCard({
               </div>
               <p className="font-bold truncate text-foreground">{category}</p>
               <p className="text-sm text-muted-foreground truncate italic">{business}</p>
-              <p className="text-xs text-muted-foreground pt-1">{date}</p>
+              <div className="flex items-center gap-2 pt-1 flex-wrap">
+                <p className="text-xs text-muted-foreground whitespace-nowrap">{date}</p>
+                {creatorName && (
+                  <>
+                    <span className="text-xs text-muted-foreground">•</span>
+                    <p className="text-[10px] font-medium text-primary bg-primary/5 px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
+                      {creatorName}
+                    </p>
+                  </>
+                )}
+              </div>
 
               {/* Feedback — solo en gastos */}
               {isExpense && user && (

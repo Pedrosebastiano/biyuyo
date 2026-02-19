@@ -17,6 +17,7 @@ export interface Transaction {
   date: string;
   receiptImage?: string;
   userFeedback?: number | null;
+  creatorName?: string;
 }
 
 export interface Reminder {
@@ -32,6 +33,7 @@ export interface Reminder {
   isInstallment: boolean;
   currentInstallment?: number;
   totalInstallments?: number;
+  creatorName?: string;
 }
 
 export interface Account {
@@ -104,6 +106,7 @@ export function useTransactions(userId: string, sharedId?: string | null) {
           date: item.created_at ? item.created_at.split('T')[0] : new Date().toISOString(),
           receiptImage: item.receipt_image_url || undefined,
           userFeedback: item.user_feedback ?? null,
+          creatorName: sharedId ? item.creator_name : undefined,
         }));
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -118,6 +121,7 @@ export function useTransactions(userId: string, sharedId?: string | null) {
           category: item.categoria,
           business: item.negocio,
           date: item.created_at ? item.created_at.split('T')[0] : new Date().toISOString(),
+          creatorName: sharedId ? item.creator_name : undefined,
         }));
 
       // 3. Formateamos los recordatorios
@@ -137,6 +141,7 @@ export function useTransactions(userId: string, sharedId?: string | null) {
           isInstallment: item.es_cuota || false,
           currentInstallment: 1,
           totalInstallments: item.cuota_actual || undefined,
+          creatorName: sharedId ? item.creator_name : undefined,
         }));
 
       // 4. Formateamos las cuentas

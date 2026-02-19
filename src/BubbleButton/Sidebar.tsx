@@ -38,7 +38,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ children }) => {
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleViewProfiles} className="cursor-pointer">
                         <Users className="mr-2 h-4 w-4" />
-                        <span>Ver Perfiles</span>
+                        <span>Cambiar Perfil</span>
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>

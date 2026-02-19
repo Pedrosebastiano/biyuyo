@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -13,6 +13,7 @@ import { AddTransactionDialog } from "@/components/transactions/AddTransactionDi
 import { Plus } from "lucide-react";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSharedProfile } from "@/contexts/SharedProfileContext";
 
 const defaultFilters: FilterState = {
   category: "",
@@ -26,7 +27,11 @@ const defaultFilters: FilterState = {
 
 export default function Transactions() {
   const { user } = useAuth();
-  const { transactions, reminders } = useTransactions(user?.user_id || "");
+  const { activeSharedProfile } = useSharedProfile();
+  const { transactions, reminders } = useTransactions(
+    user?.user_id || "",
+    activeSharedProfile?.shared_id
+  );
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("expenses");
   const [expenseFilters, setExpenseFilters] = useState<FilterState>(defaultFilters);
@@ -180,7 +185,7 @@ export default function Transactions() {
         <Sidebar />
       </div>
 
-      <MobileHeader/>
+      <MobileHeader />
 
       <div className="lg:pl-72">
         <div className="hidden lg:block">
@@ -191,10 +196,10 @@ export default function Transactions() {
           <div className="space-y-4">
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-[#2d509e]">
-                  Transacciones
+                Transacciones
               </h1>
               <p className="text-muted-foreground mt-1">
-                  Gestiona tus gastos, ingresos y recordatorios.
+                Gestiona tus gastos, ingresos y recordatorios.
               </p>
             </div>
 

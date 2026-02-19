@@ -6,6 +6,7 @@ import cron from "node-cron";
 import { messaging } from "./firebase-admin-setup.js";
 import bcrypt from 'bcrypt';
 import { calculateAndSaveMLFeatures } from './mlFeatures.js';
+import crypto from 'crypto';
 
 const { Pool } = pg;
 const app = express();
@@ -386,7 +387,6 @@ app.post("/forgot-password", async (req, res) => {
     const user = userResult.rows[0];
 
     // Generar token de reset (válido por 1 hora)
-    const crypto = await import('crypto');
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetExpires = new Date(Date.now() + 3600000); // 1 hora
 
@@ -553,15 +553,22 @@ app.post("/shared", async (req, res) => {
   }
 
   try {
-    // Generar un share_code único de 8 caracteres alfanuméricos
-    const crypto = await import("crypto");
-    const share_code = crypto.randomBytes(4).toString("hex").toUpperCase();
+    console.log("🚀 [VERSION 2] Iniciando creación de perfil compartido...");
+    // Generar un código único de 8 caracteres
+    const finalCode = crypto.randomBytes(4).toString("hex").toUpperCase();
+
+    console.log(`🎲 [V2] Perfil: "${name}", ID Usuario: ${user_id}, Código Generado: ${finalCode}`);
+
+    if (!finalCode || typeof finalCode !== 'string' || finalCode.length !== 8) {
+      console.error("❌ [V2] Error crítico: El código generado no es válido:", finalCode);
+      return res.status(500).json({ error: "No se pudo generar un código de invitación (V2 error)" });
+    }
 
     // 1. Crear el perfil compartido
-    const sharedResult = await pool.query(
-      `INSERT INTO shared (name, share_code, created_at) VALUES ($1, $2, NOW()) RETURNING *`,
-      [name, share_code]
-    );
+    const insertSharedQuery = "INSERT INTO shared (name, created_at, share_code) VALUES ($1, NOW(), $2) RETURNING *";
+    console.log(`🛠 [V2] Ejecutando Query con params: ["${name}", "${finalCode}"]`);
+
+    const sharedResult = await pool.query(insertSharedQuery, [name, finalCode]);
     const newShared = sharedResult.rows[0];
 
     // 2. Asociar al creador
@@ -774,24 +781,28 @@ app.post("/expenses", async (req, res) => {
 app.get("/expenses", async (req, res) => {
   const { userId, sharedId } = req.query;
   try {
-    let query = "SELECT * FROM expenses";
+    let query = `
+      SELECT t.*, u.name as creator_name 
+      FROM expenses t
+      LEFT JOIN users u ON t.user_id = u.user_id
+    `;
     let values = [];
     let conditions = [];
 
     if (sharedId) {
-      conditions.push(`shared_id = $${conditions.length + 1}`);
+      conditions.push(`t.shared_id = $${conditions.length + 1}`);
       values.push(sharedId);
     } else if (userId) {
-      conditions.push(`user_id = $${conditions.length + 1}`);
+      conditions.push(`t.user_id = $${conditions.length + 1}`);
       values.push(userId);
-      conditions.push(`shared_id IS NULL`);
+      conditions.push(`t.shared_id IS NULL`);
     }
 
     if (conditions.length > 0) {
       query += " WHERE " + conditions.join(" AND ");
     }
 
-    query += " ORDER BY created_at DESC";
+    query += " ORDER BY t.created_at DESC";
 
     const result = await pool.query(query, values);
     res.json(result.rows);
@@ -825,17 +836,21 @@ app.post("/incomes", async (req, res) => {
 app.get("/incomes", async (req, res) => {
   const { userId, sharedId } = req.query;
   try {
-    let query = "SELECT * FROM incomes";
+    let query = `
+      SELECT t.*, u.name as creator_name 
+      FROM incomes t
+      LEFT JOIN users u ON t.user_id = u.user_id
+    `;
     let values = [];
     let conditions = [];
 
     if (sharedId) {
-      conditions.push(`shared_id = $${conditions.length + 1}`);
+      conditions.push(`t.shared_id = $${conditions.length + 1}`);
       values.push(sharedId);
     } else if (userId) {
-      conditions.push(`user_id = $${conditions.length + 1}`);
+      conditions.push(`t.user_id = $${conditions.length + 1}`);
       values.push(userId);
-      conditions.push(`shared_id IS NULL`);
+      conditions.push(`t.shared_id IS NULL`);
     }
 
     if (conditions.length > 0) {
@@ -998,24 +1013,28 @@ app.get("/reminders", async (req, res) => {
   const { userId, sharedId } = req.query;
 
   try {
-    let query = "SELECT * FROM reminders";
+    let query = `
+      SELECT t.*, u.name as creator_name 
+      FROM reminders t
+      LEFT JOIN users u ON t.user_id = u.user_id
+    `;
     let values = [];
     let conditions = [];
 
     if (sharedId) {
-      conditions.push(`shared_id = $${conditions.length + 1}`);
+      conditions.push(`t.shared_id = $${conditions.length + 1}`);
       values.push(sharedId);
     } else if (userId) {
-      conditions.push(`user_id = $${conditions.length + 1}`);
+      conditions.push(`t.user_id = $${conditions.length + 1}`);
       values.push(userId);
-      conditions.push(`shared_id IS NULL`);
+      conditions.push(`t.shared_id IS NULL`);
     }
 
     if (conditions.length > 0) {
       query += " WHERE " + conditions.join(" AND ");
     }
 
-    query += " ORDER BY next_payment_date ASC";
+    query += " ORDER BY t.next_payment_date ASC";
 
     const result = await pool.query(query, values);
 
@@ -1031,6 +1050,7 @@ app.get("/reminders", async (req, res) => {
       frecuencia: row.payment_frequency,
       es_cuota: row.is_installment,
       cuota_actual: row.installment_number,
+      creator_name: row.creator_name,
     }));
 
     console.log(`✅ Recordatorios obtenidos para ${sharedId ? 'shared ' + sharedId : 'user ' + (userId || 'todos')}: ${recordatoriosFormateados.length}`);
@@ -1128,7 +1148,6 @@ app.post("/send-unimet-verification", async (req, res) => {
       return res.status(400).json({ error: "La cuenta ya está verificada como Premium" });
     }
 
-    const crypto = await import("crypto");
     const verificationToken = crypto.randomBytes(32).toString("hex");
     const tokenExpires = new Date(Date.now() + 3600000);
 

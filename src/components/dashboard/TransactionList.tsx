@@ -50,6 +50,7 @@ export function TransactionList({ userId, sharedId }: TransactionListProps) {
       date: new Date(t.date),
       isReminder: false,
       createdAt: (t as any).createdAt ? new Date((t as any).createdAt) : new Date(t.date),
+      creatorName: t.creatorName,
     })),
     ...reminders.map((r) => ({
       id: r.id,
@@ -60,6 +61,7 @@ export function TransactionList({ userId, sharedId }: TransactionListProps) {
       date: r.nextDueDate,
       isReminder: true,
       createdAt: (r as any).createdAt ? new Date((r as any).createdAt) : r.nextDueDate,
+      creatorName: r.creatorName,
     })),
   ]
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
@@ -114,8 +116,13 @@ export function TransactionList({ userId, sharedId }: TransactionListProps) {
                       </div>
                       <div>
                         <p className="font-medium">{item.business}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(item.date, "dd MMM yyyy", { locale: es })}
+                        <p className="text-sm text-muted-foreground flex items-center flex-wrap gap-x-2">
+                          <span className="whitespace-nowrap">{format(item.date, "dd MMM yyyy", { locale: es })}</span>
+                          {item.creatorName && (
+                            <span className="text-[10px] font-medium text-primary/70 whitespace-nowrap">
+                              • {item.creatorName}
+                            </span>
+                          )}
                         </p>
                       </div>
                     </div>

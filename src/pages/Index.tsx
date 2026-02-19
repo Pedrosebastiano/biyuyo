@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { ExpenseChart } from "@/components/dashboard/ExpenseChart";
@@ -41,14 +41,15 @@ const Index = () => {
   // 1. Efecto para cargar el saldo inicial de las cuentas al entrar
   useEffect(() => {
     if (user?.user_id) {
-      fetch(`${API_URL}/account-balance/${user.user_id}`)
+      const sharedIdParam = activeSharedProfile ? `?sharedId=${activeSharedProfile.shared_id}` : `?userId=${user.user_id}`;
+      fetch(`${API_URL}/account-balance/${user.user_id}${sharedIdParam}`)
         .then(res => res.json())
         .then(data => {
           if (data.success) setDbInitialBalance(data.initialBalance);
         })
         .catch(err => console.error("Error cargando balance de cuentas", err));
     }
-  }, [user]);
+  }, [user, activeSharedProfile]);
 
   // 2. Lógica de Cálculos (KPIs)
   const stats = useMemo(() => {
