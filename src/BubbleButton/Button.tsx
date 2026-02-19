@@ -1,9 +1,9 @@
 import React from 'react';
 import { FaUsers } from 'react-icons/fa';
-import './CombinedBubble.css';
+import './Button.css';
 
 // Definir los tipos para las props (aunque este componente no recibe props)
-interface CombinedBubbleProps {}
+interface CombinedBubbleProps { }
 
 const CombinedBubble: React.FC<CombinedBubbleProps> = () => {
   const handleWhatsAppClick = (): void => {
@@ -11,7 +11,7 @@ const CombinedBubble: React.FC<CombinedBubbleProps> = () => {
   };
 
   return (
-    <div 
+    <div
       className="combined-bubble whatsapp"
       onClick={handleWhatsAppClick}
       aria-label="Contactar por WhatsApp"
@@ -28,7 +28,7 @@ const CombinedBubble: React.FC<CombinedBubbleProps> = () => {
           <FaUsers className="bubble-icon" />
         </div>
       </div>
-      
+
       {/* Tooltip siempre visible */}
       <div className="tooltip always-visible">
         Contactar por WhatsApp
