@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTransactions } from "@/hooks/useTransactions";
-import { getMLApiUrl } from "@/lib/config";
+import { getMLApiUrl, getSimulatorMLApiUrl } from "@/lib/config";
 import { toast } from "sonner";
 import { BrainCircuit, Loader2, Sparkles, TrendingUp } from "lucide-react";
 import { macroCategories } from "@/data/categories";
@@ -20,12 +20,14 @@ const ML = () => {
     const { user } = useAuth();
     const { transactions, refreshTransactions } = useTransactions(user?.user_id || "");
 
-    const [isTraining, setIsTraining]   = useState(false);
+    const [isTraining, setIsTraining] = useState(false);
     const [isPredicting, setIsPredicting] = useState(false);
-    const [prediction, setPrediction]   = useState<number | null>(null);
+    const [prediction, setPrediction] = useState<number | null>(null);
+    const [ratioOfIncome, setRatioOfIncome] = useState<number | null>(null);
+    const [impactAnalysis, setImpactAnalysis] = useState<string | null>(null);
     const [macroCategory, setMacroCategory] = useState("");
-    const [income, setIncome]           = useState("");
-    const [savings, setSavings]         = useState("");
+    const [income, setIncome] = useState("");
+    const [savings, setSavings] = useState("");
 
     // Every time a new expense/income is added, increment this key so
     // DecisionPredictor re-fetches its context with fresh data.
@@ -40,7 +42,7 @@ const ML = () => {
         if (!user?.user_id) return;
         setIsTraining(true);
         try {
-            const response = await fetch(`${getMLApiUrl()}/train/${user.user_id}`, {
+            const response = await fetch(`${getSimulatorMLApiUrl()}/train/${user.user_id}`, {
                 method: "POST",
             });
             const data = await response.json();
@@ -70,9 +72,12 @@ const ML = () => {
             });
             return;
         }
+        setPrediction(null);
+        setRatioOfIncome(null);
+        setImpactAnalysis(null);
         setIsPredicting(true);
         try {
-            const response = await fetch(`${getMLApiUrl()}/predict`, {
+            const response = await fetch(`${getSimulatorMLApiUrl()}/predict`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -85,6 +90,8 @@ const ML = () => {
             const data = await response.json();
             if (response.ok) {
                 setPrediction(data.prediccion_gasto);
+                setRatioOfIncome(data.ratio_of_income);
+                setImpactAnalysis(data.impact_analysis);
                 toast.success("Predicción generada");
             } else {
                 toast.error("Error en la predicción", {
@@ -106,6 +113,7 @@ const ML = () => {
             ...t,
             type: "expense" as const,
             rawId: t.id.replace("exp-", ""),
+            userFeedback: t.userFeedback ?? null, // Ensure userFeedback is always present
         }));
 
     if (!user) {
@@ -136,38 +144,9 @@ const ML = () => {
                 <section className="space-y-2">
                     <SectionLabel number={1} title="Simulador de Gastos" />
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <Card className="md:col-span-1 border-2 shadow-sm h-fit">
-                            <CardHeader>
-                                <CardTitle className="text-[#2d509e] text-xl flex items-center gap-2">
-                                    <TrendingUp className="h-5 w-5" />
-                                    Entrenamiento
-                                </CardTitle>
-                                <CardDescription>
-                                    Sincroniza tu modelo con tus transacciones de Supabase.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="bg-muted p-4 rounded-lg text-sm">
-                                    <p className="font-medium text-[#2d509e] mb-1">¿Cómo funciona?</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        Al entrenar, la IA analiza tus gastos históricos para aprender
-                                        tus patrones de consumo personalizados.
-                                    </p>
-                                </div>
-                                <Button
-                                    onClick={handleTrain}
-                                    disabled={isTraining}
-                                    className="w-full bg-[#29488e] hover:bg-[#1e356d] text-white font-bold h-12"
-                                >
-                                    {isTraining
-                                        ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Entrenando...</>
-                                        : "Entrenar Mi IA"
-                                    }
-                                </Button>
-                            </CardContent>
-                        </Card>
 
-                        <Card className="md:col-span-2 border-2 shadow-sm">
+
+                        <Card className="col-span-1 md:col-span-3 border-2 shadow-sm">
                             <CardHeader>
                                 <CardTitle className="text-[#2d509e] text-xl flex items-center gap-2">
                                     <Sparkles className="h-5 w-5" />
@@ -228,14 +207,29 @@ const ML = () => {
                                             }
                                         </Button>
                                         {prediction !== null && (
-                                            <div className="flex-1 w-full bg-[#f0f4ff] p-4 rounded-xl border border-[#c5d3f7] flex items-center justify-between">
-                                                <span className="text-[#29488e] font-medium">Gasto estimado:</span>
-                                                <span className="text-2xl font-bold text-[#29488e]">
-                                                    ${prediction.toLocaleString(undefined, {
-                                                        minimumFractionDigits: 2,
-                                                        maximumFractionDigits: 2,
-                                                    })}
-                                                </span>
+                                            <div className="flex-1 w-full flex flex-col gap-2">
+                                                <div className="bg-[#f0f4ff] p-4 rounded-xl border border-[#c5d3f7] flex items-center justify-between">
+                                                    <span className="text-[#29488e] font-medium">Gasto estimado:</span>
+                                                    <span className="text-2xl font-bold text-[#29488e]">
+                                                        ${prediction.toLocaleString(undefined, {
+                                                            minimumFractionDigits: 2,
+                                                            maximumFractionDigits: 2,
+                                                        })}
+                                                    </span>
+                                                </div>
+                                                {impactAnalysis && (
+                                                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mt-2">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <div className="bg-blue-100 p-1.5 rounded-full">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                                                            </div>
+                                                            <h4 className="font-semibold text-blue-900">Análisis de Impacto</h4>
+                                                        </div>
+                                                        <p className="text-sm text-blue-800 ml-8">
+                                                            {impactAnalysis}
+                                                        </p>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>

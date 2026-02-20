@@ -24,6 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSharedProfile } from "@/contexts/SharedProfileContext";
 import { useExchangeRate } from "@/hooks/useExchangeRate";
 import { getApiUrl } from "@/lib/config";
+import { triggerMLTraining } from "@/lib/ml";
 
 interface IncomeFormProps {
   onSubmit: () => void;
@@ -160,6 +161,9 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
       toast.success("Ingreso registrado exitosamente");
 
       refreshTransactions();
+
+      // Disparar entrenamiento automático de IA en segundo plano
+      triggerMLTraining(user.user_id);
 
       // Resetear formulario
       setSelectedMacro("");

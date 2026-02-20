@@ -25,12 +25,8 @@ def fetch_data(user_id=None):
     # Base queries
     # Fetch macrocategoria instead of specific categoria
     expenses_query = "SELECT macrocategoria, total_amount, user_id FROM expenses"
-    incomes_query = "SELECT total_amount as income, user_id FROM incomes"
+    incomes_query = "SELECT total_amount as income, user_id, created_at FROM incomes"
     accounts_query = "SELECT savings, user_id FROM accounts"
-    
-    # Filter by user_id if provided (though for better training we might want more data)
-    # However, for "personalized" models, we might just want to flag the user.
-    # For now, let's fetch all data and then filter in pandas to ensure we have a valid dataset.
     
     expenses_df = pd.read_sql(expenses_query, conn)
     incomes_df = pd.read_sql(incomes_query, conn)
@@ -75,17 +71,24 @@ def train(user_id):
     print(f"Fetching data for user {user_id}...")
     expenses_df, incomes_df, accounts_df = fetch_data(user_id)
     
-    # Aggregate incomes and savings by user
-    user_income = incomes_df.groupby('user_id')['income'].sum().reset_index()
+    # Get average monthly income for user
+    if not incomes_df.empty:
+        incomes_df['month'] = pd.to_datetime(incomes_df['created_at']).dt.to_period('M')
+        monthly_incomes = incomes_df.groupby(['user_id', 'month'])['income'].sum().reset_index()
+        user_income = monthly_incomes.groupby('user_id')['income'].mean().reset_index()
+    else:
+        user_income = pd.DataFrame(columns=['user_id', 'income'])
+        
     user_savings = accounts_df.groupby('user_id')['savings'].sum().reset_index()
     
     # Merge datasets
     df = expenses_df.merge(user_income, on='user_id', how='left')
     df = df.merge(user_savings, on='user_id', how='left')
     
-    # Fill missing values
-    df['income'] = df['income'].fillna(0)
-    df['savings'] = df['savings'].fillna(0)
+    # Fill missing values and ensure numeric types
+    df['income'] = df['income'].fillna(0).astype(float)
+    df['savings'] = df['savings'].fillna(0).astype(float)
+    df['total_amount'] = pd.to_numeric(df['total_amount'], errors='coerce').fillna(0).astype(float)
     
     # Encoding categorical data - Use macrocategoria to match UI
     le = LabelEncoder()
@@ -98,19 +101,51 @@ def train(user_id):
     user_df = df[df['user_id'] == user_id].copy()
     
     if len(user_df) < 2:
-        print(f"Not enough personal data for user {user_id}. Using all available data as baseline.")
-        user_df = df.copy()
+        msg = f"No hay suficientes datos. Registra al menos 2 gastos para usar el Simulador."
+        print(msg, file=sys.stderr)
+        sys.exit(1)
 
-    X = user_df[['categoria_encoded', 'income', 'savings']]
-    y = user_df['total_amount']
-    
-    if len(user_df) < 2:
-        print(f"Not enough data to train a model for user {user_id}.")
-        return
+    # Create an independent income/savings grid to teach XGBoost that savings
+    # are a powerful independent lever — not just correlated with income.
+    import numpy as np
 
-    # Train XGBoost model
-    print(f"Training XGBoost model for {user_id} using {len(user_df)} records...")
-    model = xgb.XGBRegressor(objective='reg:squarederror', n_estimators=100, learning_rate=0.1)
+    # Define the "Rules of Wealth" for the model to learn
+    INCOME_WEIGHT = 0.20   # 20% of monthly income is safe to spend
+    SAVINGS_WEIGHT = 0.02  # 2% of total savings pool is safe to spend
+
+    # Generate absolute value ranges (not multipliers) so the model sees
+    # scenarios where income is $720 but savings is $300,000
+    incomes = np.linspace(500, 15000, 12)   # Monthly income range
+    savings_range = np.linspace(0, 500000, 12)  # Savings range
+
+    synthetic_rows = []
+    for inc in incomes:
+        for sav in savings_range:
+            for cat_name, cat_code in category_mapping.items():
+                # Apply the weighted formula
+                # $300k savings → adds 0.02 * 300000 = $6,000 to recommendation
+                base_capacity = (inc * INCOME_WEIGHT) + (sav * SAVINGS_WEIGHT)
+
+                # Subtle category variation so predictions aren't identical across categories
+                category_multiplier = 1.0 + (cat_code * 0.03)
+                target_spend = base_capacity * category_multiplier
+
+                synthetic_rows.append({
+                    'user_id': user_id,
+                    'categoria_encoded': cat_code,
+                    'income': inc,
+                    'savings': sav,
+                    'total_amount': target_spend
+                })
+
+    augmented_df = pd.DataFrame(synthetic_rows)
+
+    X = augmented_df[['categoria_encoded', 'income', 'savings']]
+    y = augmented_df['total_amount']
+
+    # Train XGBoost model with more estimators to handle the richer dataset
+    print(f"Training XGBoost model for {user_id} using {len(augmented_df)} synthetic records...")
+    model = xgb.XGBRegressor(objective='reg:squarederror', n_estimators=200, learning_rate=0.05, max_depth=6)
     model.fit(X, y)
     
     # STATELESS: Use temporary files for model and mapping

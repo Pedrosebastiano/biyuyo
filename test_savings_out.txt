@@ -1,0 +1,9 @@
+﻿=== Fixed Income, Varying Savings ===
+Income:    720, Savings:        0 -> $    145.93  | Este monto representa un 20.3% de tu ingreso mensual.
+Income:    720, Savings:    50000 -> $   1405.42  | Este monto representa un 195.2% de tu ingreso mensual.
+Income:    720, Savings:   300000 -> $   7721.17  | Este monto representa un 1072.4% de tu ingreso mensual.
+
+=== Fixed Savings, Varying Income ===
+Income:    500, Savings:   100000 -> $   2664.68  | Este monto representa un 532.9% de tu ingreso mensual.
+Income:   2000, Savings:   100000 -> $   3052.67  | Este monto representa un 152.6% de tu ingreso mensual.
+Income:   5000, Savings:   100000 -> $   3742.15  | Este monto representa un 74.8% de tu ingreso mensual.

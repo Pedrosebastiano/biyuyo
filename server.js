@@ -5,6 +5,7 @@ import cors from "cors";
 import cron from "node-cron";
 import { messaging } from "./firebase-admin-setup.js";
 import bcrypt from 'bcrypt';
+import nodemailer from "nodemailer";
 import { calculateAndSaveMLFeatures } from './mlFeatures.js';
 import crypto from 'crypto';
 
@@ -43,34 +44,40 @@ app.use((req, res, next) => {
 const connectionString =
   "postgresql://postgres.pmjjguyibxydzxnofcjx:ZyMDIx2p3EErqtaG@aws-0-us-west-2.pooler.supabase.com:6543/postgres";
 
-const pool = new Pool({
-  connectionString,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-});
+  const pool = new Pool({
+    connectionString,
+    ssl: {
+      rejectUnauthorized: false,
+    },
+  });
+  
+  const POSTMARK_TOKEN = process.env.POSTMARK_API_TOKEN;
+  const SENDER_EMAIL = process.env.POSTMARK_SENDER_EMAIL;
+  
+  console.log(POSTMARK_TOKEN ? "✅ Postmark configurado" : "❌ Falta POSTMARK_API_TOKEN");
 
-import { MailerSend, EmailParams, Sender, Recipient } from "mailersend";
-
-const mailerSend = new MailerSend({ apiKey: process.env.MAILERSEND_API_KEY });
-const FROM_EMAIL = "noreply@test-z0vklo6veopl7qrx.mlsender.net"; // ej: noreply@trial-abc123.mlsender.net  mssp.SU0Xp2B.k68zxl2y7o94j905.1Xqtq63
-const FROM_NAME = "Biyuyo";
-
-if (process.env.MAILERSEND_API_KEY) {
-  console.log("✅ MailerSend configurado");
-} else {
-  console.error("❌ MAILERSEND_API_KEY no está configurada");
-}
-
-async function sendEmail(toEmail, toName, subject, htmlContent) {
-  const sentFrom = new Sender(FROM_EMAIL, FROM_NAME);
-  const recipients = [new Recipient(toEmail, toName)];
-  const emailParams = new EmailParams()
-    .setFrom(sentFrom)
-    .setTo(recipients)
-    .setSubject(subject)
-    .setHtml(htmlContent);
-  return await mailerSend.email.send(emailParams);
+  async function sendEmail(toEmail, toName, subject, htmlContent) {
+    const response = await fetch("https://api.postmarkapp.com/email", {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "X-Postmark-Server-Token": POSTMARK_TOKEN
+      },
+      body: JSON.stringify({
+        From: `Biyuyo <${SENDER_EMAIL}>`,
+        To: `${toName} <${toEmail}>`,
+        Subject: subject,
+        HtmlBody: htmlContent,
+        MessageStream: "outbound"
+      })
+    });
+  
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.Message || "Error enviando email");
+    }
+  return await response.json();
 }
 
 // --- RUTA DE PRUEBA ---
@@ -104,6 +111,7 @@ app.post("/save-token", async (req, res) => {
   }
 });
 
+// --- CRON JOB: RECORDATORIOS ---
 // --- CRON JOB: RECORDATORIOS ---
 cron.schedule("* * * * *", async () => {
   const now = new Date();
@@ -411,34 +419,29 @@ app.post("/forgot-password", async (req, res) => {
     // Enviar email con el token
     try {
       await sendEmail(
-        user.email,
-        user.name,
+        user.email, user.name,
         'Recuperación de contraseña - Biyuyo',
-        `<!DOCTYPE html><html><head><style>
-          body{font-family:Arial,sans-serif;color:#333}
-          .container{max-width:600px;margin:0 auto;padding:20px}
-          .header{background:#2d509e;color:white;padding:20px;text-align:center;border-radius:8px 8px 0 0}
-          .content{background:#f9f9f9;padding:30px;border-radius:0 0 8px 8px}
-          .token-box{background:white;border:2px solid #2d509e;padding:20px;margin:20px 0;text-align:center;border-radius:8px}
-          .token{font-size:22px;font-weight:bold;color:#2d509e;font-family:monospace;word-break:break-all}
-          .warning{background:#fff3cd;border-left:4px solid #ffc107;padding:12px;margin:20px 0}
-        </style></head><body>
-          <div class="container">
-            <div class="header"><h1>Biyuyo</h1><p>Recuperación de Contraseña</p></div>
-            <div class="content">
-              <p>Hola ${user.name},</p>
-              <p>Usa este código para restablecer tu contraseña:</p>
-              <div class="token-box"><div class="token">${resetToken}</div></div>
-              <div class="warning">⚠️ Este código expira en <strong>1 hora</strong></div>
-              <p>Si no solicitaste este cambio, ignora este correo.</p>
-            </div>
+        `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+          <div style="background:#2d509e;color:white;padding:20px;text-align:center;border-radius:8px 8px 0 0">
+            <h1>Biyuyo</h1><p>Recuperación de Contraseña</p>
           </div>
-        </body></html>`
+          <div style="background:#f9f9f9;padding:30px;border-radius:0 0 8px 8px">
+            <p>Hola ${user.name},</p>
+            <p>Usa este código para restablecer tu contraseña:</p>
+            <div style="background:white;border:2px solid #2d509e;padding:20px;margin:20px 0;text-align:center;border-radius:8px">
+              <span style="font-size:22px;font-weight:bold;color:#2d509e;font-family:monospace">${resetToken}</span>
+            </div>
+            <div style="background:#fff3cd;border-left:4px solid #ffc107;padding:12px;margin:20px 0">
+              ⚠️ Este código expira en <strong>1 hora</strong>
+            </div>
+            <p>Si no solicitaste esto, ignora este correo.</p>
+          </div>
+        </div>`
       );
-      console.log(`📧 Email de recuperación enviado a ${user.email}`);
+      console.log(`📧 Email enviado a ${user.email}`);
       res.json({ success: true, message: "Si el correo existe, recibirás instrucciones para restablecerla" });
     } catch (emailError) {
-      console.error("❌ Error MailerSend:", emailError);
+      console.error("❌ Error Postmark:", emailError);
       res.status(500).json({ error: `Error al enviar el correo: ${emailError?.message}` });
     }
 
@@ -1158,34 +1161,30 @@ app.post("/send-unimet-verification", async (req, res) => {
 
     try {
       await sendEmail(
-        user.email,
-        user.name,
+        user.email, user.name,
         'Verificación Unimet Premium - Biyuyo',
-        `<!DOCTYPE html><html><head><style>
-          body{font-family:Arial,sans-serif;color:#333}
-          .container{max-width:600px;margin:0 auto;padding:20px}
-          .header{background:#2d509e;color:white;padding:20px;text-align:center;border-radius:8px 8px 0 0}
-          .content{background:#f9f9f9;padding:30px;border-radius:0 0 8px 8px}
-          .token-box{background:white;border:2px solid #2d509e;padding:20px;margin:20px 0;text-align:center;border-radius:8px}
-          .token{font-size:18px;font-weight:bold;color:#2d509e;font-family:monospace;word-break:break-all}
-          .warning{background:#fff3cd;border-left:4px solid #ffc107;padding:12px;margin:20px 0}
-        </style></head><body>
-          <div class="container">
-            <div class="header"><h1>Biyuyo</h1><p>Verificación Unimet</p></div>
-            <div class="content">
-              <p>Hola ${user.name},</p>
-              <p>Tu código para activar <strong>Premium</strong>:</p>
-              <div class="token-box"><div class="token">${verificationToken}</div></div>
-              <div class="warning">⚠️ Expira en <strong>1 hora</strong></div>
-              <p>Si no solicitaste esto, ignora este correo.</p>
-            </div>
+        `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+          <div style="background:#2d509e;color:white;padding:20px;text-align:center;border-radius:8px 8px 0 0">
+            <h1>Biyuyo</h1><p>Verificación Unimet</p>
           </div>
-        </body></html>`
+          <div style="background:#f9f9f9;padding:30px;border-radius:0 0 8px 8px">
+            <p>Hola ${user.name},</p>
+            <p>Tu código para activar <strong>Premium</strong>:</p>
+            <div style="background:white;border:2px solid #2d509e;padding:20px;margin:20px 0;text-align:center;border-radius:8px">
+              <span style="font-size:18px;font-weight:bold;color:#2d509e;font-family:monospace">${verificationToken}</span>
+            </div>
+            <div style="background:#fff3cd;border-left:4px solid #ffc107;padding:12px;margin:20px 0">
+              ⚠️ Expira en <strong>1 hora</strong>
+            </div>
+            <p>Si no solicitaste esto, ignora este correo.</p>
+          </div>
+        </div>`
       );
       console.log(`📧 Token Unimet enviado a ${user.email}`);
       res.json({ success: true, message: "Código de verificación enviado a tu correo" });
+
     } catch (emailError) {
-      console.error("❌ Error MailerSend Unimet:", emailError);
+      console.error("❌ Error Postmark:", emailError);
       res.status(500).json({ error: `Error al enviar el correo: ${emailError?.message}` });
     }
 
@@ -1233,6 +1232,59 @@ app.post("/verify-unimet-token", async (req, res) => {
   } catch (err) {
     console.error("Error en verify-unimet-token:", err);
     res.status(500).json({ error: "Error al verificar el token" });
+  }
+});
+
+// --- ACTUALIZAR DATOS DE USUARIO ---
+app.put("/user/:user_id", async (req, res) => {
+  const { user_id } = req.params;
+  const { name, email } = req.body;
+
+  if (!name || !email) {
+    return res.status(400).json({ error: "Nombre y correo son requeridos" });
+  }
+
+  // Validación de nombre: Solo letras y espacios, máximo 30 caracteres
+  const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
+  if (!nameRegex.test(name)) {
+    return res.status(400).json({ error: "El nombre solo puede contener letras y espacios" });
+  }
+  if (name.length > 30) {
+    return res.status(400).json({ error: "El nombre no puede exceder los 30 caracteres" });
+  }
+
+  // Validación de formato de correo
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ error: "El formato de correo no es válido" });
+  }
+
+  try {
+    // Verificar si el correo ya está en uso por OTRO usuario
+    const emailCheck = await pool.query(
+      "SELECT user_id FROM users WHERE email = $1 AND user_id != $2",
+      [email.toLowerCase(), user_id]
+    );
+
+    if (emailCheck.rows.length > 0) {
+      return res.status(400).json({ error: "Este correo ya está registrado por otro usuario" });
+    }
+
+    // Actualizar usuario
+    const result = await pool.query(
+      "UPDATE users SET name = $1, email = $2 WHERE user_id = $3 RETURNING user_id, name, email, is_premium",
+      [name, email.toLowerCase(), user_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    console.log(`✅ Usuario actualizado: ${result.rows[0].email}`);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error en PUT /user/:user_id:", err);
+    res.status(500).json({ error: "Error al actualizar el usuario" });
   }
 });
 
@@ -1401,36 +1453,6 @@ app.get("/ml/summary/:user_id", async (req, res) => {
     });
   } catch (err) {
     console.error("Error obteniendo resumen ML:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get("/ml/last-features/:user_id", async (req, res) => {
-  const { user_id } = req.params;
-  try {
-    const result = await pool.query(
-      `SELECT
-         monthly_income_avg,
-         monthly_expense_avg,
-         savings_rate,
-         upcoming_reminders_amount,
-         overdue_reminders_count,
-         balance_at_time,
-         updated_at
-       FROM expense_ml_features
-       WHERE user_id = $1
-       ORDER BY updated_at DESC
-       LIMIT 1`,
-      [user_id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.json({ success: true, features: null });
-    }
-
-    res.json({ success: true, features: result.rows[0] });
-  } catch (err) {
-    console.error("Error en /ml/last-features:", err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { createClient } from "@supabase/supabase-js";
 import { useExchangeRate } from "@/hooks/useExchangeRate";
 import { getApiUrl } from "@/lib/config";
+import { triggerMLTraining } from "@/lib/ml";
 
 // Configuración de Supabase
 const supabaseUrl = "https://pmjjguyibxydzxnofcjx.supabase.co";
@@ -243,6 +244,9 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
 
       // Refrescar lista
       refreshTransactions();
+
+      // Disparar entrenamiento automático de IA en segundo plano
+      triggerMLTraining(user.user_id);
 
       // Limpiar
       setSelectedMacro("");

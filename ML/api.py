@@ -7,7 +7,8 @@ import os
 import subprocess
 import joblib
 from supabase import create_client, Client
-
+import io
+import psycopg2
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Financial Prediction API", description="API to predict expenses based on category, income, and savings per user.")
@@ -15,118 +16,238 @@ app = FastAPI(title="Financial Prediction API", description="API to predict expe
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, replace with specific origins
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Supabase Configuration
+# Configuration
 SUPABASE_URL = "https://pmjjguyibxydzxnofcjx.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtampndXlpYnh5ZHp4bm9mY2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwODE2NTAsImV4cCI6MjA4NTY1NzY1MH0.ZYTzwvzdcjgiiJHollA7vyNZ7ZF8hIN1NuTOq5TdtjI"
 BUCKET_NAME = "MLmodels"
+DB_URL = "postgresql://postgres.pmjjguyibxydzxnofcjx:ZyMDIx2p3EErqtaG@aws-0-us-west-2.pooler.supabase.com:6543/postgres"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Data model for prediction input
 class PredictionInput(BaseModel):
     user_id: str
     macrocategoria: str
-    ingreso_mensual: float
-    ahorro_actual: float
-
-import io
+    ingreso_mensual: float | None = None
+    ahorro_actual: float | None = None
+    monto_planeado: float | None = None
 
 def download_from_supabase(remote_name):
     try:
-        print(f"DEBUG: Downloading {remote_name} from Supabase Storage...")
         res = supabase.storage.from_(BUCKET_NAME).download(remote_name)
-        if res:
-            print(f"DEBUG: Successfully downloaded {remote_name} ({len(res)} bytes)")
-        else:
-            print(f"DEBUG: Download result for {remote_name} is empty or None")
         return res
     except Exception as e:
-        print(f"DEBUG: Error downloading {remote_name}: {type(e).__name__} - {str(e)}")
-        import traceback
-        traceback.print_exc()
+        print(f"DEBUG: Error downloading {remote_name}: {e}")
         return None
 
 def load_resources(user_id):
     model_name = f"{user_id}.pkl"
     mapping_name = f"mapping_{user_id}.json"
-    
-    # Stateless: Load directly from binary
     model_bytes = download_from_supabase(model_name)
     mapping_bytes = download_from_supabase(mapping_name)
-    
-    if not model_bytes:
-        print(f"DEBUG: Failed to get model_bytes for {user_id}")
-    if not mapping_bytes:
-        print(f"DEBUG: Failed to get mapping_bytes for {user_id}")
     
     if not model_bytes or not mapping_bytes:
         return None, None
             
     try:
-        # Load model using BytesIO
-        print(f"DEBUG: Loading joblib model for {user_id}...")
         model = joblib.load(io.BytesIO(model_bytes))
-        # Load mapping from bytes
-        print(f"DEBUG: Decoding mapping for {user_id}...")
         mapping = json.loads(mapping_bytes.decode('utf-8'))
-        
         return model, mapping
     except Exception as e:
-        print(f"DEBUG: Error loading resources in-memory for {user_id}: {e}")
+        print(f"DEBUG: Error loading resources for {user_id}: {e}")
         return None, None
 
 @app.get("/")
 def read_root():
-    return {"message": "Financial Prediction API (Personalized) is running"}
+    return {"message": "Financial Prediction API is running"}
+
+def get_temporal_insight(user_id, cursor):
+    """Checks if today is a high-spending day (e.g., Friday) based on history."""
+    import datetime
+    today = datetime.date.today()
+    day_name = today.strftime("%A")
+    day_of_week = today.weekday() # 4 is Friday
+    
+    # Query last 4 same-day-of-week spending
+    query = """
+        SELECT AVG(daily_sum) FROM (
+            SELECT DATE(created_at), SUM(total_amount) as daily_sum
+            FROM expenses 
+            WHERE user_id = %s AND EXTRACT(DOW FROM created_at) = %s
+            GROUP BY DATE(created_at)
+            LIMIT 4
+        ) as sub
+    """
+    cursor.execute(query, (user_id, day_of_week))
+    avg_day_spending = cursor.fetchone()[0] or 0.0
+    
+    if day_of_week == 4: # Friday
+        return f"Basado en tus últimos viernes, hoy sueles gastar un promedio de ${avg_day_spending:,.2f}. ¡Mantén tu presupuesto a raya!"
+    elif avg_day_spending > 0:
+        return f"Los {day_name} sueles gastar ${avg_day_spending:,.2f}. Tenlo en cuenta para tus planes de hoy."
+    return "No tenemos suficientes datos para detectar un patrón hoy, ¡sigue registrando!"
 
 @app.post("/predict")
 def predict(data: PredictionInput):
     model, mapping = load_resources(data.user_id)
-    
     if model is None or mapping is None:
-        raise HTTPException(status_code=404, detail=f"Model or mapping for user '{data.user_id}' not found. Please train the model for this user first.")
+        raise HTTPException(status_code=404, detail=f"Model not found for user '{data.user_id}'. Please train it first.")
     
     if data.macrocategoria not in mapping:
-        # Fallback to a default or show all available
-        available = ", ".join(list(mapping.keys()))
-        raise HTTPException(status_code=400, detail=f"Category '{data.macrocategoria}' not recognized for this user. Available: {available}")
+        available_list = list(mapping.keys())
+        examples = ", ".join(available_list[:2]) if len(available_list) >= 2 else ", ".join(available_list)
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"¡Ups! No logramos reconocer la categoría \"{data.macrocategoria}\". "
+                f"Para generar tu predicción, por favor selecciona una de las categorías disponibles en la lista, "
+                f"como {examples}. Así podremos darte un cálculo más preciso."
+            )
+        )
+
+    # 0. Context Retrieval and Analytics
+    avg_spending = 0.0
+    income = data.ingreso_mensual
+    savings = data.ahorro_actual
+    category_count = 0
+    total_count = 0
+    current_month_expenses = 0.0
+    temporal_insight = ""
     
+    try:
+        conn = psycopg2.connect(DB_URL, connect_timeout=5)
+        cur = conn.cursor()
+        
+        # 0.1 Account Stats
+        cur.execute("SELECT AVG(total_amount) FROM expenses WHERE user_id = %s", (data.user_id,))
+        avg_spending = cur.fetchone()[0] or 0.0
+        
+        # 0.2 Trust Score Metadata (Data Density)
+        cur.execute("SELECT COUNT(*) FROM expenses WHERE user_id = %s AND macrocategoria = %s", (data.user_id, data.macrocategoria))
+        category_count = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM expenses WHERE user_id = %s", (data.user_id,))
+        total_count = cur.fetchone()[0]
+        
+        # 0.3 Balance Projection Info
+        cur.execute("SELECT SUM(total_amount) FROM expenses WHERE user_id = %s AND EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM NOW())", (data.user_id,))
+        current_month_expenses = cur.fetchone()[0] or 0.0
+        
+        if income is None:
+            cur.execute("SELECT SUM(total_amount) FROM incomes WHERE user_id = %s AND EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM NOW())", (data.user_id,))
+            income = cur.fetchone()[0] or 0.0
+            
+        if savings is None:
+            cur.execute("SELECT SUM(savings) FROM accounts WHERE user_id = %s", (data.user_id,))
+            savings = cur.fetchone()[0] or 0.0
+            
+        # 0.4 Behavioral Insight
+        temporal_insight = get_temporal_insight(data.user_id, cur)
+            
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"DEBUG: DB Fetch failed: {e}")
+        if income is None: income = 0.0
+        if savings is None: savings = 0.0
+
     category_encoded = mapping[data.macrocategoria]
-    
-    # Prepare input for prediction
-    input_df = pd.DataFrame([{
+    input_data = {
         'categoria_encoded': category_encoded,
-        'income': data.ingreso_mensual,
-        'savings': data.ahorro_actual
-    }])
-    
-    prediction = model.predict(input_df)[0]
-    
+        'income': float(income),
+        'savings': float(savings),
+        'avg_spending': float(avg_spending)
+    }
+
+    # Prediction Logic
+    try:
+        expected_features = model.get_booster().feature_names
+        if expected_features:
+            features_to_use = [f for f in expected_features if f in input_data]
+            input_df = pd.DataFrame([input_data])[features_to_use]
+        else:
+            input_df = pd.DataFrame([input_data])[['categoria_encoded', 'income', 'savings']]
+    except Exception:
+        input_df = pd.DataFrame([input_data])
+
+    prediction = float(model.predict(input_df)[0])
+
+    # 1. Calculate Trust Score (0-100)
+    # Based on number of samples for the category. >10 samples = 90%+, 0 samples = 40% (global)
+    trust_score = min(40 + (category_count * 10), 98) if total_count > 0 else 30
+
+    # Ensure everything is float for calculation
+    savings_f = float(savings)
+    income_f = float(income)
+    current_month_expenses_f = float(current_month_expenses)
+
+    # 2. Analyze Purchase Impact
+    impact_analysis = None
+    if data.monto_planeado:
+        planned = float(data.monto_planeado)
+        # Simple projection: current_savings + (income - expenses) - planned
+        projected_balance = savings_f + income_f - current_month_expenses_f - planned
+        risk_increase = 0
+        if projected_balance < 0:
+            risk_increase = 100
+        elif projected_balance < (income_f * 0.1): # Less than 10% income buffer
+            risk_increase = 75
+        elif projected_balance < (income_f * 0.3):
+            risk_increase = 30
+            
+        impact_analysis = {
+            "monto_planeado": planned,
+            "saldo_proyectado": float(projected_balance),
+            "riesgo_negativo_score": risk_increase,
+            "mensaje": f"Si compras eso de ${planned:,.2f}, tu probabilidad de saldo negativo aumenta un {risk_increase}%." if risk_increase > 0 else "Esta compra parece segura para tu flujo de caja actual."
+        }
+
+    # 3. Calculate dual impact ratios
+    # Use the user's *inputted* values (what they typed in the UI), not DB values
+    income_val = float(data.ingreso_mensual) if data.ingreso_mensual else income_f
+    savings_val = float(data.ahorro_actual) if data.ahorro_actual else savings_f
+    total_liquidity = income_val + savings_val
+
+    income_ratio = (prediction / income_val * 100) if income_val > 0 else 0
+    liquidity_ratio = (prediction / total_liquidity * 100) if total_liquidity > 0 else 0
+
+    # Build the analysis message
+    if savings_val > 0:
+        impact_msg = (
+            f"Representa el {income_ratio:.1f}% de tu ingreso mensual, "
+            f"pero solo el {liquidity_ratio:.2f}% de tu capital total."
+        )
+    else:
+        impact_msg = f"Representa el {income_ratio:.1f}% de tu ingreso mensual."
+
     return {
         "user_id": data.user_id,
         "macrocategoria": data.macrocategoria,
-        "prediccion_gasto": float(prediction),
+        "prediccion_gasto": prediction,
+        "ratio_of_income": income_ratio / 100,   # Decimal, for backwards compat
+        "income_ratio": round(income_ratio, 1),
+        "liquidity_ratio": round(liquidity_ratio, 2),
+        "trust_score": trust_score,
+        "impact_analysis": impact_msg,
+        "behavioral_insight": temporal_insight,
         "currency": "USD"
     }
 
 @app.post("/train/{user_id}")
-def train_model(user_id: str):
+def train_endpoint(user_id: str):
     try:
-        # Run the training script with user_id argument
         result = subprocess.run(['py', 'ML/train_model.py', user_id], capture_output=True, text=True)
         if result.returncode == 0:
-            return {"message": f"Model for {user_id} trained successfully", "output": result.stdout}
+            return {"message": "Success", "output": result.stdout}
         else:
-            raise HTTPException(status_code=500, detail=f"Training failed: {result.stderr}")
+            raise HTTPException(status_code=500, detail=result.stderr)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
