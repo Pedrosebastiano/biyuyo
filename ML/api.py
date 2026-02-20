@@ -94,23 +94,50 @@ def get_temporal_insight(user_id, cursor):
 
 @app.post("/predict")
 def predict(data: PredictionInput):
+    # Always retrain the model before prediction
+    import subprocess
+    try:
+        result = subprocess.run(['py', 'ML/train_model.py', data.user_id], capture_output=True, text=True)
+        if result.returncode != 0:
+            # If the error is about insufficient data, return a user-friendly message
+            if "No hay suficientes datos" in result.stderr:
+                raise HTTPException(status_code=400, detail="No hay suficientes datos para entrenar el modelo. Por favor, registra al menos 2 transacciones antes de usar el simulador de gastos.")
+            else:
+                raise HTTPException(status_code=500, detail=f"Error al entrenar el modelo: {result.stderr}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error inesperado al entrenar el modelo: {e}")
+
+    # Load the newly trained model
     model, mapping = load_resources(data.user_id)
     if model is None or mapping is None:
-        raise HTTPException(status_code=404, detail=f"Model not found for user '{data.user_id}'. Please train it first.")
-    
-    if data.macrocategoria not in mapping:
-        available_list = list(mapping.keys())
+        raise HTTPException(status_code=404, detail=f"No se pudo cargar el modelo para el usuario '{data.user_id}'. Intenta registrar más transacciones y vuelve a intentarlo.")
+
+    # Only allow predictions for categories the user has actually registered in their expenses
+    try:
+        conn = psycopg2.connect(DB_URL, connect_timeout=5)
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT macrocategoria FROM expenses WHERE user_id = %s", (data.user_id,))
+        user_categories = set(row[0] for row in cur.fetchall())
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"DEBUG: DB Fetch failed for user categories: {e}")
+        user_categories = set()
+
+    if data.macrocategoria not in user_categories:
+        available_list = list(user_categories)
         examples = ", ".join(available_list[:2]) if len(available_list) >= 2 else ", ".join(available_list)
         raise HTTPException(
             status_code=400,
             detail=(
-                f"¡Ups! No logramos reconocer la categoría \"{data.macrocategoria}\". "
-                f"Para generar tu predicción, por favor selecciona una de las categorías disponibles en la lista, "
-                f"como {examples}. Así podremos darte un cálculo más preciso."
+                f"¡Ups! No logramos reconocer la categoría \"{data.macrocategoria}\" para tu usuario. "
+                f"Solo puedes generar predicciones para categorías que ya hayas registrado en tus gastos. "
+                (f"Por ejemplo: {examples}. " if examples else "")
+                + "Registra un gasto en la categoría deseada para habilitar predicciones."
             )
         )
 
-    # 0. Context Retrieval and Analytics
+    # ...existing code for context retrieval, analytics, and prediction logic...
     avg_spending = 0.0
     income = data.ingreso_mensual
     savings = data.ahorro_actual
@@ -118,36 +145,24 @@ def predict(data: PredictionInput):
     total_count = 0
     current_month_expenses = 0.0
     temporal_insight = ""
-    
     try:
         conn = psycopg2.connect(DB_URL, connect_timeout=5)
         cur = conn.cursor()
-        
-        # 0.1 Account Stats
         cur.execute("SELECT AVG(total_amount) FROM expenses WHERE user_id = %s", (data.user_id,))
         avg_spending = cur.fetchone()[0] or 0.0
-        
-        # 0.2 Trust Score Metadata (Data Density)
         cur.execute("SELECT COUNT(*) FROM expenses WHERE user_id = %s AND macrocategoria = %s", (data.user_id, data.macrocategoria))
         category_count = cur.fetchone()[0]
         cur.execute("SELECT COUNT(*) FROM expenses WHERE user_id = %s", (data.user_id,))
         total_count = cur.fetchone()[0]
-        
-        # 0.3 Balance Projection Info
         cur.execute("SELECT SUM(total_amount) FROM expenses WHERE user_id = %s AND EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM NOW())", (data.user_id,))
         current_month_expenses = cur.fetchone()[0] or 0.0
-        
         if income is None:
             cur.execute("SELECT SUM(total_amount) FROM incomes WHERE user_id = %s AND EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM NOW())", (data.user_id,))
             income = cur.fetchone()[0] or 0.0
-            
         if savings is None:
             cur.execute("SELECT SUM(savings) FROM accounts WHERE user_id = %s", (data.user_id,))
             savings = cur.fetchone()[0] or 0.0
-            
-        # 0.4 Behavioral Insight
         temporal_insight = get_temporal_insight(data.user_id, cur)
-            
         cur.close()
         conn.close()
     except Exception as e:
@@ -163,7 +178,6 @@ def predict(data: PredictionInput):
         'avg_spending': float(avg_spending)
     }
 
-    # Prediction Logic
     try:
         expected_features = model.get_booster().feature_names
         if expected_features:
@@ -176,29 +190,22 @@ def predict(data: PredictionInput):
 
     prediction = float(model.predict(input_df)[0])
 
-    # 1. Calculate Trust Score (0-100)
-    # Based on number of samples for the category. >10 samples = 90%+, 0 samples = 40% (global)
     trust_score = min(40 + (category_count * 10), 98) if total_count > 0 else 30
-
-    # Ensure everything is float for calculation
     savings_f = float(savings)
     income_f = float(income)
     current_month_expenses_f = float(current_month_expenses)
 
-    # 2. Analyze Purchase Impact
     impact_analysis = None
     if data.monto_planeado:
         planned = float(data.monto_planeado)
-        # Simple projection: current_savings + (income - expenses) - planned
         projected_balance = savings_f + income_f - current_month_expenses_f - planned
         risk_increase = 0
         if projected_balance < 0:
             risk_increase = 100
-        elif projected_balance < (income_f * 0.1): # Less than 10% income buffer
+        elif projected_balance < (income_f * 0.1):
             risk_increase = 75
         elif projected_balance < (income_f * 0.3):
             risk_increase = 30
-            
         impact_analysis = {
             "monto_planeado": planned,
             "saldo_proyectado": float(projected_balance),
@@ -206,8 +213,6 @@ def predict(data: PredictionInput):
             "mensaje": f"Si compras eso de ${planned:,.2f}, tu probabilidad de saldo negativo aumenta un {risk_increase}%." if risk_increase > 0 else "Esta compra parece segura para tu flujo de caja actual."
         }
 
-    # 3. Calculate dual impact ratios
-    # Use the user's *inputted* values (what they typed in the UI), not DB values
     income_val = float(data.ingreso_mensual) if data.ingreso_mensual else income_f
     savings_val = float(data.ahorro_actual) if data.ahorro_actual else savings_f
     total_liquidity = income_val + savings_val
@@ -215,7 +220,6 @@ def predict(data: PredictionInput):
     income_ratio = (prediction / income_val * 100) if income_val > 0 else 0
     liquidity_ratio = (prediction / total_liquidity * 100) if total_liquidity > 0 else 0
 
-    # Build the analysis message
     if savings_val > 0:
         impact_msg = (
             f"Representa el {income_ratio:.1f}% de tu ingreso mensual, "
@@ -228,7 +232,7 @@ def predict(data: PredictionInput):
         "user_id": data.user_id,
         "macrocategoria": data.macrocategoria,
         "prediccion_gasto": prediction,
-        "ratio_of_income": income_ratio / 100,   # Decimal, for backwards compat
+        "ratio_of_income": income_ratio / 100,
         "income_ratio": round(income_ratio, 1),
         "liquidity_ratio": round(liquidity_ratio, 2),
         "trust_score": trust_score,
