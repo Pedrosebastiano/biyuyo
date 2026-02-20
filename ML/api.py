@@ -202,14 +202,16 @@ def predict(data: PredictionInput):
     ratio_of_income = 0
     if income_f > 0:
         ratio_of_income = float(prediction / income_f)
+        
+    impact_ratio_percent = ratio_of_income * 100
 
     return {
         "user_id": data.user_id,
         "macrocategoria": data.macrocategoria,
         "prediccion_gasto": prediction,
-        "ratio_of_income": ratio_of_income,
+        "ratio_of_income": ratio_of_income, # Keep for backwards comp with UI
         "trust_score": trust_score,
-        "impact_analysis": impact_analysis,
+        "impact_analysis": f"Este monto representa un {round(impact_ratio_percent, 1)}% de tu ingreso mensual.",
         "behavioral_insight": temporal_insight,
         "currency": "USD"
     }

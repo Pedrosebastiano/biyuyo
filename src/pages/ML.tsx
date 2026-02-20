@@ -24,6 +24,7 @@ const ML = () => {
     const [isPredicting, setIsPredicting] = useState(false);
     const [prediction, setPrediction] = useState<number | null>(null);
     const [ratioOfIncome, setRatioOfIncome] = useState<number | null>(null);
+    const [impactAnalysis, setImpactAnalysis] = useState<string | null>(null);
     const [macroCategory, setMacroCategory] = useState("");
     const [income, setIncome] = useState("");
     const [savings, setSavings] = useState("");
@@ -73,6 +74,7 @@ const ML = () => {
         }
         setPrediction(null);
         setRatioOfIncome(null);
+        setImpactAnalysis(null);
         setIsPredicting(true);
         try {
             const response = await fetch(`${getSimulatorMLApiUrl()}/predict`, {
@@ -89,6 +91,7 @@ const ML = () => {
             if (response.ok) {
                 setPrediction(data.prediccion_gasto);
                 setRatioOfIncome(data.ratio_of_income);
+                setImpactAnalysis(data.impact_analysis);
                 toast.success("Predicción generada");
             } else {
                 toast.error("Error en la predicción", {
@@ -214,10 +217,18 @@ const ML = () => {
                                                         })}
                                                     </span>
                                                 </div>
-                                                {ratioOfIncome !== null && ratioOfIncome > 0 && (
-                                                    <p className="text-sm text-center text-muted-foreground bg-muted p-2 rounded-lg border">
-                                                        Este monto representa un <b>{(ratioOfIncome * 100).toFixed(1)}%</b> de tu ingreso mensual actual.
-                                                    </p>
+                                                {impactAnalysis && (
+                                                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mt-2">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <div className="bg-blue-100 p-1.5 rounded-full">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                                                            </div>
+                                                            <h4 className="font-semibold text-blue-900">Análisis de Impacto</h4>
+                                                        </div>
+                                                        <p className="text-sm text-blue-800 ml-8">
+                                                            {impactAnalysis}
+                                                        </p>
+                                                    </div>
                                                 )}
                                             </div>
                                         )}

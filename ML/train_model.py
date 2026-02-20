@@ -111,22 +111,37 @@ def train(user_id):
     # what the user *would* spend if their resources changed.
     synthetic_dfs = []
     
-    # Define a scaling curve for target amounts using numpy to create a smooth curve.
-    # We generate 20 points from 0.2x to 3.0x capacity to give XGBoost enough splits 
-    # to make the prediction feel "smooth" and responsive in the UI.
-    import numpy as np
-    multipliers = np.linspace(0.2, 3.0, 20)
+    # Define financial "Safe Zones" for the model to learn
+    # We want the model to learn: Spend = (Alpha * Income) + (Beta * Savings)
+    synthetic_dfs = []
     
-    for mult in multipliers:
-        df_sim = user_df.copy()
-        df_sim['income'] = df_sim['income'] * mult
-        df_sim['savings'] = df_sim['savings'] * mult
-        
-        # Scale the target amount sub-linearly (using square root) so the ratio changes
-        df_sim['total_amount'] = df_sim['total_amount'] * (mult ** 0.6)
-        
-        synthetic_dfs.append(df_sim)
-        
+    import numpy as np
+    
+    # We create a grid of scenarios: 
+    # High Income/Low Savings, Low Income/High Savings, etc.
+    for inc_mult in np.linspace(0.5, 2.0, 10): # Vary Income
+        for sav_mult in np.linspace(0.1, 5.0, 10): # Vary Savings
+            df_sim = user_df.copy()
+            
+            # 1. Update features
+            df_sim['income'] = df_sim['income'] * inc_mult
+            df_sim['savings'] = df_sim['savings'] * sav_mult
+            
+            # 2. Update Target (The "Smart" Logic)
+            # Formula: 15% of monthly income + 0.5% of total savings 
+            # This ensures that your $300k user gets a higher recommendation.
+            base_ratio = 0.15 # 15% of income
+            savings_contribution = 0.005 # 0.5% of savings pool
+            
+            df_sim['total_amount'] = (df_sim['income'] * base_ratio) + \
+                                     (df_sim['savings'] * savings_contribution)
+            
+            # Add a bit of category-based variation (e.g., Tech costs more than Coffee)
+            # We use the encoded category to slightly jitter the result
+            df_sim['total_amount'] *= (1 + (df_sim['categoria_encoded'] % 5) * 0.05)
+            
+            synthetic_dfs.append(df_sim)
+            
     augmented_df = pd.concat(synthetic_dfs, ignore_index=True)
     
     X = augmented_df[['categoria_encoded', 'income', 'savings']]
