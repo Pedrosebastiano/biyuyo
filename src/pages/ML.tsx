@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTransactions } from "@/hooks/useTransactions";
-import { getMLApiUrl } from "@/lib/config";
+import { getMLApiUrl, getSimulatorMLApiUrl } from "@/lib/config";
 import { toast } from "sonner";
 import { BrainCircuit, Loader2, Sparkles, TrendingUp } from "lucide-react";
 import { macroCategories } from "@/data/categories";
@@ -23,6 +23,7 @@ const ML = () => {
     const [isTraining, setIsTraining] = useState(false);
     const [isPredicting, setIsPredicting] = useState(false);
     const [prediction, setPrediction] = useState<number | null>(null);
+    const [ratioOfIncome, setRatioOfIncome] = useState<number | null>(null);
     const [macroCategory, setMacroCategory] = useState("");
     const [income, setIncome] = useState("");
     const [savings, setSavings] = useState("");
@@ -40,7 +41,7 @@ const ML = () => {
         if (!user?.user_id) return;
         setIsTraining(true);
         try {
-            const response = await fetch(`${getMLApiUrl()}/train/${user.user_id}`, {
+            const response = await fetch(`${getSimulatorMLApiUrl()}/train/${user.user_id}`, {
                 method: "POST",
             });
             const data = await response.json();
@@ -70,9 +71,11 @@ const ML = () => {
             });
             return;
         }
+        setPrediction(null);
+        setRatioOfIncome(null);
         setIsPredicting(true);
         try {
-            const response = await fetch(`${getMLApiUrl()}/predict`, {
+            const response = await fetch(`${getSimulatorMLApiUrl()}/predict`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -85,6 +88,7 @@ const ML = () => {
             const data = await response.json();
             if (response.ok) {
                 setPrediction(data.prediccion_gasto);
+                setRatioOfIncome(data.ratio_of_income);
                 toast.success("Predicción generada");
             } else {
                 toast.error("Error en la predicción", {
@@ -200,14 +204,21 @@ const ML = () => {
                                             }
                                         </Button>
                                         {prediction !== null && (
-                                            <div className="flex-1 w-full bg-[#f0f4ff] p-4 rounded-xl border border-[#c5d3f7] flex items-center justify-between">
-                                                <span className="text-[#29488e] font-medium">Gasto estimado:</span>
-                                                <span className="text-2xl font-bold text-[#29488e]">
-                                                    ${prediction.toLocaleString(undefined, {
-                                                        minimumFractionDigits: 2,
-                                                        maximumFractionDigits: 2,
-                                                    })}
-                                                </span>
+                                            <div className="flex-1 w-full flex flex-col gap-2">
+                                                <div className="bg-[#f0f4ff] p-4 rounded-xl border border-[#c5d3f7] flex items-center justify-between">
+                                                    <span className="text-[#29488e] font-medium">Gasto estimado:</span>
+                                                    <span className="text-2xl font-bold text-[#29488e]">
+                                                        ${prediction.toLocaleString(undefined, {
+                                                            minimumFractionDigits: 2,
+                                                            maximumFractionDigits: 2,
+                                                        })}
+                                                    </span>
+                                                </div>
+                                                {ratioOfIncome !== null && ratioOfIncome > 0 && (
+                                                    <p className="text-sm text-center text-muted-foreground bg-muted p-2 rounded-lg border">
+                                                        Este monto representa un <b>{(ratioOfIncome * 100).toFixed(1)}%</b> de tu ingreso mensual actual.
+                                                    </p>
+                                                )}
                                             </div>
                                         )}
                                     </div>

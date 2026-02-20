@@ -198,10 +198,16 @@ def predict(data: PredictionInput):
             "mensaje": f"Si compras eso de ${planned:,.2f}, tu probabilidad de saldo negativo aumenta un {risk_increase}%." if risk_increase > 0 else "Esta compra parece segura para tu flujo de caja actual."
         }
 
+    # 3. Calculate Ratio
+    ratio_of_income = 0
+    if income_f > 0:
+        ratio_of_income = float(prediction / income_f)
+
     return {
         "user_id": data.user_id,
         "macrocategoria": data.macrocategoria,
         "prediccion_gasto": prediction,
+        "ratio_of_income": ratio_of_income,
         "trust_score": trust_score,
         "impact_analysis": impact_analysis,
         "behavioral_insight": temporal_insight,
@@ -221,4 +227,4 @@ def train_endpoint(user_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))

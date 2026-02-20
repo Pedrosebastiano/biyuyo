@@ -25,12 +25,8 @@ def fetch_data(user_id=None):
     # Base queries
     # Fetch macrocategoria instead of specific categoria
     expenses_query = "SELECT macrocategoria, total_amount, user_id FROM expenses"
-    incomes_query = "SELECT total_amount as income, user_id FROM incomes"
+    incomes_query = "SELECT total_amount as income, user_id, created_at FROM incomes"
     accounts_query = "SELECT savings, user_id FROM accounts"
-    
-    # Filter by user_id if provided (though for better training we might want more data)
-    # However, for "personalized" models, we might just want to flag the user.
-    # For now, let's fetch all data and then filter in pandas to ensure we have a valid dataset.
     
     expenses_df = pd.read_sql(expenses_query, conn)
     incomes_df = pd.read_sql(incomes_query, conn)
@@ -75,17 +71,24 @@ def train(user_id):
     print(f"Fetching data for user {user_id}...")
     expenses_df, incomes_df, accounts_df = fetch_data(user_id)
     
-    # Aggregate incomes and savings by user
-    user_income = incomes_df.groupby('user_id')['income'].sum().reset_index()
+    # Get average monthly income for user
+    if not incomes_df.empty:
+        incomes_df['month'] = pd.to_datetime(incomes_df['created_at']).dt.to_period('M')
+        monthly_incomes = incomes_df.groupby(['user_id', 'month'])['income'].sum().reset_index()
+        user_income = monthly_incomes.groupby('user_id')['income'].mean().reset_index()
+    else:
+        user_income = pd.DataFrame(columns=['user_id', 'income'])
+        
     user_savings = accounts_df.groupby('user_id')['savings'].sum().reset_index()
     
     # Merge datasets
     df = expenses_df.merge(user_income, on='user_id', how='left')
     df = df.merge(user_savings, on='user_id', how='left')
     
-    # Fill missing values
-    df['income'] = df['income'].fillna(0)
-    df['savings'] = df['savings'].fillna(0)
+    # Fill missing values and ensure numeric types
+    df['income'] = df['income'].fillna(0).astype(float)
+    df['savings'] = df['savings'].fillna(0).astype(float)
+    df['total_amount'] = pd.to_numeric(df['total_amount'], errors='coerce').fillna(0).astype(float)
     
     # Encoding categorical data - Use macrocategoria to match UI
     le = LabelEncoder()
@@ -98,15 +101,36 @@ def train(user_id):
     user_df = df[df['user_id'] == user_id].copy()
     
     if len(user_df) < 2:
-        print(f"Not enough personal data for user {user_id}. Using all available data as baseline.")
-        user_df = df.copy()
+        msg = f"No hay suficientes datos. Registra al menos 2 gastos para usar el Simulador."
+        print(msg, file=sys.stderr)
+        sys.exit(1)
 
-    X = user_df[['categoria_encoded', 'income', 'savings']]
-    y = user_df['total_amount']
+    # Create synthetic variations to teach the model how spending scales with income/capacity
+    # Since a single user's income/savings are effectively constant in the raw DB snapshot,
+    # XGBoost would normally ignore them. We create hypothetical scenarios representing 
+    # what the user *would* spend if their resources changed.
+    synthetic_dfs = []
     
-    if len(user_df) < 2:
-        print(f"Not enough data to train a model for user {user_id}.")
-        return
+    # Define a scaling curve for target amounts using numpy to create a smooth curve.
+    # We generate 20 points from 0.2x to 3.0x capacity to give XGBoost enough splits 
+    # to make the prediction feel "smooth" and responsive in the UI.
+    import numpy as np
+    multipliers = np.linspace(0.2, 3.0, 20)
+    
+    for mult in multipliers:
+        df_sim = user_df.copy()
+        df_sim['income'] = df_sim['income'] * mult
+        df_sim['savings'] = df_sim['savings'] * mult
+        
+        # Scale the target amount sub-linearly (using square root) so the ratio changes
+        df_sim['total_amount'] = df_sim['total_amount'] * (mult ** 0.6)
+        
+        synthetic_dfs.append(df_sim)
+        
+    augmented_df = pd.concat(synthetic_dfs, ignore_index=True)
+    
+    X = augmented_df[['categoria_encoded', 'income', 'savings']]
+    y = augmented_df['total_amount']
 
     # Train XGBoost model
     print(f"Training XGBoost model for {user_id} using {len(user_df)} records...")

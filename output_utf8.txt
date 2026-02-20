@@ -1,0 +1,4 @@
+﻿Income: 1000, Savings: 0 -> Prediccion: 90.84076690673828, Ratio: 0.09084076690673829
+Income: 1500, Savings: 0 -> Prediccion: 90.84076690673828, Ratio: 0.06056051127115886
+Income: 2000, Savings: 0 -> Prediccion: 90.84076690673828, Ratio: 0.04542038345336914
+Income: 4000, Savings: 0 -> Prediccion: 90.84076690673828, Ratio: 0.02271019172668457
