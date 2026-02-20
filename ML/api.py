@@ -198,20 +198,33 @@ def predict(data: PredictionInput):
             "mensaje": f"Si compras eso de ${planned:,.2f}, tu probabilidad de saldo negativo aumenta un {risk_increase}%." if risk_increase > 0 else "Esta compra parece segura para tu flujo de caja actual."
         }
 
-    # 3. Calculate Ratio
-    ratio_of_income = 0
-    if income_f > 0:
-        ratio_of_income = float(prediction / income_f)
-        
-    impact_ratio_percent = ratio_of_income * 100
+    # 3. Calculate dual impact ratios
+    # Use the user's *inputted* values (what they typed in the UI), not DB values
+    income_val = float(data.ingreso_mensual) if data.ingreso_mensual else income_f
+    savings_val = float(data.ahorro_actual) if data.ahorro_actual else savings_f
+    total_liquidity = income_val + savings_val
+
+    income_ratio = (prediction / income_val * 100) if income_val > 0 else 0
+    liquidity_ratio = (prediction / total_liquidity * 100) if total_liquidity > 0 else 0
+
+    # Build the analysis message
+    if savings_val > 0:
+        impact_msg = (
+            f"Representa el {income_ratio:.1f}% de tu ingreso mensual, "
+            f"pero solo el {liquidity_ratio:.2f}% de tu capital total."
+        )
+    else:
+        impact_msg = f"Representa el {income_ratio:.1f}% de tu ingreso mensual."
 
     return {
         "user_id": data.user_id,
         "macrocategoria": data.macrocategoria,
         "prediccion_gasto": prediction,
-        "ratio_of_income": ratio_of_income, # Keep for backwards comp with UI
+        "ratio_of_income": income_ratio / 100,   # Decimal, for backwards compat
+        "income_ratio": round(income_ratio, 1),
+        "liquidity_ratio": round(liquidity_ratio, 2),
         "trust_score": trust_score,
-        "impact_analysis": f"Este monto representa un {round(impact_ratio_percent, 1)}% de tu ingreso mensual.",
+        "impact_analysis": impact_msg,
         "behavioral_insight": temporal_insight,
         "currency": "USD"
     }

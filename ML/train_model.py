@@ -105,51 +105,47 @@ def train(user_id):
         print(msg, file=sys.stderr)
         sys.exit(1)
 
-    # Create synthetic variations to teach the model how spending scales with income/capacity
-    # Since a single user's income/savings are effectively constant in the raw DB snapshot,
-    # XGBoost would normally ignore them. We create hypothetical scenarios representing 
-    # what the user *would* spend if their resources changed.
-    synthetic_dfs = []
-    
-    # Define financial "Safe Zones" for the model to learn
-    # We want the model to learn: Spend = (Alpha * Income) + (Beta * Savings)
-    synthetic_dfs = []
-    
+    # Create an independent income/savings grid to teach XGBoost that savings
+    # are a powerful independent lever — not just correlated with income.
     import numpy as np
-    
-    # We create a grid of scenarios: 
-    # High Income/Low Savings, Low Income/High Savings, etc.
-    for inc_mult in np.linspace(0.5, 2.0, 10): # Vary Income
-        for sav_mult in np.linspace(0.1, 5.0, 10): # Vary Savings
-            df_sim = user_df.copy()
-            
-            # 1. Update features
-            df_sim['income'] = df_sim['income'] * inc_mult
-            df_sim['savings'] = df_sim['savings'] * sav_mult
-            
-            # 2. Update Target (The "Smart" Logic)
-            # Formula: 15% of monthly income + 0.5% of total savings 
-            # This ensures that your $300k user gets a higher recommendation.
-            base_ratio = 0.15 # 15% of income
-            savings_contribution = 0.005 # 0.5% of savings pool
-            
-            df_sim['total_amount'] = (df_sim['income'] * base_ratio) + \
-                                     (df_sim['savings'] * savings_contribution)
-            
-            # Add a bit of category-based variation (e.g., Tech costs more than Coffee)
-            # We use the encoded category to slightly jitter the result
-            df_sim['total_amount'] *= (1 + (df_sim['categoria_encoded'] % 5) * 0.05)
-            
-            synthetic_dfs.append(df_sim)
-            
-    augmented_df = pd.concat(synthetic_dfs, ignore_index=True)
-    
+
+    # Define the "Rules of Wealth" for the model to learn
+    INCOME_WEIGHT = 0.20   # 20% of monthly income is safe to spend
+    SAVINGS_WEIGHT = 0.02  # 2% of total savings pool is safe to spend
+
+    # Generate absolute value ranges (not multipliers) so the model sees
+    # scenarios where income is $720 but savings is $300,000
+    incomes = np.linspace(500, 15000, 12)   # Monthly income range
+    savings_range = np.linspace(0, 500000, 12)  # Savings range
+
+    synthetic_rows = []
+    for inc in incomes:
+        for sav in savings_range:
+            for cat_name, cat_code in category_mapping.items():
+                # Apply the weighted formula
+                # $300k savings → adds 0.02 * 300000 = $6,000 to recommendation
+                base_capacity = (inc * INCOME_WEIGHT) + (sav * SAVINGS_WEIGHT)
+
+                # Subtle category variation so predictions aren't identical across categories
+                category_multiplier = 1.0 + (cat_code * 0.03)
+                target_spend = base_capacity * category_multiplier
+
+                synthetic_rows.append({
+                    'user_id': user_id,
+                    'categoria_encoded': cat_code,
+                    'income': inc,
+                    'savings': sav,
+                    'total_amount': target_spend
+                })
+
+    augmented_df = pd.DataFrame(synthetic_rows)
+
     X = augmented_df[['categoria_encoded', 'income', 'savings']]
     y = augmented_df['total_amount']
 
-    # Train XGBoost model
-    print(f"Training XGBoost model for {user_id} using {len(user_df)} records...")
-    model = xgb.XGBRegressor(objective='reg:squarederror', n_estimators=100, learning_rate=0.1)
+    # Train XGBoost model with more estimators to handle the richer dataset
+    print(f"Training XGBoost model for {user_id} using {len(augmented_df)} synthetic records...")
+    model = xgb.XGBRegressor(objective='reg:squarederror', n_estimators=200, learning_rate=0.05, max_depth=6)
     model.fit(X, y)
     
     # STATELESS: Use temporary files for model and mapping
