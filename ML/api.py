@@ -99,8 +99,16 @@ def predict(data: PredictionInput):
         raise HTTPException(status_code=404, detail=f"Model not found for user '{data.user_id}'. Please train it first.")
     
     if data.macrocategoria not in mapping:
-        available = ", ".join(list(mapping.keys()))
-        raise HTTPException(status_code=400, detail=f"Category '{data.macrocategoria}' not recognized. Available: {available}")
+        available_list = list(mapping.keys())
+        examples = ", ".join(available_list[:2]) if len(available_list) >= 2 else ", ".join(available_list)
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"¡Ups! No logramos reconocer la categoría \"{data.macrocategoria}\". "
+                f"Para generar tu predicción, por favor selecciona una de las categorías disponibles en la lista, "
+                f"como {examples}. Así podremos darte un cálculo más preciso."
+            )
+        )
 
     # 0. Context Retrieval and Analytics
     avg_spending = 0.0
