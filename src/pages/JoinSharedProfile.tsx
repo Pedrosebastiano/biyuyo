@@ -77,15 +77,15 @@ export default function JoinSharedProfile() {
 
     if (!user) {
         return (
-            <div className="flex items-center justify-center min-h-[50vh]">
+            <div className="flex items-center justify-center min-h-screen px-4 py-6">
                 <Card className="w-full max-w-md border-2">
-                    <CardContent className="flex flex-col items-center py-8 text-center">
-                        <XCircle className="h-12 w-12 text-destructive mb-4" />
-                        <h3 className="text-lg font-semibold mb-2">Inicia sesión primero</h3>
-                        <p className="text-muted-foreground mb-4">
+                    <CardContent className="flex flex-col items-center py-8 text-center px-4 sm:px-6">
+                        <XCircle className="h-10 w-10 sm:h-12 sm:w-12 text-destructive mb-4 shrink-0" />
+                        <h3 className="text-base sm:text-lg font-semibold mb-2">Inicia sesión primero</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
                             Necesitas una cuenta para unirte a un perfil compartido
                         </p>
-                        <Button onClick={() => navigate("/login")}>Iniciar Sesión</Button>
+                        <Button className="w-full sm:w-auto" onClick={() => navigate("/login")}>Iniciar Sesión</Button>
                     </CardContent>
                 </Card>
             </div>
@@ -93,14 +93,14 @@ export default function JoinSharedProfile() {
     }
 
     return (
-        <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="flex items-center justify-center min-h-screen px-4 py-6">
             <Card className="w-full max-w-md border-2">
-                <CardHeader className="text-center">
+                <CardHeader className="text-center px-4 sm:px-6">
                     <div className="mx-auto bg-primary/10 rounded-full p-3 mb-2 w-fit">
-                        <Users className="h-8 w-8 text-primary" />
+                        <Users className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
                     </div>
-                    <CardTitle>Unirse a Perfil Compartido</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-lg sm:text-xl">Unirse a Perfil Compartido</CardTitle>
+                    <CardDescription className="text-sm">
                         {status === "loading" && "Cargando información del perfil..."}
                         {status === "ready" && "Has sido invitado a un perfil compartido"}
                         {status === "joining" && "Uniéndose al perfil..."}
@@ -108,23 +108,23 @@ export default function JoinSharedProfile() {
                         {status === "error" && errorMsg}
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-col items-center space-y-4">
+                <CardContent className="flex flex-col items-center space-y-4 px-4 sm:px-6">
                     {status === "loading" && (
                         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     )}
 
                     {status === "ready" && profileInfo && (
                         <>
-                            <div className="text-center space-y-1">
-                                <p className="text-2xl font-bold">{profileInfo.name}</p>
+                            <div className="text-center space-y-1 w-full">
+                                <p className="text-xl sm:text-2xl font-bold break-words">{profileInfo.name}</p>
                                 <p className="text-sm text-muted-foreground">
                                     {profileInfo.member_count} miembro
                                     {profileInfo.member_count !== 1 ? "s" : ""} actualmente
                                 </p>
                             </div>
                             <Button className="w-full" onClick={handleJoin}>
-                                <Users className="mr-2 h-4 w-4" />
-                                Unirse a {profileInfo.name}
+                                <Users className="mr-2 h-4 w-4 shrink-0" />
+                                <span className="truncate">Unirse a {profileInfo.name}</span>
                             </Button>
                             <Button
                                 variant="ghost"
@@ -142,15 +142,15 @@ export default function JoinSharedProfile() {
 
                     {status === "success" && (
                         <>
-                            <CheckCircle className="h-12 w-12 text-green-500" />
-                            <p className="text-sm text-muted-foreground">
+                            <CheckCircle className="h-10 w-10 sm:h-12 sm:w-12 text-green-500 shrink-0" />
+                            <p className="text-sm text-muted-foreground text-center">
                                 Redirigiendo a tus perfiles compartidos...
                             </p>
                         </>
                     )}
 
                     {status === "error" && (
-                        <Button variant="outline" onClick={() => navigate("/shared")}>
+                        <Button variant="outline" className="w-full sm:w-auto" onClick={() => navigate("/shared")}>
                             Ir a Perfiles Compartidos
                         </Button>
                     )}

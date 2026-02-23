@@ -148,7 +148,7 @@ export default function SharedProfiles() {
         <div className="min-h-screen bg-background px-4 sm:px-6 py-8">
             {/* Back button */}
             <button
-                onClick={() => navigate(-1)}
+                onClick={() => navigate("/")}
                 className="flex items-center gap-1 text-sm text-primary hover:underline mb-6"
             >
                 <ArrowLeft className="h-4 w-4" />
@@ -347,8 +347,8 @@ export default function SharedProfiles() {
                                 <Card
                                     key={profile.shared_id}
                                     className={`transition-all hover:shadow-md ${isActive
-                                            ? "border-primary border-2 shadow-md"
-                                            : "border-2"
+                                        ? "border-primary border-2 shadow-md"
+                                        : "border-2"
                                         }`}
                                 >
                                     <CardHeader className="pb-3">
