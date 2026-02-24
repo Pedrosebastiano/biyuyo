@@ -1,5 +1,16 @@
-import { exec } from 'child_process';
+import { exec, execSync } from 'child_process';
 const ports = [3001, 8001, 8000];
+
+// Instalar deps Python en runtime (Render destruye el entorno entre build y start)
+console.log("🐍 Installing Python dependencies...");
+try {
+    execSync('pip3 install -r ML/requirements.txt --quiet --break-system-packages', { stdio: 'inherit' });
+    execSync('pip3 install -r ml_decision/requirements.txt --quiet --break-system-packages', { stdio: 'inherit' });
+    console.log("✅ Python dependencies installed");
+} catch (e) {
+    console.error("❌ Failed to install Python deps:", e.message);
+}
+
 console.log('🧹 Cleaning up ports before start...');
 ports.forEach(port => {
     // Windows-specific command to find PID by port
