@@ -4,11 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "postinstall": "pip3 install -r ML/requirements.txt && pip3 install -r ml_decision/requirements.txt && pip3 install -r ml_decision/requirements_decision.txt",
     "dev": "vite",
     "prestart": "node scripts/cleanup.js",
     "start": "concurrently \"node server.js\" \"python3 ml_decision/decision_api.py\" \"python3 ML/api.py\"",
     "start:win": "concurrently \"node server.js\" \"py ml_decision/decision_api.py\" \"py ML/api.py\"",
-    "build": "pip3 install -r ML/requirements.txt && pip3 install -r ml_decision/requirements.txt && pip3 install -r ml_decision/requirements_decision.txt && vite build",
+    "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
