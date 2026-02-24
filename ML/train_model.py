@@ -22,24 +22,26 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 def fetch_data(user_id=None):
     conn = psycopg2.connect(DB_URL)
     
-    # Base queries
-    # Fetch macrocategoria instead of specific categoria
-    expenses_query = "SELECT macrocategoria, total_amount, user_id FROM expenses"
-    incomes_query = "SELECT total_amount as income, user_id, created_at FROM incomes"
-    accounts_query = "SELECT savings, user_id FROM accounts"
-    
-    expenses_df = pd.read_sql(expenses_query, conn)
-    incomes_df = pd.read_sql(incomes_query, conn)
-    accounts_df = pd.read_sql(accounts_query, conn)
+    # Base queries with user_id filtering to save memory
+    if user_id:
+        expenses_query = "SELECT macrocategoria, total_amount, user_id FROM expenses WHERE user_id = %s"
+        incomes_query = "SELECT total_amount as income, user_id, created_at FROM incomes WHERE user_id = %s"
+        accounts_query = "SELECT savings, user_id FROM accounts WHERE user_id = %s"
+        
+        expenses_df = pd.read_sql(expenses_query, conn, params=(user_id,))
+        incomes_df = pd.read_sql(incomes_query, conn, params=(user_id,))
+        accounts_df = pd.read_sql(accounts_query, conn, params=(user_id,))
+    else:
+        # Fallback (though normally training is per-user now)
+        expenses_query = "SELECT macrocategoria, total_amount, user_id FROM expenses"
+        incomes_query = "SELECT total_amount as income, user_id, created_at FROM incomes"
+        accounts_query = "SELECT savings, user_id FROM accounts"
+        
+        expenses_df = pd.read_sql(expenses_query, conn)
+        incomes_df = pd.read_sql(incomes_query, conn)
+        accounts_df = pd.read_sql(accounts_query, conn)
     
     conn.close()
-    
-    if user_id:
-        # We can still use other users' data as baseline, but let's filter specifically for the goal
-        # If we only have 1 user's data, training might be poor. 
-        # But per instructions: "personalized recommendations for them"
-        pass
-        
     return expenses_df, incomes_df, accounts_df
 
 import tempfile
