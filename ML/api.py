@@ -29,7 +29,20 @@ import io
 import psycopg2
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Financial Prediction API", description="API to predict expenses based on category, income, and savings per user.")
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialization logic here if needed
+    print("🚀 Simulador-API iniciando (lifespan)...")
+    yield
+    print("🛑 Simulador-API cerrándose (lifespan)...")
+
+app = FastAPI(
+    lifespan=lifespan,
+    title="Financial Prediction API",
+    description="API to predict expenses based on category, income, and savings per user."
+)
 
 # Enable CORS
 app.add_middleware(

@@ -123,21 +123,35 @@ def load_meta() -> dict | None:
         return None
 
 
-# ─── Estado global del modelo ─────────────────────────────────────────────────
-MODEL_BUNDLE: dict | None = None
+from contextlib import asynccontextmanager
 
-
-@app.on_event("startup")
-def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global MODEL_BUNDLE
-    log.info("🚀 Servidor iniciando — cargando modelo desde Supabase Storage…")
+    log.info("🚀 Servidor iniciando (lifespan) — cargando modelo desde Supabase Storage…")
     MODEL_BUNDLE = load_model_bundle()
     if MODEL_BUNDLE is None:
         log.warning(
             "⚠️  Modelo no encontrado. "
             "Ejecuta upload_model_to_supabase.py o llama a POST /retrain."
         )
+    yield
+    # Lógica de cierre si fuera necesaria
+    log.info("🛑 Servidor cerrándose (lifespan)...")
 
+app = FastAPI(
+    title="Biyuyo ML Decision API",
+    description="Microservicio para evaluar si un gasto es una buena decisión.",
+    version="1.1.0",
+    lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],          # restringir al dominio de Vercel en producción
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ─── Schemas ──────────────────────────────────────────────────────────────────
 

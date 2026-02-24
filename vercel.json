@@ -4,25 +4,9 @@
     {
       "src": "package.json",
       "use": "@vercel/static-build"
-    },
-    {
-      "src": "ML/api.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "ml_decision/decision_api.py",
-      "use": "@vercel/python"
     }
   ],
   "rewrites": [
-    {
-      "source": "/api/ml/(.*)",
-      "destination": "/ML/api.py"
-    },
-    {
-      "source": "/api/decision/(.*)",
-      "destination": "/ml_decision/decision_api.py"
-    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
