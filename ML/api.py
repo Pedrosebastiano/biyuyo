@@ -303,4 +303,5 @@ def train_endpoint(user_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    # Use fixed local port so it doesn't conflict with server.js's Render assigned PORT
+    uvicorn.run(app, host="0.0.0.0", port=8000)

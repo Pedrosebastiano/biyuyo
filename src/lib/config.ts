@@ -3,9 +3,9 @@ export const APP_CONFIG = {
   LOCAL_API: "http://localhost:3001",
   PRODUCTION_API: "https://biyuyo-pruebas.onrender.com",
   ML_LOCAL_API: "http://localhost:8001",
-  ML_PRODUCTION_API: "https://biyuyo-sand.vercel.app/api/decision",
+  ML_PRODUCTION_API: "https://biyuyo-pruebas.onrender.com/api/decision",
   SIMULATOR_ML_LOCAL_API: "http://localhost:8000",
-  SIMULATOR_ML_PRODUCTION_API: "https://biyuyo-ml-simulator.onrender.com", // Update with actual URL if deployed separately
+  SIMULATOR_ML_PRODUCTION_API: "https://biyuyo-pruebas.onrender.com/api/ml",
 };
 
 export const getApiUrl = () => {

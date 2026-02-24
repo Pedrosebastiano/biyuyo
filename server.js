@@ -8,6 +8,7 @@ import bcrypt from 'bcrypt';
 import nodemailer from "nodemailer";
 import { calculateAndSaveMLFeatures } from './mlFeatures.js';
 import crypto from 'crypto';
+import http from 'http';
 
 const { Pool } = pg;
 const app = express();
@@ -32,51 +33,79 @@ app.use(cors({
     return callback(new Error(msg), false);
   }
 }));
-app.use(express.json());
-
 // MiddleWare de Logging
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
   next();
 });
 
+// --- REVERSE PROXY PARA SERVICIOS ML EN PYTHON ---
+// Dado que Render expone solo un puerto, redirigimos las peticiones
+// que lleguen a /api/ml o /api/decision hacia los procesos locales en 8000 y 8001
+function createLocalProxy(targetPort) {
+  return (req, res) => {
+    const options = {
+      hostname: '127.0.0.1',
+      port: targetPort,
+      path: req.url, // app.use strips the mount path string, so this is correct
+      method: req.method,
+      headers: { ...req.headers, host: `127.0.0.1:${targetPort}` }
+    };
+    const proxyReq = http.request(options, (proxyRes) => {
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res, { end: true });
+    });
+    req.pipe(proxyReq, { end: true });
+    proxyReq.on('error', (err) => {
+      console.error(`[Proxy] Error conectando al puerto ${targetPort}:`, err);
+      res.status(502).json({ error: "El servicio de IA local no está disponible / cargando." });
+    });
+  };
+}
+
+app.use('/api/ml', createLocalProxy(8000));
+app.use('/api/decision', createLocalProxy(8001));
+
+app.use(express.json());
+
+
 // NOTA DE SEGURIDAD: Eventualmente moveremos esto a variables de entorno.
 const connectionString =
   "postgresql://postgres.pmjjguyibxydzxnofcjx:ZyMDIx2p3EErqtaG@aws-0-us-west-2.pooler.supabase.com:6543/postgres";
 
-  const pool = new Pool({
-    connectionString,
-    ssl: {
-      rejectUnauthorized: false,
-    },
-  });
-  
-  const POSTMARK_TOKEN = process.env.POSTMARK_API_TOKEN;
-  const SENDER_EMAIL = process.env.POSTMARK_SENDER_EMAIL;
-  
-  console.log(POSTMARK_TOKEN ? "✅ Postmark configurado" : "❌ Falta POSTMARK_API_TOKEN");
+const pool = new Pool({
+  connectionString,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
 
-  async function sendEmail(toEmail, toName, subject, htmlContent) {
-    const response = await fetch("https://api.postmarkapp.com/email", {
-      method: "POST",
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "X-Postmark-Server-Token": POSTMARK_TOKEN
-      },
-      body: JSON.stringify({
-        From: `Biyuyo <${SENDER_EMAIL}>`,
-        To: `${toName} <${toEmail}>`,
-        Subject: subject,
-        HtmlBody: htmlContent,
-        MessageStream: "outbound"
-      })
-    });
-  
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.Message || "Error enviando email");
-    }
+const POSTMARK_TOKEN = process.env.POSTMARK_API_TOKEN;
+const SENDER_EMAIL = process.env.POSTMARK_SENDER_EMAIL;
+
+console.log(POSTMARK_TOKEN ? "✅ Postmark configurado" : "❌ Falta POSTMARK_API_TOKEN");
+
+async function sendEmail(toEmail, toName, subject, htmlContent) {
+  const response = await fetch("https://api.postmarkapp.com/email", {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "X-Postmark-Server-Token": POSTMARK_TOKEN
+    },
+    body: JSON.stringify({
+      From: `Biyuyo <${SENDER_EMAIL}>`,
+      To: `${toName} <${toEmail}>`,
+      Subject: subject,
+      HtmlBody: htmlContent,
+      MessageStream: "outbound"
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.Message || "Error enviando email");
+  }
   return await response.json();
 }
 
@@ -84,6 +113,8 @@ const connectionString =
 app.get("/", (req, res) => {
   res.send("¡Hola! El servidor de Biyuyo (Current) está funcionando y listo ☁️");
 });
+
+// Proxy functions moved above express.json()
 
 // --- TOKEN PUSH NOTIFICATIONS ---
 app.post("/save-token", async (req, res) => {

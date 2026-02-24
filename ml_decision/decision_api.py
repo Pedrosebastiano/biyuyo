@@ -300,4 +300,5 @@ def model_info():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8001)))
+    # Use fixed local port so it doesn't conflict with server.js's Render assigned PORT
+    uvicorn.run(app, host="0.0.0.0", port=8001)
