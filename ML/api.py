@@ -101,15 +101,13 @@ def get_temporal_insight(user_id, cursor):
 @app.post("/predict")
 def predict(data: PredictionInput):
     # Always retrain the model before prediction
-    import subprocess
+    from train_model import train
     try:
-        result = subprocess.run([sys.executable, TRAIN_SCRIPT, data.user_id], capture_output=True, text=True, cwd=SCRIPT_DIR)
-        if result.returncode != 0:
-            # If the error is about insufficient data, return a user-friendly message
-            if "No hay suficientes datos" in result.stderr:
-                raise HTTPException(status_code=400, detail="No hay suficientes datos para entrenar el modelo. Por favor, registra al menos 2 transacciones antes de usar el simulador de gastos.")
-            else:
-                raise HTTPException(status_code=500, detail=f"Error al entrenar el modelo: {result.stderr}")
+        success = train(data.user_id)
+        if not success:
+            raise HTTPException(status_code=400, detail="No hay suficientes datos para entrenar el modelo. Por favor, registra al menos 2 transacciones antes de usar el simulador de gastos.")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error inesperado al entrenar el modelo: {e}")
 
@@ -291,12 +289,15 @@ def predict(data: PredictionInput):
 
 @app.post("/train/{user_id}")
 def train_endpoint(user_id: str):
+    from train_model import train
     try:
-        result = subprocess.run([sys.executable, TRAIN_SCRIPT, user_id], capture_output=True, text=True, cwd=SCRIPT_DIR)
-        if result.returncode == 0:
-            return {"message": "Success", "output": result.stdout}
+        success = train(user_id)
+        if success:
+            return {"message": "Success", "output": "Training finished successfully"}
         else:
-            raise HTTPException(status_code=500, detail=result.stderr)
+            raise HTTPException(status_code=400, detail="No hay suficientes datos para entrenar el modelo. Por favor, registra al menos 2 transacciones antes de usar el simulador de gastos.")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -264,15 +264,10 @@ def predict_decision(req: PredictRequest):
 @app.post("/retrain")
 def retrain():
     """Re-entrena el modelo desde Supabase DB y sube el resultado a Supabase Storage."""
-    import subprocess, sys
     log.info("🔄 Re-entrenamiento solicitado…")
+    from train_decision_model import main as train_model_main
     try:
-        result = subprocess.run(
-            [sys.executable, "train_decision_model.py"],
-            capture_output=True, text=True, timeout=180,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(result.stderr[-2000:])
+        train_model_main()
 
         global MODEL_BUNDLE
         MODEL_BUNDLE = load_model_bundle()
@@ -281,8 +276,6 @@ def retrain():
 
         log.info("✅ Re-entrenamiento completado y modelo recargado")
         return {"success": True, "trained_at": MODEL_BUNDLE["trained_at"]}
-    except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=504, detail="Entrenamiento tardó demasiado (>180s)")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
