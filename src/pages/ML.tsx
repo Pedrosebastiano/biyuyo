@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTransactions } from "@/hooks/useTransactions";
 import { getMLApiUrl, getSimulatorMLApiUrl } from "@/lib/config";
 import { toast } from "sonner";
-import { BrainCircuit, Loader2, Sparkles, TrendingUp } from "lucide-react";
+import { AlertTriangle, BrainCircuit, Loader2, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 import { macroCategories } from "@/data/categories";
 
 import { DecisionPredictor } from "@/components/ml/DecisionPredictor";
@@ -25,6 +25,12 @@ const ML = () => {
     const [prediction, setPrediction] = useState<number | null>(null);
     const [ratioOfIncome, setRatioOfIncome] = useState<number | null>(null);
     const [impactAnalysis, setImpactAnalysis] = useState<string | null>(null);
+    type TierInfo = { label: string; pct: number; amount: number; description: string };
+    const [newCategoryData, setNewCategoryData] = useState<{
+        macrocategoria: string;
+        total_flow: number;
+        tiers: { conservative: TierInfo; balanced: TierInfo; aggressive: TierInfo };
+    } | null>(null);
     const [macroCategory, setMacroCategory] = useState("");
     const [income, setIncome] = useState("");
     const [savings, setSavings] = useState("");
@@ -75,6 +81,7 @@ const ML = () => {
         setPrediction(null);
         setRatioOfIncome(null);
         setImpactAnalysis(null);
+        setNewCategoryData(null);
         setIsPredicting(true);
         try {
             const response = await fetch(`${getSimulatorMLApiUrl()}/predict`, {
@@ -89,10 +96,18 @@ const ML = () => {
             });
             const data = await response.json();
             if (response.ok) {
-                setPrediction(data.prediccion_gasto);
-                setRatioOfIncome(data.ratio_of_income);
-                setImpactAnalysis(data.impact_analysis);
-                toast.success("Predicción generada");
+                if (data.new_category) {
+                    setNewCategoryData(data);
+                    toast.info("¡Categoría nueva detectada! ✨", {
+                        description: `No tenemos historial para "${data.macrocategoria}" aún. Te mostramos estimados inteligentes basados en tu flujo de efectivo.`,
+                        duration: 6000,
+                    });
+                } else {
+                    setPrediction(data.prediccion_gasto);
+                    setRatioOfIncome(data.ratio_of_income);
+                    setImpactAnalysis(data.impact_analysis);
+                    toast.success("Predicción generada");
+                }
             } else {
                 toast.error("Error en la predicción", {
                     description: data.detail || "Asegúrate de haber entrenado tu modelo primero.",
@@ -195,19 +210,21 @@ const ML = () => {
                                             />
                                         </div>
                                     </div>
-                                    <div className="flex flex-col sm:flex-row items-center gap-4 pt-4 border-t">
+                                    <div className="flex flex-col gap-4 pt-4 border-t">
                                         <Button
                                             type="submit"
                                             disabled={isPredicting}
-                                            className="w-full sm:w-auto bg-[#29488e] hover:bg-[#1e356d] text-white font-bold px-8 h-12"
+                                            className="w-full sm:w-auto bg-[#29488e] hover:bg-[#1e356d] text-white font-bold px-8 h-12 self-start"
                                         >
                                             {isPredicting
                                                 ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Calculando...</>
                                                 : "Generar Predicción"
                                             }
                                         </Button>
-                                        {prediction !== null && (
-                                            <div className="flex-1 w-full flex flex-col gap-2">
+
+                                        {/* ── Normal prediction result ── */}
+                                        {prediction !== null && !newCategoryData && (
+                                            <div className="w-full flex flex-col gap-2">
                                                 <div className="bg-[#f0f4ff] p-4 rounded-xl border border-[#c5d3f7] flex items-center justify-between">
                                                     <span className="text-[#29488e] font-medium">Gasto estimado:</span>
                                                     <span className="text-2xl font-bold text-[#29488e]">
@@ -225,11 +242,97 @@ const ML = () => {
                                                             </div>
                                                             <h4 className="font-semibold text-blue-900">Análisis de Impacto</h4>
                                                         </div>
-                                                        <p className="text-sm text-blue-800 ml-8">
-                                                            {impactAnalysis}
-                                                        </p>
+                                                        <p className="text-sm text-blue-800 ml-8">{impactAnalysis}</p>
                                                     </div>
                                                 )}
+                                            </div>
+                                        )}
+
+                                        {/* ── New-category tiered card ── */}
+                                        {newCategoryData && (
+                                            <div className="w-full space-y-3">
+                                                {/* Header banner */}
+                                                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="bg-amber-100 p-2 rounded-full shrink-0 mt-0.5">
+                                                            <Sparkles className="h-4 w-4 text-amber-600" />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-bold text-amber-900 text-sm">¡Categoría nueva detectada!</h4>
+                                                            <p className="text-xs text-amber-700 mt-1">
+                                                                No tenemos transacciones de{" "}
+                                                                <strong>"{newCategoryData.macrocategoria}"</strong> aún.
+                                                                Basado en tu flujo total de{" "}
+                                                                <strong>
+                                                                    ${newCategoryData.total_flow.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                </strong>
+                                                                , aquí hay tres formas de abordarlo:
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Three tier cards */}
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                    {/* Conservative — green */}
+                                                    <div className="border-2 border-emerald-200 bg-emerald-50 rounded-xl p-4 flex flex-col gap-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="bg-emerald-100 p-1.5 rounded-full">
+                                                                <TrendingDown className="h-4 w-4 text-emerald-600" />
+                                                            </div>
+                                                            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Conservador</span>
+                                                            <span className="ml-auto text-xs bg-emerald-200 text-emerald-800 px-1.5 py-0.5 rounded-full font-semibold">20%</span>
+                                                        </div>
+                                                        <p className="text-2xl font-bold text-emerald-800">
+                                                            ${newCategoryData.tiers.conservative.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </p>
+                                                        <p className="text-xs text-emerald-700 leading-relaxed">
+                                                            {newCategoryData.tiers.conservative.description}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Balanced — amber with badge */}
+                                                    <div className="border-2 border-amber-300 bg-amber-50 rounded-xl p-4 flex flex-col gap-2 relative">
+                                                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                                                            <span className="bg-amber-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">⭐ RECOMENDADO</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="bg-amber-100 p-1.5 rounded-full">
+                                                                <TrendingUp className="h-4 w-4 text-amber-600" />
+                                                            </div>
+                                                            <span className="text-xs font-bold text-amber-700 uppercase tracking-wide">Equilibrado</span>
+                                                            <span className="ml-auto text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full font-semibold">40%</span>
+                                                        </div>
+                                                        <p className="text-2xl font-bold text-amber-800">
+                                                            ${newCategoryData.tiers.balanced.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </p>
+                                                        <p className="text-xs text-amber-700 leading-relaxed">
+                                                            {newCategoryData.tiers.balanced.description}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Aggressive — red */}
+                                                    <div className="border-2 border-red-200 bg-red-50 rounded-xl p-4 flex flex-col gap-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="bg-red-100 p-1.5 rounded-full">
+                                                                <AlertTriangle className="h-4 w-4 text-red-600" />
+                                                            </div>
+                                                            <span className="text-xs font-bold text-red-700 uppercase tracking-wide">Agresivo</span>
+                                                            <span className="ml-auto text-xs bg-red-200 text-red-800 px-1.5 py-0.5 rounded-full font-semibold">60%</span>
+                                                        </div>
+                                                        <p className="text-2xl font-bold text-red-800">
+                                                            ${newCategoryData.tiers.aggressive.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </p>
+                                                        <p className="text-xs text-red-700 leading-relaxed">
+                                                            {newCategoryData.tiers.aggressive.description}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <p className="text-[10px] text-muted-foreground text-center pt-1">
+                                                    Fórmula: <em>S = (Ingreso + Ahorro) × Porcentaje</em>.
+                                                    Registra transacciones en esta categoría para obtener predicciones personalizadas.
+                                                </p>
                                             </div>
                                         )}
                                     </div>

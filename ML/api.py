@@ -97,7 +97,7 @@ def predict(data: PredictionInput):
     # Always retrain the model before prediction
     import subprocess
     try:
-        result = subprocess.run(['py', 'ML/train_model.py', data.user_id], capture_output=True, text=True)
+        result = subprocess.run(['py', 'train_model.py', data.user_id], capture_output=True, text=True)
         if result.returncode != 0:
             # If the error is about insufficient data, return a user-friendly message
             if "No hay suficientes datos" in result.stderr:
@@ -125,17 +125,59 @@ def predict(data: PredictionInput):
         user_categories = set()
 
     if data.macrocategoria not in user_categories:
-        available_list = list(user_categories)
-        examples = ", ".join(available_list[:2]) if len(available_list) >= 2 else ", ".join(available_list)
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"¡Ups! No logramos reconocer la categoría \"{data.macrocategoria}\" para tu usuario. "
-                f"Solo puedes generar predicciones para categorías que ya hayas registrado en tus gastos. "
-                (f"Por ejemplo: {examples}. " if examples else "")
-                + "Registra un gasto en la categoría deseada para habilitar predicciones."
-            )
-        )
+        # Fetch income and savings from DB if not provided
+        income_val = data.ingreso_mensual
+        savings_val = data.ahorro_actual
+        if income_val is None or savings_val is None:
+            try:
+                conn2 = psycopg2.connect(DB_URL, connect_timeout=5)
+                cur2 = conn2.cursor()
+                if income_val is None:
+                    cur2.execute(
+                        "SELECT SUM(total_amount) FROM incomes WHERE user_id = %s "
+                        "AND EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM NOW())",
+                        (data.user_id,)
+                    )
+                    income_val = cur2.fetchone()[0] or 0.0
+                if savings_val is None:
+                    cur2.execute(
+                        "SELECT SUM(savings) FROM accounts WHERE user_id = %s",
+                        (data.user_id,)
+                    )
+                    savings_val = cur2.fetchone()[0] or 0.0
+                cur2.close()
+                conn2.close()
+            except Exception:
+                if income_val is None: income_val = 0.0
+                if savings_val is None: savings_val = 0.0
+
+        total_flow = float(income_val) + float(savings_val)
+        tiers = {
+            "conservative": {
+                "label": "Camino Conservador",
+                "pct": 0.20,
+                "amount": round(total_flow * 0.20, 2),
+                "description": "Un toque ligero. Perfecto si estás priorizando el ahorro ahora mismo."
+            },
+            "balanced": {
+                "label": "Enfoque Equilibrado",
+                "pct": 0.40,
+                "amount": round(total_flow * 0.40, 2),
+                "description": "Nuestro 'punto ideal'. Encaja cómodamente en tu estilo de vida actual."
+            },
+            "aggressive": {
+                "label": "Gasto Agresivo",
+                "pct": 0.60,
+                "amount": round(total_flow * 0.60, 2),
+                "description": "¿Yendo con todo? Este es el límite superior según tu capital disponible."
+            }
+        }
+        return {
+            "new_category": True,
+            "macrocategoria": data.macrocategoria,
+            "total_flow": round(total_flow, 2),
+            "tiers": tiers
+        }
 
     # ...existing code for context retrieval, analytics, and prediction logic...
     avg_spending = 0.0
@@ -244,7 +286,7 @@ def predict(data: PredictionInput):
 @app.post("/train/{user_id}")
 def train_endpoint(user_id: str):
     try:
-        result = subprocess.run(['py', 'ML/train_model.py', user_id], capture_output=True, text=True)
+        result = subprocess.run(['py', 'train_model.py', user_id], capture_output=True, text=True)
         if result.returncode == 0:
             return {"message": "Success", "output": result.stdout}
         else:
