@@ -69,6 +69,15 @@ function createLocalProxy(targetPort, serviceName) {
       proxyRes.pipe(res, { end: true });
     });
 
+    // Timeout de 30 segundos para el proxy (útil para modelos lentos)
+    proxyReq.setTimeout(30000, () => {
+      console.warn(`[Proxy] ⚠️ Timeout en ${serviceName}`);
+      proxyReq.destroy();
+      if (!res.headersSent) {
+        res.status(504).json({ error: "Tiempo de espera agotado en el servicio de IA." });
+      }
+    });
+
     req.pipe(proxyReq, { end: true });
 
     proxyReq.on('error', (err) => {
@@ -1561,6 +1570,28 @@ app.get("/ml/summary/:user_id", async (req, res) => {
     });
   } catch (err) {
     console.error("Error obteniendo resumen ML:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- OBTENER ÚLTIMOS FEATURES (Contexto para DecisionPredictor) ---
+app.get("/ml/last-features/:user_id", async (req, res) => {
+  const { user_id } = req.params;
+  try {
+    const query = `
+      SELECT * FROM expense_ml_features 
+      WHERE user_id = $1 
+      ORDER BY updated_at DESC LIMIT 1
+    `;
+    const result = await pool.query(query, [user_id]);
+
+    if (result.rows.length === 0) {
+      return res.json({ success: true, features: null });
+    }
+
+    res.json({ success: true, features: result.rows[0] });
+  } catch (err) {
+    console.error("Error obteniendo last-features:", err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -211,16 +211,31 @@ const ML = () => {
                                         </div>
                                     </div>
                                     <div className="flex flex-col gap-4 pt-4 border-t">
-                                        <Button
-                                            type="submit"
-                                            disabled={isPredicting}
-                                            className="w-full sm:w-auto bg-[#29488e] hover:bg-[#1e356d] text-white font-bold px-8 h-12 self-start"
-                                        >
-                                            {isPredicting
-                                                ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Calculando...</>
-                                                : "Generar Predicción"
-                                            }
-                                        </Button>
+                                        <div className="flex flex-wrap gap-3">
+                                            <Button
+                                                type="submit"
+                                                disabled={isPredicting || isTraining}
+                                                className="bg-[#29488e] hover:bg-[#1e356d] text-white font-bold px-8 h-12"
+                                            >
+                                                {isPredicting
+                                                    ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Calculando...</>
+                                                    : "Generar Predicción"
+                                                }
+                                            </Button>
+
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={handleTrain}
+                                                disabled={isTraining || isPredicting}
+                                                className="border-[#29488e] text-[#29488e] hover:bg-[#f0f4ff] font-bold px-8 h-12"
+                                            >
+                                                {isTraining
+                                                    ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Entrenando...</>
+                                                    : <><BrainCircuit className="mr-2 h-4 w-4" />Entrenar Modelo</>
+                                                }
+                                            </Button>
+                                        </div>
 
                                         {/* ── Normal prediction result ── */}
                                         {prediction !== null && !newCategoryData && (

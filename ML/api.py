@@ -112,21 +112,19 @@ def get_temporal_insight(user_id, cursor):
 
 @app.post("/predict")
 def predict(data: PredictionInput):
-    # Always retrain the model before prediction
-    from train_model import train
-    try:
-        success = train(data.user_id)
-        if not success:
-            raise HTTPException(status_code=400, detail="No hay suficientes datos para entrenar el modelo. Por favor, registra al menos 2 transacciones antes de usar el simulador de gastos.")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error inesperado al entrenar el modelo: {e}")
-
-    # Load the newly trained model
+    # Try to load the existing model first instead of forced retraining
+    # This prevents memory exhaustion on limited environments like Render
     model, mapping = load_resources(data.user_id)
+    
     if model is None or mapping is None:
-        raise HTTPException(status_code=404, detail=f"No se pudo cargar el modelo para el usuario '{data.user_id}'. Intenta registrar más transacciones y vuelve a intentarlo.")
+        # If no model exists, then we might need to train it once, 
+        # but for better stability, we tell the user to trigger training manually.
+        raise HTTPException(
+            status_code=404, 
+            detail=f"No se encontró un modelo entrenado para el usuario '{data.user_id}'. Por favor, presiona el botón 'Entrenar Modelo' primero."
+        )
+
+    # Only allow predictions for categories the user has actually registered in their expenses
 
     # Only allow predictions for categories the user has actually registered in their expenses
     try:
