@@ -10,6 +10,7 @@ from supabase import create_client, Client
 import io
 import psycopg2
 from fastapi.middleware.cors import CORSMiddleware
+import sys
 
 # Always resolve paths relative to this file so the server works
 # regardless of which directory it is launched from.
@@ -102,7 +103,7 @@ def predict(data: PredictionInput):
     # Always retrain the model before prediction
     import subprocess
     try:
-        result = subprocess.run(['py', TRAIN_SCRIPT, data.user_id], capture_output=True, text=True, cwd=SCRIPT_DIR)
+        result = subprocess.run([sys.executable, TRAIN_SCRIPT, data.user_id], capture_output=True, text=True, cwd=SCRIPT_DIR)
         if result.returncode != 0:
             # If the error is about insufficient data, return a user-friendly message
             if "No hay suficientes datos" in result.stderr:
@@ -291,7 +292,7 @@ def predict(data: PredictionInput):
 @app.post("/train/{user_id}")
 def train_endpoint(user_id: str):
     try:
-        result = subprocess.run(['py', TRAIN_SCRIPT, user_id], capture_output=True, text=True, cwd=SCRIPT_DIR)
+        result = subprocess.run([sys.executable, TRAIN_SCRIPT, user_id], capture_output=True, text=True, cwd=SCRIPT_DIR)
         if result.returncode == 0:
             return {"message": "Success", "output": result.stdout}
         else:
