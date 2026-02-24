@@ -66,7 +66,7 @@ def upload_to_supabase(file_path, remote_name):
 def train(user_id):
     if not user_id:
         print("Error: user_id is required for personalized training.")
-        return
+        return False
 
     print(f"Fetching data for user {user_id}...")
     expenses_df, incomes_df, accounts_df = fetch_data(user_id)
@@ -103,7 +103,7 @@ def train(user_id):
     if len(user_df) < 2:
         msg = f"No hay suficientes datos. Registra al menos 2 gastos para usar el Simulador."
         print(msg, file=sys.stderr)
-        sys.exit(1)
+        return False
 
     # Create an independent income/savings grid to teach XGBoost that savings
     # are a powerful independent lever — not just correlated with income.
@@ -166,6 +166,7 @@ def train(user_id):
         upload_to_supabase(mapping_tmp_path, f"mapping_{user_id}.json")
         
     print(f"Training and upload for user {user_id} complete. Local files cleaned up.")
+    return True
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
