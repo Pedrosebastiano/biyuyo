@@ -252,14 +252,14 @@ const ML = () => {
                                         {newCategoryData && (
                                             <div className="w-full space-y-3">
                                                 {/* Header banner */}
-                                                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                                                    <div className="flex items-start gap-3">
-                                                        <div className="bg-amber-100 p-2 rounded-full shrink-0 mt-0.5">
-                                                            <Sparkles className="h-4 w-4 text-amber-600" />
+                                                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                                                    <div className="flex items-start gap-2">
+                                                        <div className="bg-amber-100 p-1.5 rounded-full shrink-0 mt-0.5">
+                                                            <Sparkles className="h-3.5 w-3.5 text-amber-600" />
                                                         </div>
                                                         <div>
-                                                            <h4 className="font-bold text-amber-900 text-sm">¡Categoría nueva detectada!</h4>
-                                                            <p className="text-xs text-amber-700 mt-1">
+                                                            <h4 className="font-bold text-amber-900 text-[13px]">¡Categoría nueva detectada!</h4>
+                                                            <p className="text-[11px] text-amber-700 mt-0.5 leading-snug">
                                                                 No tenemos transacciones de{" "}
                                                                 <strong>"{newCategoryData.macrocategoria}"</strong> aún.
                                                                 Basado en tu flujo total de{" "}
@@ -273,64 +273,63 @@ const ML = () => {
                                                 </div>
 
                                                 {/* Three tier cards */}
-                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                                     {/* Conservative — green */}
-                                                    <div className="border-2 border-emerald-200 bg-emerald-50 rounded-xl p-4 flex flex-col gap-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="bg-emerald-100 p-1.5 rounded-full">
-                                                                <TrendingDown className="h-4 w-4 text-emerald-600" />
+                                                    <div className="border-2 border-emerald-200 bg-emerald-50 rounded-xl p-3 flex flex-col gap-1.5">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="bg-emerald-100 p-1 rounded-full">
+                                                                <TrendingDown className="h-3.5 w-3.5 text-emerald-600" />
                                                             </div>
-                                                            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Conservador</span>
-                                                            <span className="ml-auto text-xs bg-emerald-200 text-emerald-800 px-1.5 py-0.5 rounded-full font-semibold">20%</span>
+                                                            <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wide">Conservador</span>
+                                                            <span className="ml-auto text-[10px] bg-emerald-200 text-emerald-800 px-1.5 py-0.5 rounded-full font-semibold">20%</span>
                                                         </div>
-                                                        <p className="text-2xl font-bold text-emerald-800">
+                                                        <p className="text-xl font-bold text-emerald-800">
                                                             ${newCategoryData.tiers.conservative.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                         </p>
-                                                        <p className="text-xs text-emerald-700 leading-relaxed">
+                                                        <p className="text-[11px] text-emerald-700 leading-tight">
                                                             {newCategoryData.tiers.conservative.description}
                                                         </p>
                                                     </div>
 
                                                     {/* Balanced — amber with badge */}
-                                                    <div className="border-2 border-amber-300 bg-amber-50 rounded-xl p-4 flex flex-col gap-2 relative">
-                                                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                                                            <span className="bg-amber-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">⭐ RECOMENDADO</span>
+                                                    <div className="border-2 border-amber-300 bg-amber-50 rounded-xl p-3 flex flex-col gap-1.5 relative mt-3 sm:mt-0">
+                                                        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
+                                                            <span className="bg-amber-400 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap shadow-sm">⭐ RECOMENDADO</span>
                                                         </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="bg-amber-100 p-1.5 rounded-full">
-                                                                <TrendingUp className="h-4 w-4 text-amber-600" />
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="bg-amber-100 p-1 rounded-full">
+                                                                <TrendingUp className="h-3.5 w-3.5 text-amber-600" />
                                                             </div>
-                                                            <span className="text-xs font-bold text-amber-700 uppercase tracking-wide">Equilibrado</span>
-                                                            <span className="ml-auto text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full font-semibold">40%</span>
+                                                            <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wide">Equilibrado</span>
+                                                            <span className="ml-auto text-[10px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full font-semibold">40%</span>
                                                         </div>
-                                                        <p className="text-2xl font-bold text-amber-800">
+                                                        <p className="text-xl font-bold text-amber-800">
                                                             ${newCategoryData.tiers.balanced.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                         </p>
-                                                        <p className="text-xs text-amber-700 leading-relaxed">
+                                                        <p className="text-[11px] text-amber-700 leading-tight">
                                                             {newCategoryData.tiers.balanced.description}
                                                         </p>
                                                     </div>
 
                                                     {/* Aggressive — red */}
-                                                    <div className="border-2 border-red-200 bg-red-50 rounded-xl p-4 flex flex-col gap-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="bg-red-100 p-1.5 rounded-full">
-                                                                <AlertTriangle className="h-4 w-4 text-red-600" />
+                                                    <div className="border-2 border-red-200 bg-red-50 rounded-xl p-3 flex flex-col gap-1.5">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="bg-red-100 p-1 rounded-full">
+                                                                <AlertTriangle className="h-3.5 w-3.5 text-red-600" />
                                                             </div>
-                                                            <span className="text-xs font-bold text-red-700 uppercase tracking-wide">Agresivo</span>
-                                                            <span className="ml-auto text-xs bg-red-200 text-red-800 px-1.5 py-0.5 rounded-full font-semibold">60%</span>
+                                                            <span className="text-[11px] font-bold text-red-700 uppercase tracking-wide">Agresivo</span>
+                                                            <span className="ml-auto text-[10px] bg-red-200 text-red-800 px-1.5 py-0.5 rounded-full font-semibold">60%</span>
                                                         </div>
-                                                        <p className="text-2xl font-bold text-red-800">
+                                                        <p className="text-xl font-bold text-red-800">
                                                             ${newCategoryData.tiers.aggressive.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                         </p>
-                                                        <p className="text-xs text-red-700 leading-relaxed">
+                                                        <p className="text-[11px] text-red-700 leading-tight">
                                                             {newCategoryData.tiers.aggressive.description}
                                                         </p>
                                                     </div>
                                                 </div>
 
-                                                <p className="text-[10px] text-muted-foreground text-center pt-1">
-                                                    Fórmula: <em>S = (Ingreso + Ahorro) × Porcentaje</em>.
+                                                <p className="text-[9px] text-muted-foreground text-center pt-0.5">
                                                     Registra transacciones en esta categoría para obtener predicciones personalizadas.
                                                 </p>
                                             </div>
