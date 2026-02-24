@@ -8,6 +8,14 @@ PYTHON_LIBS = os.path.join(PROJECT_ROOT, 'python_libs')
 
 if os.path.exists(PYTHON_LIBS):
     sys.path.insert(0, PYTHON_LIBS)
+    print(f"🐍 DEBUG: Added {PYTHON_LIBS} to sys.path")
+    try:
+        print(f"🐍 DEBUG: Contents of libs: {os.listdir(PYTHON_LIBS)[:10]}")
+    except:
+        pass
+else:
+    print(f"🐍 DEBUG: {PYTHON_LIBS} does NOT exist!")
+print(f"🐍 DEBUG: Current sys.path: {sys.path[:3]}")
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel

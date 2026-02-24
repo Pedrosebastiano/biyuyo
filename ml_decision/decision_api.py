@@ -22,6 +22,9 @@ PYTHON_LIBS = os.path.join(PROJECT_ROOT, 'python_libs')
 
 if os.path.exists(PYTHON_LIBS):
     sys.path.insert(0, PYTHON_LIBS)
+    print(f"🐍 DEBUG: Added {PYTHON_LIBS} to sys.path")
+else:
+    print(f"🐍 DEBUG: {PYTHON_LIBS} does NOT exist!")
 
 import io
 import json

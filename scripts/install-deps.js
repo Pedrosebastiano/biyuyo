@@ -9,14 +9,21 @@ if (!fs.existsSync(pythonLibsDir)) {
     fs.mkdirSync(pythonLibsDir, { recursive: true });
 }
 
+console.log("🐍 Checking Python and Pip versions...");
+try {
+    execSync('python3 --version', { stdio: 'inherit' });
+    execSync('python3 -m pip --version', { stdio: 'inherit' });
+} catch (e) {
+    console.warn("⚠️ Could not verify Python/Pip version:", e.message);
+}
+
 console.log("🐍 Installing Python dependencies to ./python_libs at BUILD TIME...");
 try {
-    // Instalamos en un directorio local para evitar problemas de PATH y permisos en Render
-    // Usamos --no-cache-dir para ahorrar memoria y --upgrade para evitar conflictos con carpetas existentes
-    execSync(`pip3 install --no-cache-dir --upgrade --target ${pythonLibsDir} -r ML/requirements.txt --quiet --break-system-packages`, { stdio: 'inherit' });
-    execSync(`pip3 install --no-cache-dir --upgrade --target ${pythonLibsDir} -r ml_decision/requirements.txt --quiet --break-system-packages`, { stdio: 'inherit' });
+    // Usamos python3 -m pip para asegurar que usamos el mismo intérprete que en el start
+    execSync(`python3 -m pip install --no-cache-dir --upgrade --target ${pythonLibsDir} -r ML/requirements.txt --quiet --break-system-packages`, { stdio: 'inherit' });
+    execSync(`python3 -m pip install --no-cache-dir --upgrade --target ${pythonLibsDir} -r ml_decision/requirements.txt --quiet --break-system-packages`, { stdio: 'inherit' });
     console.log("✅ Python dependencies installed in ./python_libs successfully.");
 } catch (e) {
     console.error("❌ Failed to install Python deps during build:", e.message);
-    process.exit(1); // Importante fallar el build si las deps no se instalan
+    process.exit(1);
 }
