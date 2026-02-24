@@ -20,6 +20,7 @@ const app = express();
 // Enable CORS for all origins to avoid issues with Vercel deployment and Localhost
 const allowedOrigins = [
   'https://biyuyo-sand.vercel.app',
+  'https://biyuyo-pruebas.onrender.com', // <-- Added production domain
   'http://localhost:8080',
   'http://localhost:5173',
   'http://localhost:3000'
@@ -38,7 +39,9 @@ app.use(cors({
 }));
 // MiddleWare de Logging
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  if (!req.url.startsWith('/api/ml') && !req.url.startsWith('/api/decision')) {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  }
   next();
 });
 
