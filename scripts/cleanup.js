@@ -1,12 +1,22 @@
 import { exec, execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+
 const ports = [3001, 8001, 8000];
+const pythonLibsDir = path.resolve('./python_libs');
+
+// Asegurar que el directorio de librerías existe
+if (!fs.existsSync(pythonLibsDir)) {
+    fs.mkdirSync(pythonLibsDir, { recursive: true });
+}
 
 // Instalar deps Python en runtime (Render destruye el entorno entre build y start)
-console.log("🐍 Installing Python dependencies...");
+console.log("🐍 Installing Python dependencies to ./python_libs...");
 try {
-    execSync('pip3 install --no-cache-dir -r ML/requirements.txt --quiet --break-system-packages', { stdio: 'inherit' });
-    execSync('pip3 install --no-cache-dir -r ml_decision/requirements.txt --quiet --break-system-packages', { stdio: 'inherit' });
-    console.log("✅ Python dependencies installed");
+    // Instalamos en un directorio local para evitar problemas de PATH y permisos en Render
+    execSync(`pip3 install --no-cache-dir --target ${pythonLibsDir} -r ML/requirements.txt --quiet --break-system-packages`, { stdio: 'inherit' });
+    execSync(`pip3 install --no-cache-dir --target ${pythonLibsDir} -r ml_decision/requirements.txt --quiet --break-system-packages`, { stdio: 'inherit' });
+    console.log("✅ Python dependencies installed in ./python_libs");
 } catch (e) {
     console.error("❌ Failed to install Python deps:", e.message);
 }

@@ -15,6 +15,13 @@ import sys
 # Always resolve paths relative to this file so the server works
 # regardless of which directory it is launched from.
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+PYTHON_LIBS = os.path.join(PROJECT_ROOT, 'python_libs')
+
+# Prioritize local libraries installed during prestart
+if os.path.exists(PYTHON_LIBS):
+    sys.path.insert(0, PYTHON_LIBS)
+
 TRAIN_SCRIPT = os.path.join(SCRIPT_DIR, 'train_model.py')
 
 app = FastAPI(title="Financial Prediction API", description="API to predict expenses based on category, income, and savings per user.")

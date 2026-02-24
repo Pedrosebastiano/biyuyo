@@ -57,8 +57,15 @@ function createLocalProxy(targetPort) {
     });
     req.pipe(proxyReq, { end: true });
     proxyReq.on('error', (err) => {
-      console.error(`[Proxy] Error conectando al puerto ${targetPort}:`, err);
-      res.status(502).json({ error: "El servicio de IA local no está disponible / cargando." });
+      console.error(`[Proxy] ❌ Error conectando al puerto ${targetPort} (${req.url}):`, err.message);
+      if (err.code === 'ECONNREFUSED') {
+        console.error(`[Proxy] El servicio en puerto ${targetPort} no está escuchando. ¿Crackeo al iniciar?`);
+      }
+      res.status(502).json({
+        error: "El servicio de IA local no está disponible.",
+        details: err.message,
+        port: targetPort
+      });
     });
   };
 }
