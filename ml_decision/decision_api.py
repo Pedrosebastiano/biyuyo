@@ -14,19 +14,20 @@ Endpoints:
 
 import sys
 import os
-import io
-import json
-import pickle
-import logging
-from datetime import datetime
 
-# Path optimization for Render
+# Path optimization for Render - MUST BE AT THE TOP
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 PYTHON_LIBS = os.path.join(PROJECT_ROOT, 'python_libs')
 
 if os.path.exists(PYTHON_LIBS):
     sys.path.insert(0, PYTHON_LIBS)
+
+import io
+import json
+import pickle
+import logging
+from datetime import datetime
 
 import numpy as np
 from fastapi import FastAPI, HTTPException

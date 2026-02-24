@@ -1,28 +1,25 @@
+import sys
+import os
+
+# Path optimization for Render - MUST BE AT THE TOP
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+PYTHON_LIBS = os.path.join(PROJECT_ROOT, 'python_libs')
+
+if os.path.exists(PYTHON_LIBS):
+    sys.path.insert(0, PYTHON_LIBS)
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import xgboost as xgb
 import pandas as pd
 import json
-import os
 import subprocess
 import joblib
 from supabase import create_client, Client
 import io
 import psycopg2
 from fastapi.middleware.cors import CORSMiddleware
-import sys
-
-# Always resolve paths relative to this file so the server works
-# regardless of which directory it is launched from.
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
-PYTHON_LIBS = os.path.join(PROJECT_ROOT, 'python_libs')
-
-# Prioritize local libraries installed during prestart
-if os.path.exists(PYTHON_LIBS):
-    sys.path.insert(0, PYTHON_LIBS)
-
-TRAIN_SCRIPT = os.path.join(SCRIPT_DIR, 'train_model.py')
 
 app = FastAPI(title="Financial Prediction API", description="API to predict expenses based on category, income, and savings per user.")
 
