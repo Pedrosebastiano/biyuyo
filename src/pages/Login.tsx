@@ -37,7 +37,8 @@ export default function Login() {
       const isUnimet = UNIMET_DOMAINS.includes(domain);
       if (isUnimet && !userData?.is_premium) {
         toast.warning("⭐ Tienes una cuenta Premium esperando", {
-          description: "Ve a tu perfil para activar tu cuenta Premium Unimet gratis.",
+          description:
+            "Ve a tu perfil para activar tu cuenta Premium Unimet gratis.",
           duration: 6000,
         });
       } else {
@@ -47,7 +48,7 @@ export default function Login() {
     } catch (error) {
       console.error("Error en login:", error);
       toast.error(
-        error instanceof Error ? error.message : "Error al iniciar sesión"
+        error instanceof Error ? error.message : "Error al iniciar sesión",
       );
     } finally {
       setIsSubmitting(false);
@@ -64,7 +65,7 @@ export default function Login() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Error al iniciar sesión con Google"
+          : "Error al iniciar sesión con Google",
       );
       setIsGoogleLoading(false);
     }
@@ -92,7 +93,7 @@ export default function Login() {
       {/* Login Form */}
       <Card className="w-full max-w-sm border-2">
         <CardContent className="pt-6 space-y-4">
-          {/* Google Button — placed first for prominence */}
+          {/* Google Button — placed first for prominence 
           <Button
             variant="outline"
             className="w-full border-2 gap-2 h-11"
@@ -129,8 +130,8 @@ export default function Login() {
               </>
             )}
           </Button>
+          
 
-          {/* Divider */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t border-border" />
@@ -141,7 +142,7 @@ export default function Login() {
               </span>
             </div>
           </div>
-
+          */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Correo electrónico</Label>

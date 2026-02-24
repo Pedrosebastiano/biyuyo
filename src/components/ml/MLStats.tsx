@@ -1,11 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Brain, Database, ThumbsUp, ThumbsDown, Minus, RefreshCw, Loader2 } from "lucide-react";
+import {
+  Brain,
+  Database,
+  ThumbsUp,
+  ThumbsDown,
+  Minus,
+  RefreshCw,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getApiUrl, getMLApiUrl } from "@/lib/config"; // ← agregado getMLApiUrl
 
-const ML_API  = getMLApiUrl(); // ← antes era "http://localhost:8001" hardcodeado
+const ML_API = getMLApiUrl(); // ← antes era "http://localhost:8001" hardcodeado
 const API_URL = getApiUrl();
 
 interface ModelMeta {
@@ -48,8 +56,11 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
     try {
       const res = await fetch(`${ML_API}/model-info`);
       if (res.ok) setMeta(await res.json());
-    } catch { /* microservice offline */ }
-    finally { setLoadingMeta(false); }
+    } catch {
+      /* microservice offline */
+    } finally {
+      setLoadingMeta(false);
+    }
   };
 
   const fetchStats = async () => {
@@ -60,14 +71,17 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
         const data = await res.json();
         setStats(data.stats);
       }
-    } catch { /* ignore */ }
-    finally { setLoadingStats(false); }
+    } catch {
+      /* ignore */
+    } finally {
+      setLoadingStats(false);
+    }
   };
 
   useEffect(() => {
     fetchMeta();
     fetchStats();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   const handleRetrain = async () => {
@@ -77,8 +91,11 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
       if (res.ok) {
         await fetchMeta();
       }
-    } catch { /* ignore */ }
-    finally { setRetraining(false); }
+    } catch {
+      /* ignore */
+    } finally {
+      setRetraining(false);
+    }
   };
 
   // Top 5 features sorted by importance
@@ -97,7 +114,6 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
       {/* ── Model Info ── */}
       <Card className="border-2 shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -105,7 +121,7 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
             <Brain className="h-5 w-5" />
             Estado del Modelo
           </CardTitle>
-          <Button
+          {/*<Button
             size="sm"
             variant="outline"
             onClick={handleRetrain}
@@ -117,6 +133,7 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
               : <><RefreshCw className="h-3 w-3" /> Reentrenar</>
             }
           </Button>
+         */}
         </CardHeader>
 
         <CardContent className="space-y-4">
@@ -126,14 +143,24 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
             </div>
           ) : !meta ? (
             <p className="text-sm text-muted-foreground">
-              Microservicio offline — verifica que el servicio de IA esté activo.
+              Microservicio offline — verifica que el servicio de IA esté
+              activo.
             </p>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <Metric label="Accuracy" value={`${(meta.metrics.test_accuracy * 100).toFixed(1)}%`} />
-                <Metric label="F1 Score" value={`${(meta.metrics.test_f1_weighted * 100).toFixed(1)}%`} />
-                <Metric label="CV F1 Media" value={`${(meta.metrics.cv_f1_mean * 100).toFixed(1)}%`} />
+                <Metric
+                  label="Accuracy"
+                  value={`${(meta.metrics.test_accuracy * 100).toFixed(1)}%`}
+                />
+                <Metric
+                  label="F1 Score"
+                  value={`${(meta.metrics.test_f1_weighted * 100).toFixed(1)}%`}
+                />
+                <Metric
+                  label="CV F1 Media"
+                  value={`${(meta.metrics.cv_f1_mean * 100).toFixed(1)}%`}
+                />
                 <Metric label="Muestras" value={String(meta.n_total_samples)} />
               </div>
 
@@ -143,14 +170,20 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
                 </p>
                 {topFeatures.map(([feat, imp]) => (
                   <div key={feat} className="flex items-center gap-2 text-xs">
-                    <span className="w-44 truncate text-muted-foreground">{feat}</span>
+                    <span className="w-44 truncate text-muted-foreground">
+                      {feat}
+                    </span>
                     <div className="flex-1 bg-muted rounded-full h-1.5 overflow-hidden">
                       <div
                         className="h-full bg-[#2d509e] rounded-full transition-all duration-500"
-                        style={{ width: `${(imp * 100 / topFeatures[0][1]).toFixed(1)}%` }}
+                        style={{
+                          width: `${((imp * 100) / topFeatures[0][1]).toFixed(1)}%`,
+                        }}
                       />
                     </div>
-                    <span className="w-10 text-right font-mono">{(imp * 100).toFixed(1)}%</span>
+                    <span className="w-10 text-right font-mono">
+                      {(imp * 100).toFixed(1)}%
+                    </span>
                   </div>
                 ))}
               </div>
@@ -178,10 +211,13 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
         <CardContent className="space-y-4">
           {loadingStats ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Cargando estadísticas…
+              <Loader2 className="h-4 w-4 animate-spin" /> Cargando
+              estadísticas…
             </div>
           ) : !stats ? (
-            <p className="text-sm text-muted-foreground">No se pudieron cargar las estadísticas.</p>
+            <p className="text-sm text-muted-foreground">
+              No se pudieron cargar las estadísticas.
+            </p>
           ) : (
             <>
               {/* Feedback breakdown */}
@@ -221,8 +257,7 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
                 <p className="text-xs text-muted-foreground">
                   {labeled >= 50
                     ? "✅ ¡Tienes suficientes datos para reentrenar el modelo!"
-                    : `Necesitas ${50 - labeled} etiquetas más para mejorar el modelo.`
-                  }
+                    : `Necesitas ${50 - labeled} etiquetas más para mejorar el modelo.`}
                 </p>
               </div>
 
@@ -240,7 +275,10 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
 
 // ── Small helpers ──────────────────────────────────────────
 
-const Metric: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+const Metric: React.FC<{ label: string; value: string }> = ({
+  label,
+  value,
+}) => (
   <div className="bg-muted/50 rounded-lg p-3">
     <p className="text-xs text-muted-foreground">{label}</p>
     <p className="text-lg font-bold text-[#2d509e]">{value}</p>
@@ -253,9 +291,13 @@ const FeedbackCard: React.FC<{
   value: number;
   color: string;
 }> = ({ icon, label, value, color }) => (
-  <div className={`rounded-xl border-2 p-3 flex flex-col items-center gap-1 ${color}`}>
+  <div
+    className={`rounded-xl border-2 p-3 flex flex-col items-center gap-1 ${color}`}
+  >
     {icon}
     <span className="text-xl font-bold">{value}</span>
-    <span className="text-xs text-muted-foreground text-center leading-tight">{label}</span>
+    <span className="text-xs text-muted-foreground text-center leading-tight">
+      {label}
+    </span>
   </div>
 );

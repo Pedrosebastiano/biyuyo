@@ -5,8 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Eye, EyeOff, Mail, Lock, User,
-  Check, X, Loader2, Star,
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
+  User,
+  Check,
+  X,
+  Loader2,
+  Star,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import biyuyoLogo from "@/assets/biyuyo-logo.png";
@@ -16,9 +23,17 @@ import { getApiUrl } from "@/lib/config";
 const API_URL = getApiUrl();
 
 const ALLOWED_DOMAINS = [
-  "gmail.com", "hotmail.com", "outlook.com", "yahoo.com",
-  "icloud.com", "protonmail.com", "live.com", "msn.com",
-  "aol.com", "correo.unimet.edu.ve", "unimet.edu.ve",
+  "gmail.com",
+  "hotmail.com",
+  "outlook.com",
+  "yahoo.com",
+  "icloud.com",
+  "protonmail.com",
+  "live.com",
+  "msn.com",
+  "aol.com",
+  "correo.unimet.edu.ve",
+  "unimet.edu.ve",
 ];
 
 const UNIMET_DOMAINS = ["correo.unimet.edu.ve", "unimet.edu.ve"];
@@ -63,11 +78,15 @@ function UnimetVerificationScreen({
       if (!res.ok) throw new Error(data.error || "Error al enviar el código");
       if (data.dev_token) console.log("🔑 Dev token:", data.dev_token);
       setTokenSent(true);
-      toast({ title: "¡Código enviado!", description: "Revisa tu correo institucional." });
+      toast({
+        title: "¡Código enviado!",
+        description: "Revisa tu correo institucional.",
+      });
     } catch (err) {
       toast({
         title: "Error",
-        description: err instanceof Error ? err.message : "Error al enviar el código",
+        description:
+          err instanceof Error ? err.message : "Error al enviar el código",
         variant: "destructive",
       });
     } finally {
@@ -77,7 +96,11 @@ function UnimetVerificationScreen({
 
   const handleVerify = async () => {
     if (!token.trim()) {
-      toast({ title: "Error", description: "Ingresa el código", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Ingresa el código",
+        variant: "destructive",
+      });
       return;
     }
     setIsVerifying(true);
@@ -89,12 +112,16 @@ function UnimetVerificationScreen({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Token inválido");
-      toast({ title: "⭐ ¡Cuenta Premium activada!", description: "Verificación exitosa." });
+      toast({
+        title: "⭐ ¡Cuenta Premium activada!",
+        description: "Verificación exitosa.",
+      });
       onVerified();
     } catch (err) {
       toast({
         title: "Error",
-        description: err instanceof Error ? err.message : "Token inválido o expirado",
+        description:
+          err instanceof Error ? err.message : "Token inválido o expirado",
         variant: "destructive",
       });
     } finally {
@@ -105,8 +132,14 @@ function UnimetVerificationScreen({
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
       <div className="flex flex-col items-center mb-8">
-        <img src={biyuyoLogo} alt="Biyuyo" className="h-16 w-16 rounded-2xl object-contain mb-3" />
-        <h1 className="text-3xl font-bold tracking-tight text-[#2d509e]">Biyuyo</h1>
+        <img
+          src={biyuyoLogo}
+          alt="Biyuyo"
+          className="h-16 w-16 rounded-2xl object-contain mb-3"
+        />
+        <h1 className="text-3xl font-bold tracking-tight text-[#2d509e]">
+          Biyuyo
+        </h1>
       </div>
 
       <Card className="w-full max-w-sm border-2">
@@ -123,7 +156,10 @@ function UnimetVerificationScreen({
             </h2>
             <p className="text-sm text-muted-foreground">
               Verifica tu correo institucional y obtén acceso{" "}
-              <span className="font-semibold text-yellow-600">Premium gratis</span>.
+              <span className="font-semibold text-yellow-600">
+                Premium gratis
+              </span>
+              .
             </p>
           </div>
 
@@ -135,7 +171,10 @@ function UnimetVerificationScreen({
               disabled={isSending}
             >
               {isSending ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Enviando código...</>
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Enviando código...
+                </>
               ) : (
                 "Enviar código a mi correo"
               )}
@@ -159,7 +198,10 @@ function UnimetVerificationScreen({
                 disabled={isVerifying || !token.trim()}
               >
                 {isVerifying ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verificando...</>
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Verificando...
+                  </>
                 ) : (
                   "Activar cuenta Premium"
                 )}
@@ -170,7 +212,9 @@ function UnimetVerificationScreen({
                 disabled={isSending}
                 className="w-full text-xs text-primary hover:underline"
               >
-                {isSending ? "Reenviando..." : "¿No recibiste el código? Reenviar"}
+                {isSending
+                  ? "Reenviando..."
+                  : "¿No recibiste el código? Reenviar"}
               </button>
             </div>
           )}
@@ -207,11 +251,14 @@ export default function Signup() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const checks = useMemo(() => ({
-    length: password.length >= 8,
-    uppercase: /[A-Z]/.test(password),
-    special: /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/;'`~]/.test(password),
-  }), [password]);
+  const checks = useMemo(
+    () => ({
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      special: /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/;'`~]/.test(password),
+    }),
+    [password],
+  );
 
   const allChecks = checks.length && checks.uppercase && checks.special;
   const emailValid = isValidEmail(email);
@@ -219,33 +266,53 @@ export default function Signup() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast({ title: "Error", description: "Ingresa tu nombre", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Ingresa tu nombre",
+        variant: "destructive",
+      });
       return;
     }
     if (!emailValid) {
-      toast({ title: "Error", description: "Correo inválido o dominio no permitido", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Correo inválido o dominio no permitido",
+        variant: "destructive",
+      });
       return;
     }
     if (!allChecks) {
-      toast({ title: "Error", description: "La contraseña no cumple los requisitos", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "La contraseña no cumple los requisitos",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const userData = await signup(name.trim(), email.toLowerCase().trim(), password);
+      const userData = await signup(
+        name.trim(),
+        email.toLowerCase().trim(),
+        password,
+      );
 
       if (isUnimetEmail(email) && userData?.user_id) {
         setNewUserId(userData.user_id);
         setShowVerification(true);
       } else {
-        toast({ title: "¡Cuenta creada!", description: "Tu cuenta ha sido creada exitosamente" });
+        toast({
+          title: "¡Cuenta creada!",
+          description: "Tu cuenta ha sido creada exitosamente",
+        });
         navigate("/");
       }
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Error al crear la cuenta",
+        description:
+          error instanceof Error ? error.message : "Error al crear la cuenta",
         variant: "destructive",
       });
     } finally {
@@ -260,7 +327,10 @@ export default function Signup() {
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Error al continuar con Google",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Error al continuar con Google",
         variant: "destructive",
       });
       setIsGoogleLoading(false);
@@ -273,13 +343,17 @@ export default function Signup() {
       <UnimetVerificationScreen
         userId={newUserId}
         onVerified={() => {
-          toast({ title: "⭐ ¡Bienvenido, usuario Premium!", description: "Cuenta verificada exitosamente." });
+          toast({
+            title: "⭐ ¡Bienvenido, usuario Premium!",
+            description: "Cuenta verificada exitosamente.",
+          });
           navigate("/");
         }}
         onSkip={() => {
           toast({
             title: "¡Cuenta creada!",
-            description: "Ve a tu perfil para activar tu cuenta Premium Unimet gratis.",
+            description:
+              "Ve a tu perfil para activar tu cuenta Premium Unimet gratis.",
           });
           navigate("/");
         }}
@@ -289,8 +363,14 @@ export default function Signup() {
 
   const CheckItem = ({ ok, label }: { ok: boolean; label: string }) => (
     <div className="flex items-center gap-2 text-xs">
-      {ok ? <Check className="h-3.5 w-3.5 text-green-500" /> : <X className="h-3.5 w-3.5 text-destructive" />}
-      <span className={ok ? "text-green-600" : "text-destructive"}>{label}</span>
+      {ok ? (
+        <Check className="h-3.5 w-3.5 text-green-500" />
+      ) : (
+        <X className="h-3.5 w-3.5 text-destructive" />
+      )}
+      <span className={ok ? "text-green-600" : "text-destructive"}>
+        {label}
+      </span>
     </div>
   );
 
@@ -299,14 +379,20 @@ export default function Signup() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-8">
       <div className="flex flex-col items-center mb-8">
-        <img src={biyuyoLogo} alt="Biyuyo" className="h-16 w-16 rounded-2xl object-contain mb-3" />
-        <h1 className="text-3xl font-bold tracking-tight text-[#2d509e]">Biyuyo</h1>
+        <img
+          src={biyuyoLogo}
+          alt="Biyuyo"
+          className="h-16 w-16 rounded-2xl object-contain mb-3"
+        />
+        <h1 className="text-3xl font-bold tracking-tight text-[#2d509e]">
+          Biyuyo
+        </h1>
         <p className="text-muted-foreground text-sm mt-1">Crear cuenta</p>
       </div>
 
       <Card className="w-full max-w-sm border-2">
         <CardContent className="pt-6 space-y-4">
-          {/* Google */}
+          {/* Google 
           <Button
             variant="outline"
             className="w-full border-2 gap-2 h-11"
@@ -337,7 +423,7 @@ export default function Signup() {
               <span className="bg-card px-2 text-muted-foreground">o con tu correo</span>
             </div>
           </div>
-
+        */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Nombre completo</Label>
@@ -376,7 +462,9 @@ export default function Signup() {
                 </div>
               )}
               {emailTouched && email && !emailValid && (
-                <p className="text-xs text-destructive">Correo inválido o dominio no permitido</p>
+                <p className="text-xs text-destructive">
+                  Correo inválido o dominio no permitido
+                </p>
               )}
             </div>
 
@@ -399,13 +487,20 @@ export default function Signup() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   disabled={disabled}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
               <div className="space-y-1 pt-1">
                 <CheckItem ok={checks.length} label="Más de 8 caracteres" />
                 <CheckItem ok={checks.uppercase} label="Una letra mayúscula" />
-                <CheckItem ok={checks.special} label="Un carácter especial (. , ! @ # etc.)" />
+                <CheckItem
+                  ok={checks.special}
+                  label="Un carácter especial (. , ! @ # etc.)"
+                />
               </div>
             </div>
 
@@ -415,7 +510,10 @@ export default function Signup() {
               disabled={!allChecks || !emailValid || !name.trim() || disabled}
             >
               {isSubmitting ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creando cuenta...</>
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creando cuenta...
+                </>
               ) : (
                 "Crear cuenta"
               )}
@@ -424,7 +522,10 @@ export default function Signup() {
 
           <p className="text-center text-sm text-muted-foreground">
             ¿Ya tienes cuenta?{" "}
-            <Link to="/login" className="text-primary font-medium hover:underline">
+            <Link
+              to="/login"
+              className="text-primary font-medium hover:underline"
+            >
               Iniciar sesión
             </Link>
           </p>
