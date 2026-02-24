@@ -75,7 +75,7 @@ def load_resources(user_id):
         print(f"DEBUG: Error loading resources for {user_id}: {e}")
         return None, None
 
-@app.get("/")
+@app.get("/", methods=["GET", "HEAD"])
 def read_root():
     return {"message": "Financial Prediction API is running"}
 

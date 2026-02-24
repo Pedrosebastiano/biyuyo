@@ -46,7 +46,8 @@ SUPABASE_URL = os.getenv(
     "SUPABASE_URL",
     "https://pmjjguyibxydzxnofcjx.supabase.co",
 )
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")   # obligatorio en Render env vars
+# Usar variable de entorno si existe, de lo contrario usar el fallback
+SUPABASE_KEY = os.getenv("SUPABASE_KEY") or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtampndXlpYnh5ZHp4bm9mY2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwODE2NTAsImV4cCI6MjA4NTY1NzY1MH0.ZYTzwvzdcjgiiJHollA7vyNZ7ZF8hIN1NuTOq5TdtjI"
 ML_BUCKET    = os.getenv("ML_BUCKET", "MLmodels")
 
 MODEL_REMOTE = "decision_model.pkl"
@@ -228,7 +229,7 @@ def build_feature_vector(req: PredictRequest, bundle: dict) -> np.ndarray:
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
-@app.get("/health")
+@app.get("/health", methods=["GET", "HEAD"])
 def health():
     return {
         "status": "ok",
