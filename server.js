@@ -9,6 +9,9 @@ import nodemailer from "nodemailer";
 import { calculateAndSaveMLFeatures } from './mlFeatures.js';
 import crypto from 'crypto';
 import http from 'http';
+import { spawn, exec } from 'child_process';
+import path from 'path';
+import fs from 'fs';
 
 const { Pool } = pg;
 const app = express();
@@ -39,39 +42,106 @@ app.use((req, res, next) => {
   next();
 });
 
-// --- REVERSE PROXY PARA SERVICIOS ML EN PYTHON ---
-// Dado que Render expone solo un puerto, redirigimos las peticiones
-// que lleguen a /api/ml o /api/decision hacia los procesos locales en 8000 y 8001
-function createLocalProxy(targetPort) {
+// --- REVERSE PROXY & ORQUESTADOR DE SERVICIOS IA ---
+let mlServicesReady = false;
+let mlInitializationStatus = "Iniciando...";
+
+function createLocalProxy(targetPort, serviceName) {
   return (req, res) => {
+    if (!mlServicesReady) {
+      return res.status(503).json({
+        error: "El servicio de IA se está inicializando.",
+        status: mlInitializationStatus,
+        service: serviceName
+      });
+    }
+
     const options = {
       hostname: '127.0.0.1',
       port: targetPort,
-      path: req.url, // app.use strips the mount path string, so this is correct
+      path: req.url,
       method: req.method,
       headers: { ...req.headers, host: `127.0.0.1:${targetPort}` }
     };
+
     const proxyReq = http.request(options, (proxyRes) => {
       res.writeHead(proxyRes.statusCode, proxyRes.headers);
       proxyRes.pipe(res, { end: true });
     });
+
     req.pipe(proxyReq, { end: true });
+
     proxyReq.on('error', (err) => {
-      console.error(`[Proxy] ❌ Error conectando al puerto ${targetPort} (${req.url}):`, err.message);
-      if (err.code === 'ECONNREFUSED') {
-        console.error(`[Proxy] El servicio en puerto ${targetPort} no está escuchando. ¿Crackeo al iniciar?`);
-      }
+      console.error(`[Proxy] ❌ Error conectando a ${serviceName} (puerto ${targetPort}):`, err.message);
       res.status(502).json({
-        error: "El servicio de IA local no está disponible.",
-        details: err.message,
-        port: targetPort
+        error: `El servicio ${serviceName} no está disponible.`,
+        details: err.message
       });
     });
   };
 }
 
-app.use('/api/ml', createLocalProxy(8000));
-app.use('/api/decision', createLocalProxy(8001));
+app.use('/api/ml', createLocalProxy(8000, "Simulador ML"));
+app.use('/api/decision', createLocalProxy(8001, "IA Decisión"));
+
+async function startMLServices() {
+  console.log("🐍 INFO: Iniciando servicios de IA en segundo plano...");
+  mlInitializationStatus = "Instalando dependencias de Python...";
+
+  const pythonLibsDir = path.resolve('./python_libs');
+  if (!fs.existsSync(pythonLibsDir)) {
+    fs.mkdirSync(pythonLibsDir, { recursive: true });
+  }
+
+  // Ejecutamos la instalación en background
+  const installCmd = `python3 -m pip install --no-cache-dir --upgrade --target ${pythonLibsDir} -r ML/requirements.txt -r ml_decision/requirements.txt --quiet --break-system-packages`;
+
+  exec(installCmd, (err) => {
+    if (err) {
+      console.error("❌ ERROR: Falló la instalación de dependencias Python:", err.message);
+      mlInitializationStatus = "Error en instalación. Reintentando pronto...";
+      setTimeout(startMLServices, 30000); // Reintento largo
+      return;
+    }
+
+    console.log("✅ INFO: Dependencias Python listas.");
+    mlInitializationStatus = "Lanzando APIs de IA...";
+
+    const env = { ...process.env, PYTHONPATH: pythonLibsDir };
+
+    const spawnService = (file, port, name) => {
+      console.log(`🤖 Lanzando ${name} en puerto ${port}...`);
+      const proc = spawn('python3', [file], { env });
+
+      proc.stdout.on('data', (data) => console.log(`[${name}] ${data}`));
+      proc.stderr.on('data', (data) => console.error(`[${name} ERROR] ${data}`));
+
+      proc.on('close', (code) => {
+        console.warn(`⚠️ ${name} se cerró con código ${code}. Reiniciando en 5s...`);
+        mlServicesReady = false;
+        setTimeout(() => spawnService(file, port, name), 5000);
+      });
+    };
+
+    spawnService('ML/api.py', 8000, 'Simulador-API');
+    spawnService('ml_decision/decision_api.py', 8001, 'Decision-API');
+
+    // Damos unos segundos para que arranquen antes de marcar como listos
+    setTimeout(() => {
+      mlServicesReady = true;
+      mlInitializationStatus = "Servicios activos";
+      console.log("🚀 INFO: Servicios de IA listos para recibir tráfico.");
+    }, 10000);
+  });
+}
+
+// Lanzar orquestación SIN bloquear el event loop principal del servidor
+if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
+  startMLServices();
+} else {
+  // En local, asumimos que el usuario usa 'npm run start:win' que ya lanza todo
+  mlServicesReady = true;
+}
 
 app.use(express.json());
 

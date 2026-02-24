@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "vite",
     "prestart": "node scripts/cleanup.js",
-    "start": "concurrently \"node server.js\" \"PYTHONPATH=./python_libs python3 ml_decision/decision_api.py\" \"PYTHONPATH=./python_libs python3 ML/api.py\"",
+    "start": "node server.js",
     "start:win": "concurrently \"node server.js\" \"py ml_decision/decision_api.py\" \"py ML/api.py\"",
-    "build": "vite build && node scripts/install-deps.js",
+    "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
