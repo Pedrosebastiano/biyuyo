@@ -4,10 +4,24 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ReceiptText } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { ReceiptText, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import InvoiceButton from './InvoiceButton';
 import { FeedbackButtons } from "./FeedbackButtons";
 import { useAuth } from "@/contexts/AuthContext";
+import { deleteExpense, deleteIncome } from "@/lib/deleteTransaction";
+import { toast } from "sonner";
 
 interface TransactionCardProps {
   id: string;
@@ -21,6 +35,7 @@ interface TransactionCardProps {
   receiptImage?: string;
   userFeedback?: number | null;
   creatorName?: string;
+  onDeleted?: (id: string) => void;
 }
 
 export function TransactionCard({
@@ -35,11 +50,31 @@ export function TransactionCard({
   receiptImage,
   userFeedback = null,
   creatorName,
+  onDeleted,
 }: TransactionCardProps) {
   const { user } = useAuth();
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const isExpense = type === "expense";
   const currencySymbol = currency === "USD" ? "$" : "Bs.";
+
+  const handleDelete = async () => {
+    if (!user) return;
+    setIsDeleting(true);
+    try {
+      if (isExpense) {
+        await deleteExpense(id, user.user_id);
+      } else {
+        await deleteIncome(id, user.user_id);
+      }
+      toast.success(`${isExpense ? "Gasto" : "Ingreso"} eliminado correctamente`);
+      onDeleted?.(id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al eliminar");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <>
@@ -79,8 +114,8 @@ export function TransactionCard({
               )}
             </div>
 
-            {/* Columna Derecha: Monto + Botón Factura */}
-            <div className="flex flex-col items-end gap-3 shrink-0">
+            {/* Columna Derecha: Monto + Botones */}
+            <div className="flex flex-col items-end gap-2 shrink-0">
               <span
                 className={cn(
                   "font-mono font-black text-lg leading-none",
@@ -99,6 +134,40 @@ export function TransactionCard({
                   className="scale-90 origin-right"
                 />
               )}
+
+              {/* Delete button */}
+              {user && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      disabled={isDeleting}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Eliminar {isExpense ? "gasto" : "ingreso"}?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta acción no se puede deshacer. Se eliminará permanentemente este registro de{" "}
+                        <strong>{currencySymbol}{amount.toFixed(2)}</strong> en <strong>{business}</strong>.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDelete}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Eliminar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
           </div>
         </CardContent>
@@ -114,7 +183,6 @@ export function TransactionCard({
                 Comprobante de Pago
               </DialogTitle>
             </DialogHeader>
-
             <div className="relative overflow-hidden rounded-xl border-4 border-white shadow-inner bg-white">
               <img
                 src={receiptImage}
@@ -122,7 +190,6 @@ export function TransactionCard({
                 className="w-full h-auto max-h-[70vh] object-contain"
               />
             </div>
-
             <div className="mt-4 flex justify-between items-center text-[10px] text-muted-foreground font-mono uppercase">
               <span>{business}</span>
               <span>{date}</span>

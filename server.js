@@ -1576,6 +1576,92 @@ app.get("/ml/summary/:user_id", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// --- ELIMINAR GASTO ---
+app.delete("/expenses/:expense_id", async (req, res) => {
+  const { expense_id } = req.params;
+  const { user_id } = req.query;
+
+  if (!user_id) {
+    return res.status(400).json({ error: "user_id es requerido" });
+  }
+
+  try {
+    // Delete ML features first (foreign key)
+    await pool.query(
+      "DELETE FROM expense_ml_features WHERE expense_id = $1",
+      [expense_id]
+    );
+
+    const result = await pool.query(
+      "DELETE FROM expenses WHERE expense_id = $1 AND user_id = $2 RETURNING expense_id",
+      [expense_id, user_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Gasto no encontrado o no autorizado" });
+    }
+
+    console.log(`🗑️ Gasto eliminado: ${expense_id}`);
+    res.json({ success: true, deleted_id: expense_id });
+  } catch (err) {
+    console.error("Error eliminando gasto:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- ELIMINAR INGRESO ---
+app.delete("/incomes/:income_id", async (req, res) => {
+  const { income_id } = req.params;
+  const { user_id } = req.query;
+
+  if (!user_id) {
+    return res.status(400).json({ error: "user_id es requerido" });
+  }
+
+  try {
+    const result = await pool.query(
+      "DELETE FROM incomes WHERE income_id = $1 AND user_id = $2 RETURNING income_id",
+      [income_id, user_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Ingreso no encontrado o no autorizado" });
+    }
+
+    console.log(`🗑️ Ingreso eliminado: ${income_id}`);
+    res.json({ success: true, deleted_id: income_id });
+  } catch (err) {
+    console.error("Error eliminando ingreso:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- ELIMINAR RECORDATORIO ---
+app.delete("/reminders/:reminder_id", async (req, res) => {
+  const { reminder_id } = req.params;
+  const { user_id } = req.query;
+
+  if (!user_id) {
+    return res.status(400).json({ error: "user_id es requerido" });
+  }
+
+  try {
+    const result = await pool.query(
+      "DELETE FROM reminders WHERE reminder_id = $1 AND user_id = $2 RETURNING reminder_id",
+      [reminder_id, user_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Recordatorio no encontrado o no autorizado" });
+    }
+
+    console.log(`🗑️ Recordatorio eliminado: ${reminder_id}`);
+    res.json({ success: true, deleted_id: reminder_id });
+  } catch (err) {
+    console.error("Error eliminando recordatorio:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // --- OBTENER ÚLTIMOS FEATURES (Contexto para DecisionPredictor) ---
 app.get("/ml/last-features/:user_id", async (req, res) => {

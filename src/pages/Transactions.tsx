@@ -32,6 +32,7 @@ export default function Transactions() {
     user?.user_id || "",
     activeSharedProfile?.shared_id
   );
+  
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("expenses");
   const [expenseFilters, setExpenseFilters] = useState<FilterState>(defaultFilters);
@@ -41,6 +42,13 @@ export default function Transactions() {
     sortBy: "dueDate",
   });
   const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
+  
+  // Estado para manejo de borrado instantáneo en UI
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+
+  const handleDeleted = (id: string) => {
+    setDeletedIds((prev) => new Set(prev).add(id));
+  };
 
   // Handle tab query parameter from URL
   useEffect(() => {
@@ -54,8 +62,16 @@ export default function Transactions() {
     }
   }, [searchParams]);
 
-  const expenses = transactions.filter((t) => t.type === "expense");
-  const income = transactions.filter((t) => t.type === "income");
+  // Filtrar elementos eliminados localmente antes de procesar
+  const expenses = transactions.filter(
+    (t) => t.type === "expense" && !deletedIds.has(t.id)
+  );
+  const income = transactions.filter(
+    (t) => t.type === "income" && !deletedIds.has(t.id)
+  );
+  const visibleReminders = reminders.filter(
+    (r) => !deletedIds.has(r.id)
+  );
 
   const expenseMacroCategoryNames = Array.from(
     new Set(expenses.map((e) => e.macroCategory))
@@ -64,7 +80,7 @@ export default function Transactions() {
     new Set(income.map((i) => i.macroCategory))
   );
   const reminderMacroCategoryNames = Array.from(
-    new Set(reminders.map((r) => r.macroCategory))
+    new Set(visibleReminders.map((r) => r.macroCategory))
   );
 
   const filteredExpenses = useMemo(() => {
@@ -134,7 +150,7 @@ export default function Transactions() {
   }, [income, incomeFilters]);
 
   const filteredReminders = useMemo(() => {
-    let result = [...reminders];
+    let result = [...visibleReminders];
 
     if (reminderFilters.category) {
       result = result.filter((e) => e.macroCategory === reminderFilters.category);
@@ -152,7 +168,6 @@ export default function Transactions() {
       result = result.filter((e) => e.nextDueDate <= reminderFilters.endDate!);
     }
 
-    // Always sort by due date ascending (soonest/overdue first) by default
     result.sort((a, b) => {
       if (reminderFilters.sortBy === "amount") {
         const order = reminderFilters.sortOrder === "asc" ? 1 : -1;
@@ -162,12 +177,11 @@ export default function Transactions() {
         const order = reminderFilters.sortOrder === "asc" ? 1 : -1;
         return a.macroCategory.localeCompare(b.macroCategory) * order;
       }
-      // Default: sort by due date ascending (soonest first, overdue at top)
       return a.nextDueDate.getTime() - b.nextDueDate.getTime();
     });
 
     return result;
-  }, [reminders, reminderFilters]);
+  }, [visibleReminders, reminderFilters]);
 
   if (!user) {
     return (
@@ -228,7 +242,11 @@ export default function Transactions() {
                 </div>
                 <div className="space-y-3">
                   {filteredExpenses.map((expense) => (
-                    <TransactionCard key={expense.id} {...expense} />
+                    <TransactionCard 
+                      key={expense.id} 
+                      {...expense} 
+                      onDeleted={handleDeleted}
+                    />
                   ))}
                   {filteredExpenses.length === 0 && (
                     <p className="text-center text-muted-foreground py-8">
@@ -255,8 +273,12 @@ export default function Transactions() {
                   />
                 </div>
                 <div className="space-y-3">
-                  {filteredIncome.map((income) => (
-                    <TransactionCard key={income.id} {...income} />
+                  {filteredIncome.map((incomeItem) => (
+                    <TransactionCard 
+                      key={incomeItem.id} 
+                      {...incomeItem} 
+                      onDeleted={handleDeleted}
+                    />
                   ))}
                   {filteredIncome.length === 0 && (
                     <p className="text-center text-muted-foreground py-8">
@@ -285,7 +307,11 @@ export default function Transactions() {
                 </div>
                 <div className="space-y-3">
                   {filteredReminders.map((reminder) => (
-                    <ReminderCard key={reminder.id} {...reminder} />
+                    <ReminderCard 
+                      key={reminder.id} 
+                      {...reminder} 
+                      onDeleted={handleDeleted}
+                    />
                   ))}
                   {filteredReminders.length === 0 && (
                     <p className="text-center text-muted-foreground py-8">

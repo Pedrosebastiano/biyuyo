@@ -1,11 +1,25 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarClock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { CalendarClock, Trash2 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
+import { useAuth } from "@/contexts/AuthContext";
+import { deleteReminder } from "@/lib/deleteTransaction";
+import { toast } from "sonner";
 
-// Función para traducir frecuencias
 const translateFrequency = (frequency: string): string => {
   const translations: Record<string, string> = {
     'daily': 'Diario',
@@ -14,11 +28,11 @@ const translateFrequency = (frequency: string): string => {
     'monthly': 'Mensual',
     'yearly': 'Anual',
   };
-
   return translations[frequency.toLowerCase()] || frequency;
 };
 
 interface ReminderCardProps {
+  id: string;
   name: string;
   amount: number;
   currency: "USD" | "VES";
@@ -32,9 +46,11 @@ interface ReminderCardProps {
   totalInstallments?: number;
   invoiceImageUrl?: string;
   creatorName?: string;
+  onDeleted?: (id: string) => void;
 }
 
 export function ReminderCard({
+  id,
   name,
   amount,
   currency,
@@ -47,7 +63,10 @@ export function ReminderCard({
   currentInstallment,
   totalInstallments,
   creatorName,
+  onDeleted,
 }: ReminderCardProps) {
+  const { user } = useAuth();
+  const [isDeleting, setIsDeleting] = useState(false);
   const currencySymbol = currency === "USD" ? "$" : "Bs.";
   const daysUntilDue = differenceInDays(nextDueDate, new Date());
 
@@ -62,6 +81,20 @@ export function ReminderCard({
     if (daysUntilDue === 0) return "Vence hoy";
     if (daysUntilDue === 1) return "Vence mañana";
     return `Vence en ${daysUntilDue} días`;
+  };
+
+  const handleDelete = async () => {
+    if (!user) return;
+    setIsDeleting(true);
+    try {
+      await deleteReminder(id, user.user_id);
+      toast.success("Recordatorio eliminado correctamente");
+      onDeleted?.(id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al eliminar");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -115,6 +148,40 @@ export function ReminderCard({
                 </p>
               )}
             </div>
+
+            {/* Delete button */}
+            {user && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    disabled={isDeleting}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Eliminar recordatorio?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta acción no se puede deshacer. Se eliminará permanentemente el recordatorio{" "}
+                      <strong>{name}</strong> ({currencySymbol}{amount.toFixed(2)}).
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDelete}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Eliminar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </div>
       </CardContent>
