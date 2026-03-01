@@ -12,12 +12,13 @@ import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import Profile from "./pages/Profile";
 import AuthCallback from "./pages/AuthCallback";
-import Consent from "./pages/Consent"; // Changed to match the correct casing
+import Consent from "./pages/Consent";
 import ML from "./pages/ML";
 import SharedProfiles from "./pages/SharedProfiles";
 import JoinSharedProfile from "./pages/JoinSharedProfile";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SharedProfileProvider } from "@/contexts/SharedProfileContext";
+import { PrivacyProvider } from "@/contexts/PrivacyContext";
 
 const queryClient = new QueryClient();
 
@@ -43,12 +44,8 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 const AppRoutes = () => (
   <Routes>
-    {/* OAuth callback — must be accessible without auth */}
     <Route path="/auth/callback" element={<AuthCallback />} />
-
-    {/* OAuth consent page — accessible without auth for OAuth flow */}
     <Route path="/oauth/consent" element={<Consent />} />
-
     <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
     <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
     <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
@@ -70,10 +67,16 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <SharedProfileProvider>
-            <AppInitializer />
-            <AppRoutes />
-          </SharedProfileProvider>
+          {/*
+           * PrivacyProvider va DENTRO de AuthProvider para poder llamar useAuth()
+           * y cargar la preferencia correcta según el user_id activo.
+           */}
+          <PrivacyProvider>
+            <SharedProfileProvider>
+              <AppInitializer />
+              <AppRoutes />
+            </SharedProfileProvider>
+          </PrivacyProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
