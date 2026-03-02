@@ -14,6 +14,9 @@ import { Plus } from "lucide-react";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSharedProfile } from "@/contexts/SharedProfileContext";
+import { SpeechRecognitionBubble } from "@/components/transactions/SpeechRecognitionBubble";
+import { SpeechRecognitionPanel } from "@/components/transactions/SpeechRecognitionPanel";
+import { toast } from "sonner";
 
 const defaultFilters: FilterState = {
   category: "",
@@ -32,7 +35,7 @@ export default function Transactions() {
     user?.user_id || "",
     activeSharedProfile?.shared_id
   );
-  
+
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("expenses");
   const [expenseFilters, setExpenseFilters] = useState<FilterState>(defaultFilters);
@@ -42,7 +45,8 @@ export default function Transactions() {
     sortBy: "dueDate",
   });
   const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
-  
+  const [isSpeechPanelOpen, setIsSpeechPanelOpen] = useState(false);
+
   // Estado para manejo de borrado instantáneo en UI
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
@@ -242,9 +246,9 @@ export default function Transactions() {
                 </div>
                 <div className="space-y-3">
                   {filteredExpenses.map((expense) => (
-                    <TransactionCard 
-                      key={expense.id} 
-                      {...expense} 
+                    <TransactionCard
+                      key={expense.id}
+                      {...expense}
                       onDeleted={handleDeleted}
                     />
                   ))}
@@ -274,9 +278,9 @@ export default function Transactions() {
                 </div>
                 <div className="space-y-3">
                   {filteredIncome.map((incomeItem) => (
-                    <TransactionCard 
-                      key={incomeItem.id} 
-                      {...incomeItem} 
+                    <TransactionCard
+                      key={incomeItem.id}
+                      {...incomeItem}
                       onDeleted={handleDeleted}
                     />
                   ))}
@@ -307,9 +311,9 @@ export default function Transactions() {
                 </div>
                 <div className="space-y-3">
                   {filteredReminders.map((reminder) => (
-                    <ReminderCard 
-                      key={reminder.id} 
-                      {...reminder} 
+                    <ReminderCard
+                      key={reminder.id}
+                      {...reminder}
                       onDeleted={handleDeleted}
                     />
                   ))}
@@ -326,6 +330,17 @@ export default function Transactions() {
       </div>
 
       <BottomNav />
+
+      <SpeechRecognitionBubble onClick={() => setIsSpeechPanelOpen(true)} />
+      <SpeechRecognitionPanel
+        isOpen={isSpeechPanelOpen}
+        onClose={() => setIsSpeechPanelOpen(false)}
+        onConfirm={(blob, text) => {
+          console.log("Audio capturado Blob:", blob);
+          console.log("Texto del Speech Recognition:", text);
+          toast.success("Información extraída correctamente (console)");
+        }}
+      />
 
       <AddTransactionDialog
         open={isTransactionDialogOpen}

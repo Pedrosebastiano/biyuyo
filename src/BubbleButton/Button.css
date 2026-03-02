@@ -15,7 +15,7 @@
   bottom: 90px;
   right: 30px;
   /* Changed from left to right */
-  z-index: 998;
+  z-index: 40;
   width: var(--bubble-size);
   height: var(--bubble-size);
   border-radius: 50%;
@@ -36,6 +36,10 @@
 
 .combined-bubble.whatsapp {
   background: linear-gradient(135deg, var(--whatsapp-color), #5cdd7e);
+}
+
+.combined-bubble.speech {
+  background: linear-gradient(135deg, #4b6cb7, #2d509e);
 }
 
 .bubble-core {
@@ -78,6 +82,10 @@
 
 .combined-bubble.whatsapp:hover {
   background: linear-gradient(135deg, var(--whatsapp-hover), #25D366);
+}
+
+.combined-bubble.speech:hover {
+  background: linear-gradient(135deg, #2d509e, #1e3a8a);
 }
 
 .combined-bubble:hover .bubble-core {
@@ -147,7 +155,7 @@
   /* Changed from -10px to 10px */
   transition: all var(--transition-speed) ease;
   pointer-events: none;
-  z-index: 1000;
+  z-index: 41;
 }
 
 .combined-bubble:hover .tooltip {
