@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,10 +14,19 @@ import { ReminderForm } from "./ReminderForm";
 interface AddTransactionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialTab?: string;
+  initialData?: any;
 }
 
-export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialogProps) {
-  const [activeTab, setActiveTab] = useState("expense");
+export function AddTransactionDialog({ open, onOpenChange, initialTab = "expense", initialData }: AddTransactionDialogProps) {
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  // When dialog opens/closes, or when initialTab changes, update activeTab
+  useEffect(() => {
+    if (open) {
+      setActiveTab(initialTab);
+    }
+  }, [open, initialTab]);
 
   const handleClose = () => {
     onOpenChange(false);
@@ -29,7 +38,7 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Nueva Transacción</DialogTitle>
         </DialogHeader>
-        
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-4">
             <TabsTrigger value="expense" className="flex items-center gap-2">
@@ -48,17 +57,17 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
 
           {/* Expense Tab */}
           <TabsContent value="expense">
-            <ExpenseForm onSubmit={handleClose} />
+            <ExpenseForm onSubmit={handleClose} initialData={initialData} />
           </TabsContent>
 
           {/* Income Tab */}
           <TabsContent value="income">
-            <IncomeForm onSubmit={handleClose} />
+            <IncomeForm onSubmit={handleClose} initialData={initialData} />
           </TabsContent>
 
           {/* Reminder Tab */}
           <TabsContent value="reminder">
-            <ReminderForm onSubmit={handleClose} />
+            <ReminderForm onSubmit={handleClose} initialData={initialData} />
           </TabsContent>
         </Tabs>
       </DialogContent>

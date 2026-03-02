@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,9 +39,10 @@ import { getApiUrl } from "@/lib/config";
 
 interface ReminderFormProps {
   onSubmit: () => void;
+  initialData?: any;
 }
 
-export function ReminderForm({ onSubmit }: ReminderFormProps) {
+export function ReminderForm({ onSubmit, initialData }: ReminderFormProps) {
   const { user } = useAuth();
   const { activeSharedProfile } = useSharedProfile();
   const { refreshTransactions } = useTransactions(
@@ -63,6 +64,79 @@ export function ReminderForm({ onSubmit }: ReminderFormProps) {
   const [totalInstallments, setTotalInstallments] = useState<string>("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Prefill form from Smart Assistant data
+  useEffect(() => {
+    if (initialData && typeof initialData === 'object') {
+      if (initialData.macro_category) {
+        const macro = reminderMacroCategories.find(m => m.name.toLowerCase().includes(initialData.macro_category.toLowerCase()) || initialData.macro_category.toLowerCase().includes(m.name.toLowerCase()));
+        if (macro) {
+          setSelectedMacro(macro.id);
+
+          if (initialData.category) {
+            const cat = macro.categories.find(c => c.name.toLowerCase().includes(initialData.category.toLowerCase()) || initialData.category.toLowerCase().includes(c.name.toLowerCase()));
+            if (cat) {
+              setSelectedCategory(cat.id);
+
+              if (initialData.business_type) {
+                const bus = cat.businessTypes.find(b => b.name.toLowerCase() === initialData.business_type.toLowerCase());
+                if (bus) {
+                  setSelectedBusiness(bus.name);
+                } else {
+                  setSelectedBusiness("custom");
+                  setCustomBusiness(initialData.business_type);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (initialData.payment_type) {
+        setPaymentName(initialData.payment_type);
+      }
+
+      if (initialData.amount) {
+        setAmount(initialData.amount.toString());
+      }
+
+      if (initialData.currency === "VES" || initialData.currency === "USD") {
+        setCurrency(initialData.currency);
+      }
+
+      if (initialData.next_payment_date) {
+        const date = new Date(initialData.next_payment_date);
+        // Correct timezone offset before setting
+        const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+        setNextPaymentDate(new Date(date.getTime() + userTimezoneOffset));
+      }
+
+      if (initialData.pay_frequency) {
+        // Frequencies in Gemini: "Diario", "Semanal", "Quincenal", "Mensual", "Anual", "Único"
+        // IDs in mapping: "diario", "semanal", "quincenal", "mensual", "anual", "unico"
+        const freqMap: Record<string, PaymentFrequency | ""> = {
+          "diario": "daily",
+          "semanal": "weekly",
+          "quincenal": "biweekly",
+          "mensual": "monthly",
+          "anual": "yearly",
+          "único": "",
+          "unico": ""
+        };
+        const lowerFreq = initialData.pay_frequency.toLowerCase();
+        if (freqMap[lowerFreq]) {
+          setFrequency(freqMap[lowerFreq]);
+        }
+      }
+
+      if (initialData.is_installment === true) {
+        setHasInstallments(true);
+        if (initialData.total_payments) {
+          setTotalInstallments(initialData.total_payments.toString());
+        }
+      }
+    }
+  }, [initialData]);
 
   const categories: Category[] = selectedMacro
     ? getReminderCategoriesByMacro(selectedMacro)

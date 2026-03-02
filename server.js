@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { GoogleGenAI } from "@google/genai";
 import express from "express";
 import pg from "pg";
 import cors from "cors";
@@ -2144,6 +2145,111 @@ app.get("/ml/last-features/:user_id", async (req, res) => {
   } catch (err) {
     console.error("Error obteniendo last-features:", err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// --- SMART ASSISTANT (GEMINI API) ---
+app.post("/api/smart-assistant", async (req, res) => {
+  const { text, user_id } = req.body;
+
+  if (!text) {
+    return res.status(400).json({ error: "No text provided" });
+  }
+
+  if (!process.env.GEMINI_SMART_ASSISTANT_API_KEY) {
+    console.error("Smart Assistant API Key is missing in environment variables.");
+    return res.status(500).json({ error: "El servicio de asistente inteligente no está configurado." });
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_SMART_ASSISTANT_API_KEY });
+
+    const tools = [{
+      functionDeclarations: [
+        {
+          name: "record_expense",
+          description: "Records an expense transaction. Use this when the user mentions spending money, buying something, or paying a bill.",
+          parameters: {
+            type: "object",
+            properties: {
+              macro_category: { type: "string", description: "Broad category, e.g., 'Alimentos', 'Vivienda', 'Salud', 'Transporte'" },
+              category: { type: "string", description: "Specific category within the macro-category, e.g., 'Supermercado', 'Alquiler', 'Medicinas'" },
+              business_type: { type: "string", description: "Name of the business or place where the expense was made, e.g., 'Farmatodo', 'Exito', 'Uber'" },
+              amount: { type: "number", description: "The exact monetary amount spent" },
+              currency: { type: "string", enum: ["USD", "VES"], description: "Currency used" }
+            },
+            required: ["macro_category", "category", "business_type", "amount", "currency"]
+          }
+        },
+        {
+          name: "record_income",
+          description: "Records an income transaction. Use this when the user mentions receiving money, getting a salary, or an incoming transfer.",
+          parameters: {
+            type: "object",
+            properties: {
+              macro_category: { type: "string", description: "Broad category, e.g., 'Salario', 'Inversiones', 'Ventas'" },
+              category: { type: "string", description: "Specific category, e.g., 'Bono', 'Quincena', 'Venta online'" },
+              business_type: { type: "string", description: "Origin of the income or business name, e.g., 'Empresa XYZ', 'Cliente Juan'" },
+              amount: { type: "number", description: "The exact monetary amount received" },
+              currency: { type: "string", enum: ["USD", "VES"] }
+            },
+            required: ["macro_category", "category", "business_type", "amount", "currency"]
+          }
+        },
+        {
+          name: "record_reminder",
+          description: "Records a payment reminder, subscription, or installment. Use this when the user talks about a future payment, something they have to pay recurrently, or a purchase made in installments (cuotas).",
+          parameters: {
+            type: "object",
+            properties: {
+              macro_category: { type: "string" },
+              category: { type: "string" },
+              business_type: { type: "string" },
+              payment_type: { type: "string", description: "Type of payment, e.g., 'Suscripción', 'Crédito', 'Servicio Público'" },
+              next_payment_date: { type: "string", description: "ISO 8601 date format for the next time this must be paid (YYYY-MM-DD)" },
+              pay_frequency: { type: "string", description: "Frequency of the payment", enum: ["Diario", "Semanal", "Quincenal", "Mensual", "Anual", "Único"] },
+              amount: { type: "number" },
+              currency: { type: "string", enum: ["USD", "VES"] },
+              is_installment: { type: "boolean", description: "True if this is a 'pago en cuotas' (installments)" },
+              total_payments: { type: "number", description: "Total number of payments/installments to make. Only required if is_installment is true." }
+            },
+            required: ["macro_category", "category", "business_type", "next_payment_date", "pay_frequency", "amount", "currency"]
+          }
+        }
+      ]
+    }];
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [
+        { role: 'user', parts: [{ text: "Parse the following financial text related to my transactions. Call the right tool to record the transaction.\nText: " + text }] }
+      ],
+      config: {
+        tools: tools,
+        systemInstruction: `You are a specialized smart financial assistant. Your job is to extract financial data accurately from the user's input, which often comes from speech-to-text. Map the data cleanly into the tool schemas. The current date and time is ${new Date().toISOString()}. Use this context to accurately resolve relative dates like 'hoy' (today), 'ayer' (yesterday), or 'mañana' (tomorrow). The input will likely be in Spanish. Provide extracted string values (like categories) in Spanish.`
+      }
+    });
+
+    const functionCalls = response.functionCalls;
+
+    if (functionCalls && functionCalls.length > 0) {
+      const call = functionCalls[0];
+      return res.json({
+        success: true,
+        type: call.name,
+        data: call.args
+      });
+    }
+
+    return res.json({
+      success: false,
+      message: "Could not map text to a transaction.",
+      rawResponse: response.text
+    });
+
+  } catch (error) {
+    console.error("Error in Smart Assistant API:", error);
+    return res.status(500).json({ error: "Error processing the request with AI" });
   }
 });
 

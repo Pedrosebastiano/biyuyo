@@ -17,6 +17,7 @@ import { useSharedProfile } from "@/contexts/SharedProfileContext";
 import { SpeechRecognitionBubble } from "@/components/transactions/SpeechRecognitionBubble";
 import { SpeechRecognitionPanel } from "@/components/transactions/SpeechRecognitionPanel";
 import { toast } from "sonner";
+import { getApiUrl } from "@/lib/config";
 
 const defaultFilters: FilterState = {
   category: "",
@@ -45,6 +46,8 @@ export default function Transactions() {
     sortBy: "dueDate",
   });
   const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
+  const [dialogInitialTab, setDialogInitialTab] = useState<"expense" | "income" | "reminder">("expense");
+  const [dialogInitialData, setDialogInitialData] = useState<any>(null);
   const [isSpeechPanelOpen, setIsSpeechPanelOpen] = useState(false);
 
   // Estado para manejo de borrado instantáneo en UI
@@ -335,16 +338,53 @@ export default function Transactions() {
       <SpeechRecognitionPanel
         isOpen={isSpeechPanelOpen}
         onClose={() => setIsSpeechPanelOpen(false)}
-        onConfirm={(blob, text) => {
+        onConfirm={async (blob, text) => {
           console.log("Audio capturado Blob:", blob);
           console.log("Texto del Speech Recognition:", text);
-          toast.success("Información extraída correctamente (console)");
+
+          toast.loading("Procesando con el Asistente Inteligente...", { id: "smart-assistant" });
+
+          try {
+            const API_URL = getApiUrl();
+            const res = await fetch(`${API_URL}/smart-assistant`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text, user_id: user.user_id })
+            });
+            const result = await res.json();
+
+            if (res.ok && result.success && result.type) {
+              let tab: "expense" | "income" | "reminder" = "expense";
+              if (result.type === "record_income") tab = "income";
+              if (result.type === "record_reminder") tab = "reminder";
+
+              setDialogInitialTab(tab);
+              setDialogInitialData(result.data);
+              setIsTransactionDialogOpen(true);
+
+              toast.success("Información extraída correctamente. Verifica los datos.", { id: "smart-assistant" });
+            } else {
+              console.error("Smart Assistant Parse Error: ", result);
+              toast.error(result.message || "No se pudo extraer información financiera válida.", { id: "smart-assistant" });
+            }
+          } catch (error) {
+            console.error(error);
+            toast.error("Error contactando al asistente inteligente", { id: "smart-assistant" });
+          }
         }}
       />
 
       <AddTransactionDialog
         open={isTransactionDialogOpen}
-        onOpenChange={setIsTransactionDialogOpen}
+        onOpenChange={(open) => {
+          setIsTransactionDialogOpen(open);
+          if (!open) {
+            setDialogInitialData(null); // Clear data when closed
+            setDialogInitialTab("expense");
+          }
+        }}
+        initialTab={dialogInitialTab}
+        initialData={dialogInitialData}
       />
     </div>
   );
