@@ -1746,7 +1746,134 @@ app.patch("/expenses/:expense_id/zero", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// --- EDITAR GASTO ---
+app.put("/expenses/:expense_id", async (req, res) => {
+  const { expense_id } = req.params;
+  const { user_id, macrocategoria, categoria, negocio, total_amount } =
+    req.body;
 
+  if (!user_id) return res.status(400).json({ error: "user_id es requerido" });
+
+  try {
+    const check = await pool.query(
+      "SELECT expense_id, user_id FROM expenses WHERE expense_id = $1::uuid",
+      [expense_id],
+    );
+
+    if (check.rows.length === 0)
+      return res.status(404).json({ error: "Gasto no encontrado" });
+    if (check.rows[0].user_id !== user_id)
+      return res.status(403).json({ error: "No autorizado" });
+
+    const result = await pool.query(
+      `UPDATE expenses 
+       SET macrocategoria = $1, categoria = $2, negocio = $3, total_amount = $4
+       WHERE expense_id = $5::uuid AND user_id = $6::uuid
+       RETURNING *`,
+      [macrocategoria, categoria, negocio, total_amount, expense_id, user_id],
+    );
+
+    console.log(`✏️ Gasto editado: ${expense_id}`);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error editando gasto:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- EDITAR INGRESO ---
+app.put("/incomes/:income_id", async (req, res) => {
+  const { income_id } = req.params;
+  const { user_id, macrocategoria, categoria, negocio, total_amount } =
+    req.body;
+
+  if (!user_id) return res.status(400).json({ error: "user_id es requerido" });
+
+  try {
+    const check = await pool.query(
+      "SELECT income_id, user_id FROM incomes WHERE income_id = $1::uuid",
+      [income_id],
+    );
+
+    if (check.rows.length === 0)
+      return res.status(404).json({ error: "Ingreso no encontrado" });
+    if (check.rows[0].user_id !== user_id)
+      return res.status(403).json({ error: "No autorizado" });
+
+    const result = await pool.query(
+      `UPDATE incomes 
+       SET macrocategoria = $1, categoria = $2, negocio = $3, total_amount = $4
+       WHERE income_id = $5::uuid AND user_id = $6::uuid
+       RETURNING *`,
+      [macrocategoria, categoria, negocio, total_amount, income_id, user_id],
+    );
+
+    console.log(`✏️ Ingreso editado: ${income_id}`);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error editando ingreso:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- EDITAR RECORDATORIO ---
+app.put("/reminders/:reminder_id", async (req, res) => {
+  const { reminder_id } = req.params;
+  const {
+    user_id,
+    reminder_name,
+    macrocategoria,
+    categoria,
+    negocio,
+    total_amount,
+    next_payment_date,
+    payment_frequency,
+    is_installment,
+    installment_number,
+  } = req.body;
+
+  if (!user_id) return res.status(400).json({ error: "user_id es requerido" });
+
+  try {
+    const check = await pool.query(
+      "SELECT reminder_id, user_id FROM reminders WHERE reminder_id = $1::uuid",
+      [reminder_id],
+    );
+
+    if (check.rows.length === 0)
+      return res.status(404).json({ error: "Recordatorio no encontrado" });
+    if (check.rows[0].user_id !== user_id)
+      return res.status(403).json({ error: "No autorizado" });
+
+    const result = await pool.query(
+      `UPDATE reminders 
+       SET reminder_name = $1, macrocategoria = $2, categoria = $3, negocio = $4,
+           total_amount = $5, next_payment_date = $6, payment_frequency = $7,
+           is_installment = $8, installment_number = $9
+       WHERE reminder_id = $10::uuid AND user_id = $11::uuid
+       RETURNING *`,
+      [
+        reminder_name,
+        macrocategoria,
+        categoria,
+        negocio,
+        total_amount,
+        next_payment_date,
+        payment_frequency,
+        is_installment,
+        installment_number,
+        reminder_id,
+        user_id,
+      ],
+    );
+
+    console.log(`✏️ Recordatorio editado: ${reminder_id}`);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error editando recordatorio:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 // --- "ELIMINAR" INGRESO (pone total_amount en 0) ---
 app.patch("/incomes/:income_id/zero", async (req, res) => {
   const { income_id } = req.params;

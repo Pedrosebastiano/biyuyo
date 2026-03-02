@@ -15,13 +15,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ReceiptText, Trash2 } from "lucide-react";
+import { ReceiptText, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import InvoiceButton from './InvoiceButton';
 import { FeedbackButtons } from "./FeedbackButtons";
 import { useAuth } from "@/contexts/AuthContext";
 import { deleteExpense, deleteIncome } from "@/lib/deleteTransaction";
 import { toast } from "sonner";
+import { EditTransactionDialog } from "./EditTransactionDialog";
+import { useTransactions } from "@/hooks/useTransactions";
+import { useSharedProfile } from "@/contexts/SharedProfileContext";
 
 interface TransactionCardProps {
   id: string;
@@ -53,8 +56,14 @@ export function TransactionCard({
   onDeleted,
 }: TransactionCardProps) {
   const { user } = useAuth();
+  const { activeSharedProfile } = useSharedProfile();
+  const { refreshTransactions } = useTransactions(
+    user?.user_id || "",
+    activeSharedProfile?.shared_id || null
+  );
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const isExpense = type === "expense";
   const currencySymbol = currency === "USD" ? "$" : "Bs.";
 
@@ -102,7 +111,6 @@ export function TransactionCard({
                 )}
               </div>
 
-              {/* Feedback — solo en gastos */}
               {isExpense && user && (
                 <div className="pt-2">
                   <FeedbackButtons
@@ -114,7 +122,7 @@ export function TransactionCard({
               )}
             </div>
 
-            {/* Columna Derecha: Monto + Botones */}
+            {/* Columna Derecha */}
             <div className="flex flex-col items-end gap-2 shrink-0">
               <span
                 className={cn(
@@ -135,45 +143,60 @@ export function TransactionCard({
                 />
               )}
 
-              {/* Delete button */}
-              {user && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      disabled={isDeleting}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>¿Eliminar {isExpense ? "gasto" : "ingreso"}?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Esta acción no se puede deshacer. Se eliminará permanentemente este registro de{" "}
-                        <strong>{currencySymbol}{amount.toFixed(2)}</strong> en <strong>{business}</strong>.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDelete}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              <div className="flex items-center gap-1">
+                {/* Botón Editar */}
+                {user && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                    onClick={() => setEditDialogOpen(true)}
+                    title={`Editar ${isExpense ? "gasto" : "ingreso"}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+
+                {/* Botón Eliminar */}
+                {user && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        disabled={isDeleting}
                       >
-                        Eliminar
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar {isExpense ? "gasto" : "ingreso"}?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta acción no se puede deshacer. Se eliminará permanentemente este registro de{" "}
+                          <strong>{currencySymbol}{amount.toFixed(2)}</strong> en <strong>{business}</strong>.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleDelete}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Eliminar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Modal de la Factura */}
+      {/* Modal Factura */}
       {receiptImage && (
         <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
           <DialogContent className="max-w-md bg-slate-50 border-none shadow-2xl p-6">
@@ -196,6 +219,16 @@ export function TransactionCard({
             </div>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Dialog Editar */}
+      {user && (
+        <EditTransactionDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          transaction={{ id, type, amount, macroCategory, category, business }}
+          onEdited={() => refreshTransactions()}
+        />
       )}
     </>
   );
