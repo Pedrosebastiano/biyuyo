@@ -4,14 +4,14 @@ import pg from "pg";
 import cors from "cors";
 import cron from "node-cron";
 import { messaging } from "./firebase-admin-setup.js";
-import bcrypt from 'bcrypt';
+import bcrypt from "bcrypt";
 import nodemailer from "nodemailer";
-import { calculateAndSaveMLFeatures } from './mlFeatures.js';
-import crypto from 'crypto';
-import http from 'http';
-import { spawn, exec } from 'child_process';
-import path from 'path';
-import fs from 'fs';
+import { calculateAndSaveMLFeatures } from "./mlFeatures.js";
+import crypto from "crypto";
+import http from "http";
+import { spawn, exec } from "child_process";
+import path from "path";
+import fs from "fs";
 
 const { Pool } = pg;
 const app = express();
@@ -19,27 +19,33 @@ const app = express();
 // Enable CORS for all origins to avoid issues with Vercel deployment
 // Enable CORS for all origins to avoid issues with Vercel deployment and Localhost
 const allowedOrigins = [
-  'https://biyuyo-sand.vercel.app',
-  'https://biyuyo-pruebas.onrender.com', // <-- Added production domain
-  'http://localhost:8080',
-  'http://localhost:5173',
-  'http://localhost:3000'
+  "https://biyuyo-sand.vercel.app",
+  "https://biyuyo-pruebas.onrender.com", // <-- Added production domain
+  "http://localhost:8080",
+  "http://localhost:5173",
+  "http://localhost:3000",
 ];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || origin.startsWith('http://localhost:')) {
-      return callback(null, true);
-    }
-    var msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-    return callback(new Error(msg), false);
-  }
-}));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      if (
+        allowedOrigins.indexOf(origin) !== -1 ||
+        origin.startsWith("http://localhost:")
+      ) {
+        return callback(null, true);
+      }
+      var msg =
+        "The CORS policy for this site does not allow access from the specified Origin.";
+      return callback(new Error(msg), false);
+    },
+  }),
+);
 // MiddleWare de Logging
 app.use((req, res, next) => {
-  if (!req.url.startsWith('/api/ml') && !req.url.startsWith('/api/decision')) {
+  if (!req.url.startsWith("/api/ml") && !req.url.startsWith("/api/decision")) {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
   }
   next();
@@ -55,16 +61,16 @@ function createLocalProxy(targetPort, serviceName) {
       return res.status(503).json({
         error: "El servicio de IA se está inicializando.",
         status: mlInitializationStatus,
-        service: serviceName
+        service: serviceName,
       });
     }
 
     const options = {
-      hostname: '127.0.0.1',
+      hostname: "127.0.0.1",
       port: targetPort,
       path: req.url,
       method: req.method,
-      headers: { ...req.headers, host: `127.0.0.1:${targetPort}` }
+      headers: { ...req.headers, host: `127.0.0.1:${targetPort}` },
     };
 
     const proxyReq = http.request(options, (proxyRes) => {
@@ -77,30 +83,35 @@ function createLocalProxy(targetPort, serviceName) {
       console.warn(`[Proxy] ⚠️ Timeout en ${serviceName}`);
       proxyReq.destroy();
       if (!res.headersSent) {
-        res.status(504).json({ error: "Tiempo de espera agotado en el servicio de IA." });
+        res
+          .status(504)
+          .json({ error: "Tiempo de espera agotado en el servicio de IA." });
       }
     });
 
     req.pipe(proxyReq, { end: true });
 
-    proxyReq.on('error', (err) => {
-      console.error(`[Proxy] ❌ Error conectando a ${serviceName} (puerto ${targetPort}):`, err.message);
+    proxyReq.on("error", (err) => {
+      console.error(
+        `[Proxy] ❌ Error conectando a ${serviceName} (puerto ${targetPort}):`,
+        err.message,
+      );
       res.status(502).json({
         error: `El servicio ${serviceName} no está disponible.`,
-        details: err.message
+        details: err.message,
       });
     });
   };
 }
 
-app.use('/api/ml', createLocalProxy(8000, "Simulador ML"));
-app.use('/api/decision', createLocalProxy(8001, "IA Decisión"));
+app.use("/api/ml", createLocalProxy(8000, "Simulador ML"));
+app.use("/api/decision", createLocalProxy(8001, "IA Decisión"));
 
 async function startMLServices() {
   console.log("🐍 INFO: Iniciando servicios de IA en segundo plano...");
   mlInitializationStatus = "Instalando dependencias de Python...";
 
-  const pythonLibsDir = path.resolve('./python_libs');
+  const pythonLibsDir = path.resolve("./python_libs");
   if (!fs.existsSync(pythonLibsDir)) {
     fs.mkdirSync(pythonLibsDir, { recursive: true });
   }
@@ -110,7 +121,10 @@ async function startMLServices() {
 
   exec(installCmd, (err) => {
     if (err) {
-      console.error("❌ ERROR: Falló la instalación de dependencias Python:", err.message);
+      console.error(
+        "❌ ERROR: Falló la instalación de dependencias Python:",
+        err.message,
+      );
       mlInitializationStatus = "Error en instalación. Reintentando pronto...";
       setTimeout(startMLServices, 30000); // Reintento largo
       return;
@@ -123,20 +137,24 @@ async function startMLServices() {
 
     const spawnService = (file, port, name) => {
       console.log(`🤖 Lanzando ${name} en puerto ${port}...`);
-      const proc = spawn('python3', [file], { env });
+      const proc = spawn("python3", [file], { env });
 
-      proc.stdout.on('data', (data) => console.log(`[${name}] ${data}`));
-      proc.stderr.on('data', (data) => console.error(`[${name} ERROR] ${data}`));
+      proc.stdout.on("data", (data) => console.log(`[${name}] ${data}`));
+      proc.stderr.on("data", (data) =>
+        console.error(`[${name} ERROR] ${data}`),
+      );
 
-      proc.on('close', (code) => {
-        console.warn(`⚠️ ${name} se cerró con código ${code}. Reiniciando en 5s...`);
+      proc.on("close", (code) => {
+        console.warn(
+          `⚠️ ${name} se cerró con código ${code}. Reiniciando en 5s...`,
+        );
         mlServicesReady = false;
         setTimeout(() => spawnService(file, port, name), 5000);
       });
     };
 
-    spawnService('ML/api.py', 8000, 'Simulador-API');
-    spawnService('ml_decision/decision_api.py', 8001, 'Decision-API');
+    spawnService("ML/api.py", 8000, "Simulador-API");
+    spawnService("ml_decision/decision_api.py", 8001, "Decision-API");
 
     // Damos unos segundos para que arranquen antes de marcar como listos
     setTimeout(() => {
@@ -148,7 +166,7 @@ async function startMLServices() {
 }
 
 // Lanzar orquestación SIN bloquear el event loop principal del servidor
-if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
+if (process.env.NODE_ENV === "production" || process.env.RENDER) {
   startMLServices();
 } else {
   // En local, asumimos que el usuario usa 'npm run start:win' que ya lanza todo
@@ -156,7 +174,6 @@ if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
 }
 
 app.use(express.json());
-
 
 // NOTA DE SEGURIDAD: Eventualmente moveremos esto a variables de entorno.
 const connectionString =
@@ -172,23 +189,25 @@ const pool = new Pool({
 const POSTMARK_TOKEN = process.env.POSTMARK_API_TOKEN;
 const SENDER_EMAIL = process.env.POSTMARK_SENDER_EMAIL;
 
-console.log(POSTMARK_TOKEN ? "✅ Postmark configurado" : "❌ Falta POSTMARK_API_TOKEN");
+console.log(
+  POSTMARK_TOKEN ? "✅ Postmark configurado" : "❌ Falta POSTMARK_API_TOKEN",
+);
 
 async function sendEmail(toEmail, toName, subject, htmlContent) {
   const response = await fetch("https://api.postmarkapp.com/email", {
     method: "POST",
     headers: {
-      "Accept": "application/json",
+      Accept: "application/json",
       "Content-Type": "application/json",
-      "X-Postmark-Server-Token": POSTMARK_TOKEN
+      "X-Postmark-Server-Token": POSTMARK_TOKEN,
     },
     body: JSON.stringify({
       From: `Biyuyo <${SENDER_EMAIL}>`,
       To: `${toName} <${toEmail}>`,
       Subject: subject,
       HtmlBody: htmlContent,
-      MessageStream: "outbound"
-    })
+      MessageStream: "outbound",
+    }),
   });
 
   if (!response.ok) {
@@ -200,7 +219,9 @@ async function sendEmail(toEmail, toName, subject, htmlContent) {
 
 // --- RUTA DE PRUEBA ---
 app.get("/", (req, res) => {
-  res.send("¡Hola! El servidor de Biyuyo (Current) está funcionando y listo ☁️");
+  res.send(
+    "¡Hola! El servidor de Biyuyo (Current) está funcionando y listo ☁️",
+  );
 });
 
 // Proxy functions moved above express.json()
@@ -250,7 +271,9 @@ cron.schedule("* * * * *", async () => {
     return;
   }
 
-  console.log(`⏰ Ejecutando cron de recordatorios (${currentHour}:${currentMinute})...`);
+  console.log(
+    `⏰ Ejecutando cron de recordatorios (${currentHour}:${currentMinute})...`,
+  );
 
   try {
     // 1. Obtener TODOS los recordatorios activos con sus tokens
@@ -303,13 +326,21 @@ cron.schedule("* * * * *", async () => {
 
           if (frequency.includes("diario") || frequency.includes("daily")) {
             startDaysBefore = 1;
-          } else if (frequency.includes("semanal") || frequency.includes("weekly")) {
+          } else if (
+            frequency.includes("semanal") ||
+            frequency.includes("weekly")
+          ) {
             startDaysBefore = 2; // "Start 2 days before" -> Días 2 y 1
-          } else if (frequency.includes("mensual") || frequency.includes("monthly")) {
+          } else if (
+            frequency.includes("mensual") ||
+            frequency.includes("monthly")
+          ) {
             startDaysBefore = 7; // "Start a week before" -> Días 7..1
           } else if (
-            frequency.includes("anual") || frequency.includes("yearly") ||
-            frequency.includes("bimestral") || frequency.includes("trimestral") ||
+            frequency.includes("anual") ||
+            frequency.includes("yearly") ||
+            frequency.includes("bimestral") ||
+            frequency.includes("trimestral") ||
             frequency.includes("semestral")
           ) {
             // Periodo mayor -> 2 semanas antes
@@ -319,7 +350,7 @@ cron.schedule("* * * * *", async () => {
           if (diffDays <= startDaysBefore) {
             shouldNotify = true;
             notificationTitle = "⏳ Recordatorio Próximo";
-            notificationBody = `Tu pago de ${row.reminder_name} vence en ${diffDays} día${diffDays !== 1 ? 's' : ''}.`;
+            notificationBody = `Tu pago de ${row.reminder_name} vence en ${diffDays} día${diffDays !== 1 ? "s" : ""}.`;
           }
         }
       }
@@ -342,7 +373,7 @@ cron.schedule("* * * * *", async () => {
           shouldNotify = true;
           const daysOverdue = Math.abs(diffDays);
           notificationTitle = "⚠️ Pago Vencido";
-          notificationBody = `Tu pago de ${row.reminder_name} está vencido por ${daysOverdue} día${daysOverdue !== 1 ? 's' : ''}.`;
+          notificationBody = `Tu pago de ${row.reminder_name} está vencido por ${daysOverdue} día${daysOverdue !== 1 ? "s" : ""}.`;
         }
       }
 
@@ -353,26 +384,30 @@ cron.schedule("* * * * *", async () => {
             title: notificationTitle,
             body: notificationBody,
           },
-          token: row.token
+          token: row.token,
         };
 
         try {
           // Log extra para depuración
-          console.log(`📤 Enviando notificación (${currentHour}:00) a User ${row.user_id} - ${row.reminder_name} (Days: ${diffDays})`);
+          console.log(
+            `📤 Enviando notificación (${currentHour}:00) a User ${row.user_id} - ${row.reminder_name} (Days: ${diffDays})`,
+          );
 
           await messaging.send(message);
 
           // Actualizamos notified_at solo para registro, aunque la lógica ya no depende estrictamente de él para bloqueo diario simple
           await pool.query(
             "UPDATE reminders SET notified_at = NOW() WHERE reminder_id = $1",
-            [row.reminder_id]
+            [row.reminder_id],
           );
         } catch (sendError) {
-          console.error(`❌ Error enviando FCM a ${row.user_id}:`, sendError.message);
+          console.error(
+            `❌ Error enviando FCM a ${row.user_id}:`,
+            sendError.message,
+          );
         }
       }
     }
-
   } catch (err) {
     console.error("❌ Error en cron job:", err);
   }
@@ -388,19 +423,21 @@ app.post("/signup", async (req, res) => {
   }
 
   if (password.length < 8) {
-    return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres" });
+    return res
+      .status(400)
+      .json({ error: "La contraseña debe tener al menos 8 caracteres" });
   }
 
   try {
     // Hash password using bcrypt
-    const bcrypt = await import('bcrypt');
+    const bcrypt = await import("bcrypt");
     const saltRounds = 10;
     const password_hash = await bcrypt.hash(password, saltRounds);
 
     // Check if user already exists
     const existingUser = await pool.query(
       "SELECT user_id FROM users WHERE email = $1",
-      [email.toLowerCase()]
+      [email.toLowerCase()],
     );
 
     if (existingUser.rows.length > 0) {
@@ -412,7 +449,7 @@ app.post("/signup", async (req, res) => {
       `INSERT INTO users (name, email, password_hash) 
        VALUES ($1, $2, $3) 
        RETURNING user_id, name, email, created_at`,
-      [name, email.toLowerCase(), password_hash]
+      [name, email.toLowerCase(), password_hash],
     );
 
     const newUser = userResult.rows[0];
@@ -421,7 +458,7 @@ app.post("/signup", async (req, res) => {
     await pool.query(
       `INSERT INTO accounts (user_id, name, balance) 
        VALUES ($1, $2, $3)`,
-      [newUser.user_id, "Cuenta Principal", 0]
+      [newUser.user_id, "Cuenta Principal", 0],
     );
 
     console.log(`✅ Usuario creado exitosamente: ${newUser.email}`);
@@ -434,7 +471,6 @@ app.post("/signup", async (req, res) => {
       created_at: newUser.created_at,
       is_premium: newUser.is_premium || false,
     });
-
   } catch (err) {
     console.error("Error en signup:", err);
     res.status(500).json({ error: "Error al crear la cuenta" });
@@ -455,7 +491,7 @@ app.post("/login", async (req, res) => {
     // Buscar usuario por email
     const userResult = await pool.query(
       "SELECT user_id, name, email, password_hash FROM users WHERE email = $1",
-      [email.toLowerCase()]
+      [email.toLowerCase()],
     );
 
     if (userResult.rows.length === 0) {
@@ -465,7 +501,7 @@ app.post("/login", async (req, res) => {
     const user = userResult.rows[0];
 
     // Verificar contraseña
-    const bcrypt = await import('bcrypt');
+    const bcrypt = await import("bcrypt");
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
 
     if (!passwordMatch) {
@@ -481,7 +517,6 @@ app.post("/login", async (req, res) => {
       email: user.email,
       is_premium: user.is_premium || false,
     });
-
   } catch (err) {
     console.error("Error en login:", err);
     res.status(500).json({ error: "Error al iniciar sesión" });
@@ -501,21 +536,22 @@ app.post("/forgot-password", async (req, res) => {
     // Verificar que el usuario existe
     const userResult = await pool.query(
       "SELECT user_id, email, name FROM users WHERE email = $1",
-      [email.toLowerCase()]
+      [email.toLowerCase()],
     );
 
     if (userResult.rows.length === 0) {
       // Por seguridad, no revelamos si el email existe o no
       return res.json({
         success: true,
-        message: "Si el correo existe, recibirás instrucciones para restablecer tu contraseña"
+        message:
+          "Si el correo existe, recibirás instrucciones para restablecer tu contraseña",
       });
     }
 
     const user = userResult.rows[0];
 
     // Generar token de reset (válido por 1 hora)
-    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetToken = crypto.randomBytes(32).toString("hex");
     const resetExpires = new Date(Date.now() + 3600000); // 1 hora
 
     // Guardar token en la base de datos
@@ -523,24 +559,28 @@ app.post("/forgot-password", async (req, res) => {
       `UPDATE users 
        SET reset_token = $1, reset_token_expires = $2 
        WHERE user_id = $3`,
-      [resetToken, resetExpires, user.user_id]
+      [resetToken, resetExpires, user.user_id],
     );
 
     console.log(`🔑 Token de reset generado para ${user.email}: ${resetToken}`);
 
     // AGREGAR ESTO - verificar que las env vars están configuradas
     if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-      console.error("❌ GMAIL_USER o GMAIL_APP_PASSWORD no están configuradas en las variables de entorno");
+      console.error(
+        "❌ GMAIL_USER o GMAIL_APP_PASSWORD no están configuradas en las variables de entorno",
+      );
       return res.status(500).json({
-        error: "El servicio de email no está configurado. Contacta al administrador."
+        error:
+          "El servicio de email no está configurado. Contacta al administrador.",
       });
     }
 
     // Enviar email con el token
     try {
       await sendEmail(
-        user.email, user.name,
-        'Recuperación de contraseña - Biyuyo',
+        user.email,
+        user.name,
+        "Recuperación de contraseña - Biyuyo",
         `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
           <div style="background:#2d509e;color:white;padding:20px;text-align:center;border-radius:8px 8px 0 0">
             <h1>Biyuyo</h1><p>Recuperación de Contraseña</p>
@@ -556,15 +596,20 @@ app.post("/forgot-password", async (req, res) => {
             </div>
             <p>Si no solicitaste esto, ignora este correo.</p>
           </div>
-        </div>`
+        </div>`,
       );
       console.log(`📧 Email enviado a ${user.email}`);
-      res.json({ success: true, message: "Si el correo existe, recibirás instrucciones para restablecerla" });
+      res.json({
+        success: true,
+        message:
+          "Si el correo existe, recibirás instrucciones para restablecerla",
+      });
     } catch (emailError) {
       console.error("❌ Error Postmark:", emailError);
-      res.status(500).json({ error: `Error al enviar el correo: ${emailError?.message}` });
+      res
+        .status(500)
+        .json({ error: `Error al enviar el correo: ${emailError?.message}` });
     }
-
   } catch (err) {
     console.error("Error en forgot-password:", err);
     res.status(500).json({ error: "Error al procesar la solicitud" });
@@ -577,24 +622,32 @@ app.post("/reset-password", async (req, res) => {
 
   console.log("📥 Reset password request:", {
     token: token?.substring(0, 10) + "...",
-    passwordLength: newPassword?.length
+    passwordLength: newPassword?.length,
   });
 
   if (!token || !newPassword) {
-    return res.status(400).json({ error: "Token y nueva contraseña son requeridos" });
+    return res
+      .status(400)
+      .json({ error: "Token y nueva contraseña son requeridos" });
   }
 
   // Validaciones de contraseña
   if (newPassword.length < 8) {
-    return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres" });
+    return res
+      .status(400)
+      .json({ error: "La contraseña debe tener al menos 8 caracteres" });
   }
 
   if (!/[A-Z]/.test(newPassword)) {
-    return res.status(400).json({ error: "La contraseña debe contener al menos una letra mayúscula" });
+    return res.status(400).json({
+      error: "La contraseña debe contener al menos una letra mayúscula",
+    });
   }
 
   if (!/[.!@#$%^&*()_+\-=\[\]{};':"\\|,<>\/?]/.test(newPassword)) {
-    return res.status(400).json({ error: "La contraseña debe contener al menos un carácter especial" });
+    return res.status(400).json({
+      error: "La contraseña debe contener al menos un carácter especial",
+    });
   }
 
   try {
@@ -603,10 +656,13 @@ app.post("/reset-password", async (req, res) => {
       `SELECT user_id, email, name, reset_token_expires
        FROM users 
        WHERE reset_token = $1`,
-      [token.trim()]
+      [token.trim()],
     );
 
-    console.log("🔍 Token búsqueda resultado:", userResult.rows.length > 0 ? "Encontrado" : "No encontrado");
+    console.log(
+      "🔍 Token búsqueda resultado:",
+      userResult.rows.length > 0 ? "Encontrado" : "No encontrado",
+    );
 
     if (userResult.rows.length === 0) {
       console.log("❌ Token no encontrado en base de datos");
@@ -621,15 +677,19 @@ app.post("/reset-password", async (req, res) => {
 
     console.log(`⏱️ Expira en: ${expiresAt.toISOString()}`);
     console.log(`⏱️ Ahora es: ${now.toISOString()}`);
-    console.log(`⏱️ Diferencia: ${Math.round((expiresAt - now) / 1000 / 60)} minutos`);
+    console.log(
+      `⏱️ Diferencia: ${Math.round((expiresAt - now) / 1000 / 60)} minutos`,
+    );
 
     if (now > expiresAt) {
       console.log("⏰ Token expirado");
-      return res.status(400).json({ error: "El token ha expirado. Solicita uno nuevo." });
+      return res
+        .status(400)
+        .json({ error: "El token ha expirado. Solicita uno nuevo." });
     }
 
     // Hash de la nueva contraseña
-    const bcrypt = await import('bcrypt');
+    const bcrypt = await import("bcrypt");
     const saltRounds = 10;
     const password_hash = await bcrypt.hash(newPassword, saltRounds);
 
@@ -638,16 +698,15 @@ app.post("/reset-password", async (req, res) => {
       `UPDATE users 
        SET password_hash = $1, reset_token = NULL, reset_token_expires = NULL 
        WHERE user_id = $2`,
-      [password_hash, user.user_id]
+      [password_hash, user.user_id],
     );
 
     console.log(`✅ Contraseña actualizada para: ${user.email}`);
 
     res.json({
       success: true,
-      message: "Contraseña actualizada exitosamente"
+      message: "Contraseña actualizada exitosamente",
     });
-
   } catch (err) {
     console.error("Error en reset-password:", err);
     res.status(500).json({ error: "Error al restablecer la contraseña" });
@@ -680,16 +739,26 @@ app.post("/shared", async (req, res) => {
     // Generar un código único de 8 caracteres
     const finalCode = crypto.randomBytes(4).toString("hex").toUpperCase();
 
-    console.log(`🎲 [V2] Perfil: "${name}", ID Usuario: ${user_id}, Código Generado: ${finalCode}`);
+    console.log(
+      `🎲 [V2] Perfil: "${name}", ID Usuario: ${user_id}, Código Generado: ${finalCode}`,
+    );
 
-    if (!finalCode || typeof finalCode !== 'string' || finalCode.length !== 8) {
-      console.error("❌ [V2] Error crítico: El código generado no es válido:", finalCode);
-      return res.status(500).json({ error: "No se pudo generar un código de invitación (V2 error)" });
+    if (!finalCode || typeof finalCode !== "string" || finalCode.length !== 8) {
+      console.error(
+        "❌ [V2] Error crítico: El código generado no es válido:",
+        finalCode,
+      );
+      return res.status(500).json({
+        error: "No se pudo generar un código de invitación (V2 error)",
+      });
     }
 
     // 1. Crear el perfil compartido
-    const insertSharedQuery = "INSERT INTO shared (name, created_at, share_code) VALUES ($1, NOW(), $2) RETURNING *";
-    console.log(`🛠 [V2] Ejecutando Query con params: ["${name}", "${finalCode}"]`);
+    const insertSharedQuery =
+      "INSERT INTO shared (name, created_at, share_code) VALUES ($1, NOW(), $2) RETURNING *";
+    console.log(
+      `🛠 [V2] Ejecutando Query con params: ["${name}", "${finalCode}"]`,
+    );
 
     const sharedResult = await pool.query(insertSharedQuery, [name, finalCode]);
     const newShared = sharedResult.rows[0];
@@ -697,16 +766,18 @@ app.post("/shared", async (req, res) => {
     // 2. Asociar al creador
     await pool.query(
       `INSERT INTO shared_account (shared_id, user_id) VALUES ($1, $2)`,
-      [newShared.shared_id, user_id]
+      [newShared.shared_id, user_id],
     );
 
     // 3. Crear cuenta por defecto para el perfil compartido
     await pool.query(
       `INSERT INTO accounts (user_id, name, balance, shared_id) VALUES ($1, $2, $3, $4)`,
-      [user_id, "Cuenta Principal", 0, newShared.shared_id]
+      [user_id, "Cuenta Principal", 0, newShared.shared_id],
     );
 
-    console.log(`✅ Perfil compartido creado: ${newShared.name} (Code: ${newShared.share_code})`);
+    console.log(
+      `✅ Perfil compartido creado: ${newShared.name} (Code: ${newShared.share_code})`,
+    );
     res.json(newShared);
   } catch (err) {
     console.error("Error creando perfil compartido:", err);
@@ -725,7 +796,7 @@ app.get("/shared/user/:userId", async (req, res) => {
        JOIN shared_account sa ON s.shared_id = sa.shared_id
        WHERE sa.user_id = $1
        ORDER BY s.created_at DESC`,
-      [userId]
+      [userId],
     );
     res.json(result.rows);
   } catch (err) {
@@ -742,7 +813,7 @@ app.get("/shared/:sharedId", async (req, res) => {
       `SELECT s.*, 
               (SELECT COUNT(*) FROM shared_account sa WHERE sa.shared_id = s.shared_id) as member_count
        FROM shared s WHERE s.shared_id = $1`,
-      [sharedId]
+      [sharedId],
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Perfil compartido no encontrado" });
@@ -762,7 +833,7 @@ app.get("/shared/code/:shareCode", async (req, res) => {
       `SELECT s.*, 
               (SELECT COUNT(*) FROM shared_account sa WHERE sa.shared_id = s.shared_id) as member_count
        FROM shared s WHERE s.share_code = $1`,
-      [shareCode.toUpperCase()]
+      [shareCode.toUpperCase()],
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Perfil compartido no encontrado" });
@@ -779,17 +850,21 @@ app.post("/shared/join", async (req, res) => {
   const { share_code, user_id } = req.body;
 
   if (!share_code || !user_id) {
-    return res.status(400).json({ error: "share_code y user_id son requeridos" });
+    return res
+      .status(400)
+      .json({ error: "share_code y user_id son requeridos" });
   }
 
   try {
     // Verificar que el perfil existe mediante el share_code
     const sharedExists = await pool.query(
       `SELECT shared_id, name, share_code FROM shared WHERE share_code = $1`,
-      [share_code.toUpperCase()]
+      [share_code.toUpperCase()],
     );
     if (sharedExists.rows.length === 0) {
-      return res.status(404).json({ error: "Perfil compartido no encontrado con ese código" });
+      return res
+        .status(404)
+        .json({ error: "Perfil compartido no encontrado con ese código" });
     }
 
     const { shared_id, name } = sharedExists.rows[0];
@@ -797,18 +872,22 @@ app.post("/shared/join", async (req, res) => {
     // Verificar que el usuario no esté ya asociado
     const alreadyJoined = await pool.query(
       `SELECT * FROM shared_account WHERE shared_id = $1 AND user_id = $2`,
-      [shared_id, user_id]
+      [shared_id, user_id],
     );
     if (alreadyJoined.rows.length > 0) {
-      return res.status(400).json({ error: "Ya perteneces a este perfil compartido" });
+      return res
+        .status(400)
+        .json({ error: "Ya perteneces a este perfil compartido" });
     }
 
     await pool.query(
       `INSERT INTO shared_account (shared_id, user_id) VALUES ($1, $2)`,
-      [shared_id, user_id]
+      [shared_id, user_id],
     );
 
-    console.log(`✅ Usuario ${user_id} se unió al perfil compartido ${name} (Code: ${share_code})`);
+    console.log(
+      `✅ Usuario ${user_id} se unió al perfil compartido ${name} (Code: ${share_code})`,
+    );
     res.json({ success: true, profile: sharedExists.rows[0] });
   } catch (err) {
     console.error("Error uniéndose al perfil compartido:", err);
@@ -825,7 +904,7 @@ app.get("/shared/:sharedId/members", async (req, res) => {
        FROM shared_account sa
        JOIN users u ON sa.user_id = u.user_id
        WHERE sa.shared_id = $1`,
-      [sharedId]
+      [sharedId],
     );
     res.json(result.rows);
   } catch (err) {
@@ -885,16 +964,17 @@ app.post("/expenses", async (req, res) => {
             categoria: newExpense.categoria,
             created_at: newExpense.created_at,
           },
-          pool
+          pool,
         );
         console.log("🎯 [ML] Feature ID retornado:", featureId);
       } catch (mlError) {
         console.error("💥 [ML] Error capturado en endpoint:", mlError);
       }
     } else {
-      console.log("⚠️ [ML] No se calcularon features: user_id es null/undefined");
+      console.log(
+        "⚠️ [ML] No se calcularon features: user_id es null/undefined",
+      );
     }
-
   } catch (err) {
     console.error("Error guardando gasto:", err.message);
     res.status(500).json({ error: err.message });
@@ -937,8 +1017,14 @@ app.get("/expenses", async (req, res) => {
 
 // --- INGRESOS (INCOMES) ---
 app.post("/incomes", async (req, res) => {
-  const { macrocategoria, categoria, negocio, total_amount, user_id, shared_id } =
-    req.body;
+  const {
+    macrocategoria,
+    categoria,
+    negocio,
+    total_amount,
+    user_id,
+    shared_id,
+  } = req.body;
 
   try {
     const query = `
@@ -946,7 +1032,14 @@ app.post("/incomes", async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *;
     `;
-    const values = [macrocategoria, categoria, negocio, total_amount, user_id, shared_id || null];
+    const values = [
+      macrocategoria,
+      categoria,
+      negocio,
+      total_amount,
+      user_id,
+      shared_id || null,
+    ];
 
     const result = await pool.query(query, values);
     res.json(result.rows[0]);
@@ -1048,8 +1141,14 @@ app.post("/reminders", async (req, res) => {
         const reminderDate = new Date(fecha_proximo_pago);
         const today = new Date();
         // Comparar strings YYYY-MM-DD
-        if (reminderDate.toISOString().split('T')[0] === today.toISOString().split('T')[0]) {
-          const { rows: tokens } = await pool.query("SELECT token FROM user_tokens WHERE user_id = $1", [user_id]);
+        if (
+          reminderDate.toISOString().split("T")[0] ===
+          today.toISOString().split("T")[0]
+        ) {
+          const { rows: tokens } = await pool.query(
+            "SELECT token FROM user_tokens WHERE user_id = $1",
+            [user_id],
+          );
 
           if (tokens.length > 0) {
             // Enviar solo al dueño
@@ -1060,14 +1159,20 @@ app.post("/reminders", async (req, res) => {
                     title: "🔔 Nuevo Recordatorio",
                     body: `Para hoy: ${nombre} ($${monto})`,
                   },
-                  token: t.token
+                  token: t.token,
                 });
               } catch (e) {
-                console.error("Error sending immediate notification:", e.message);
+                console.error(
+                  "Error sending immediate notification:",
+                  e.message,
+                );
               }
             }
             // Mark notified
-            await pool.query("UPDATE reminders SET notified_at = NOW() WHERE reminder_id = $1", [newReminder.reminder_id]);
+            await pool.query(
+              "UPDATE reminders SET notified_at = NOW() WHERE reminder_id = $1",
+              [newReminder.reminder_id],
+            );
           }
         }
       } catch (e) {
@@ -1084,53 +1189,52 @@ app.post("/reminders", async (req, res) => {
 });
 
 // Obtener la suma de los saldos iniciales de todas las cuentas
-app.get('/account-balance/:userId', async (req, res) => {
+app.get("/account-balance/:userId", async (req, res) => {
   const { userId } = req.params;
   try {
     const result = await pool.query(
-      'SELECT SUM(balance) as total_initial FROM accounts WHERE user_id = $1',
-      [userId]
+      "SELECT SUM(balance) as total_initial FROM accounts WHERE user_id = $1",
+      [userId],
     );
     // Si no tiene cuentas, retorna 0
     const initialBalance = result.rows[0].total_initial || 0;
     res.json({ success: true, initialBalance: Number(initialBalance) });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Error al obtener balance' });
+    res.status(500).json({ error: "Error al obtener balance" });
   }
 });
 
 // Crear o actualizar una cuenta (Para el botón de "Ajustar Saldo")
 // Simplificado: Crearemos una cuenta llamada "Principal" si no existe, o actualizaremos su saldo
-app.post('/set-initial-balance', async (req, res) => {
+app.post("/set-initial-balance", async (req, res) => {
   const { userId, amount } = req.body;
   try {
     // 1. Buscamos si ya tiene una cuenta "Efectivo/Principal"
     const existing = await pool.query(
-      'SELECT * FROM accounts WHERE user_id = $1 AND name = $2',
-      [userId, 'Principal']
+      "SELECT * FROM accounts WHERE user_id = $1 AND name = $2",
+      [userId, "Principal"],
     );
 
     if (existing.rows.length > 0) {
       // Actualizar
       await pool.query(
-        'UPDATE accounts SET balance = $1 WHERE account_id = $2',
-        [amount, existing.rows[0].account_id]
+        "UPDATE accounts SET balance = $1 WHERE account_id = $2",
+        [amount, existing.rows[0].account_id],
       );
     } else {
       // Crear nueva
       await pool.query(
-        'INSERT INTO accounts (user_id, name, balance) VALUES ($1, $2, $3)',
-        [userId, 'Principal', amount]
+        "INSERT INTO accounts (user_id, name, balance) VALUES ($1, $2, $3)",
+        [userId, "Principal", amount],
       );
     }
     res.json({ success: true });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Error al guardar saldo' });
+    res.status(500).json({ error: "Error al guardar saldo" });
   }
 });
-
 
 app.get("/reminders", async (req, res) => {
   const { userId, sharedId } = req.query;
@@ -1176,7 +1280,9 @@ app.get("/reminders", async (req, res) => {
       creator_name: row.creator_name,
     }));
 
-    console.log(`✅ Recordatorios obtenidos para ${sharedId ? 'shared ' + sharedId : 'user ' + (userId || 'todos')}: ${recordatoriosFormateados.length}`);
+    console.log(
+      `✅ Recordatorios obtenidos para ${sharedId ? "shared " + sharedId : "user " + (userId || "todos")}: ${recordatoriosFormateados.length}`,
+    );
     res.json(recordatoriosFormateados);
   } catch (err) {
     console.error(err);
@@ -1226,7 +1332,6 @@ app.get("/accounts", async (req, res) => {
   }
 });
 
-
 app.get("/exchange-rates/latest", async (req, res) => {
   try {
     const result = await pool.query(
@@ -1250,7 +1355,7 @@ app.post("/send-unimet-verification", async (req, res) => {
   try {
     const userResult = await pool.query(
       "SELECT user_id, email, name, is_premium FROM users WHERE user_id = $1",
-      [user_id]
+      [user_id],
     );
 
     if (userResult.rows.length === 0) {
@@ -1264,11 +1369,15 @@ app.post("/send-unimet-verification", async (req, res) => {
       email.endsWith("@unimet.edu.ve");
 
     if (!isUnimet) {
-      return res.status(400).json({ error: "El correo no es de dominio Unimet" });
+      return res
+        .status(400)
+        .json({ error: "El correo no es de dominio Unimet" });
     }
 
     if (user.is_premium) {
-      return res.status(400).json({ error: "La cuenta ya está verificada como Premium" });
+      return res
+        .status(400)
+        .json({ error: "La cuenta ya está verificada como Premium" });
     }
 
     const verificationToken = crypto.randomBytes(32).toString("hex");
@@ -1276,13 +1385,14 @@ app.post("/send-unimet-verification", async (req, res) => {
 
     await pool.query(
       `UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE user_id = $3`,
-      [verificationToken, tokenExpires, user.user_id]
+      [verificationToken, tokenExpires, user.user_id],
     );
 
     try {
       await sendEmail(
-        user.email, user.name,
-        'Verificación Unimet Premium - Biyuyo',
+        user.email,
+        user.name,
+        "Verificación Unimet Premium - Biyuyo",
         `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
           <div style="background:#2d509e;color:white;padding:20px;text-align:center;border-radius:8px 8px 0 0">
             <h1>Biyuyo</h1><p>Verificación Unimet</p>
@@ -1298,16 +1408,19 @@ app.post("/send-unimet-verification", async (req, res) => {
             </div>
             <p>Si no solicitaste esto, ignora este correo.</p>
           </div>
-        </div>`
+        </div>`,
       );
       console.log(`📧 Token Unimet enviado a ${user.email}`);
-      res.json({ success: true, message: "Código de verificación enviado a tu correo" });
-
+      res.json({
+        success: true,
+        message: "Código de verificación enviado a tu correo",
+      });
     } catch (emailError) {
       console.error("❌ Error Postmark:", emailError);
-      res.status(500).json({ error: `Error al enviar el correo: ${emailError?.message}` });
+      res
+        .status(500)
+        .json({ error: `Error al enviar el correo: ${emailError?.message}` });
     }
-
   } catch (err) {
     console.error("Error en send-unimet-verification:", err);
     res.status(500).json({ error: "Error al procesar la solicitud" });
@@ -1326,7 +1439,7 @@ app.post("/verify-unimet-token", async (req, res) => {
     const userResult = await pool.query(
       `SELECT user_id, email, name, reset_token_expires, is_premium
        FROM users WHERE user_id = $1 AND reset_token = $2`,
-      [user_id, token.trim()]
+      [user_id, token.trim()],
     );
 
     if (userResult.rows.length === 0) {
@@ -1338,17 +1451,21 @@ app.post("/verify-unimet-token", async (req, res) => {
     const now = new Date();
 
     if (now > expiresAt) {
-      return res.status(400).json({ error: "El token ha expirado. Solicita uno nuevo." });
+      return res
+        .status(400)
+        .json({ error: "El token ha expirado. Solicita uno nuevo." });
     }
 
     await pool.query(
       `UPDATE users SET is_premium = true, reset_token = NULL, reset_token_expires = NULL WHERE user_id = $1`,
-      [user.user_id]
+      [user.user_id],
     );
 
     console.log(`⭐ Usuario ${user.email} verificado como Premium`);
-    res.json({ success: true, message: "¡Cuenta verificada! Ahora tienes acceso Premium." });
-
+    res.json({
+      success: true,
+      message: "¡Cuenta verificada! Ahora tienes acceso Premium.",
+    });
   } catch (err) {
     console.error("Error en verify-unimet-token:", err);
     res.status(500).json({ error: "Error al verificar el token" });
@@ -1367,10 +1484,14 @@ app.put("/user/:user_id", async (req, res) => {
   // Validación de nombre: Solo letras y espacios, máximo 30 caracteres
   const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
   if (!nameRegex.test(name)) {
-    return res.status(400).json({ error: "El nombre solo puede contener letras y espacios" });
+    return res
+      .status(400)
+      .json({ error: "El nombre solo puede contener letras y espacios" });
   }
   if (name.length > 30) {
-    return res.status(400).json({ error: "El nombre no puede exceder los 30 caracteres" });
+    return res
+      .status(400)
+      .json({ error: "El nombre no puede exceder los 30 caracteres" });
   }
 
   // Validación de formato de correo
@@ -1383,17 +1504,19 @@ app.put("/user/:user_id", async (req, res) => {
     // Verificar si el correo ya está en uso por OTRO usuario
     const emailCheck = await pool.query(
       "SELECT user_id FROM users WHERE email = $1 AND user_id != $2",
-      [email.toLowerCase(), user_id]
+      [email.toLowerCase(), user_id],
     );
 
     if (emailCheck.rows.length > 0) {
-      return res.status(400).json({ error: "Este correo ya está registrado por otro usuario" });
+      return res
+        .status(400)
+        .json({ error: "Este correo ya está registrado por otro usuario" });
     }
 
     // Actualizar usuario
     const result = await pool.query(
       "UPDATE users SET name = $1, email = $2 WHERE user_id = $3 RETURNING user_id, name, email, is_premium",
-      [name, email.toLowerCase(), user_id]
+      [name, email.toLowerCase(), user_id],
     );
 
     if (result.rows.length === 0) {
@@ -1414,7 +1537,7 @@ app.get("/user/:user_id", async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT user_id, name, email, is_premium FROM users WHERE user_id = $1",
-      [user_id]
+      [user_id],
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Usuario no encontrado" });
@@ -1432,14 +1555,21 @@ app.post("/expenses/:expense_id/feedback", async (req, res) => {
   const { user_id, feedback } = req.body;
 
   // Validar que feedback sea 1, 0 o -1
-  if (feedback === undefined || feedback === null || ![1, 0, -1].includes(Number(feedback))) {
+  if (
+    feedback === undefined ||
+    feedback === null ||
+    ![1, 0, -1].includes(Number(feedback))
+  ) {
     return res.status(400).json({
-      error: "Feedback inválido. Debe ser 1 (buena decisión), 0 (neutral) o -1 (me arrepentí)"
+      error:
+        "Feedback inválido. Debe ser 1 (buena decisión), 0 (neutral) o -1 (me arrepentí)",
     });
   }
 
   if (!expense_id || !user_id) {
-    return res.status(400).json({ error: "expense_id y user_id son requeridos" });
+    return res
+      .status(400)
+      .json({ error: "expense_id y user_id son requeridos" });
   }
 
   try {
@@ -1451,7 +1581,9 @@ app.post("/expenses/:expense_id/feedback", async (req, res) => {
     const checkResult = await pool.query(checkQuery, [expense_id, user_id]);
 
     if (checkResult.rows.length === 0) {
-      return res.status(404).json({ error: "Gasto no encontrado o no pertenece al usuario" });
+      return res
+        .status(404)
+        .json({ error: "Gasto no encontrado o no pertenece al usuario" });
     }
 
     // Guardar el feedback
@@ -1461,23 +1593,26 @@ app.post("/expenses/:expense_id/feedback", async (req, res) => {
       WHERE expense_id = $2 AND user_id = $3
       RETURNING expense_id, user_feedback
     `;
-    const result = await pool.query(updateQuery, [Number(feedback), expense_id, user_id]);
+    const result = await pool.query(updateQuery, [
+      Number(feedback),
+      expense_id,
+      user_id,
+    ]);
 
     // También actualizar el label en expense_ml_features si existe
     await pool.query(
       `UPDATE expense_ml_features 
        SET label = $1, updated_at = NOW() 
        WHERE expense_id = $2`,
-      [Number(feedback), expense_id]
+      [Number(feedback), expense_id],
     );
 
     console.log(`✅ Feedback guardado: gasto ${expense_id} → ${feedback}`);
     res.json({
       success: true,
       expense_id: result.rows[0].expense_id,
-      feedback: result.rows[0].user_feedback
+      feedback: result.rows[0].user_feedback,
     });
-
   } catch (err) {
     console.error("Error guardando feedback:", err);
     res.status(500).json({ error: err.message });
@@ -1530,7 +1665,9 @@ app.get("/expenses/:expense_id/features", async (req, res) => {
     const result = await pool.query(query, [expense_id, user_id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Features no encontrados para este gasto" });
+      return res
+        .status(404)
+        .json({ error: "Features no encontrados para este gasto" });
     }
 
     res.json({ success: true, features: result.rows[0] });
@@ -1567,17 +1704,19 @@ app.get("/ml/summary/:user_id", async (req, res) => {
       success: true,
       summary: result.rows[0],
       ready_for_training: parseInt(result.rows[0].labeled_expenses) >= 50,
-      message: parseInt(result.rows[0].labeled_expenses) < 50
-        ? `Necesitas ${50 - parseInt(result.rows[0].labeled_expenses)} gastos con feedback más para entrenar el modelo`
-        : "¡Tienes suficientes datos para entrenar el modelo!"
+      message:
+        parseInt(result.rows[0].labeled_expenses) < 50
+          ? `Necesitas ${50 - parseInt(result.rows[0].labeled_expenses)} gastos con feedback más para entrenar el modelo`
+          : "¡Tienes suficientes datos para entrenar el modelo!",
     });
   } catch (err) {
     console.error("Error obteniendo resumen ML:", err);
     res.status(500).json({ error: err.message });
   }
 });
-// --- ELIMINAR GASTO ---
-app.delete("/expenses/:expense_id", async (req, res) => {
+
+// --- "ELIMINAR" GASTO (pone total_amount en 0) ---
+app.patch("/expenses/:expense_id/zero", async (req, res) => {
   const { expense_id } = req.params;
   const { user_id } = req.query;
 
@@ -1586,22 +1725,190 @@ app.delete("/expenses/:expense_id", async (req, res) => {
   }
 
   try {
-    // Delete ML features first (foreign key)
-    await pool.query(
-      "DELETE FROM expense_ml_features WHERE expense_id = $1",
-      [expense_id]
-    );
-
     const result = await pool.query(
-      "DELETE FROM expenses WHERE expense_id = $1 AND user_id = $2 RETURNING expense_id",
-      [expense_id, user_id]
+      `UPDATE expenses
+       SET total_amount = 0
+       WHERE expense_id = $1::uuid AND user_id = $2::uuid
+       RETURNING expense_id`,
+      [expense_id, user_id],
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Gasto no encontrado o no autorizado" });
+      return res
+        .status(404)
+        .json({ error: "Gasto no encontrado o no autorizado" });
     }
 
-    console.log(`🗑️ Gasto eliminado: ${expense_id}`);
+    console.log(`🚫 Gasto ocultado (amount=0): ${expense_id}`);
+    res.json({ success: true, zeroed_id: expense_id });
+  } catch (err) {
+    console.error("Error ocultando gasto:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- "ELIMINAR" INGRESO (pone total_amount en 0) ---
+app.patch("/incomes/:income_id/zero", async (req, res) => {
+  const { income_id } = req.params;
+  const { user_id } = req.query;
+
+  if (!user_id) {
+    return res.status(400).json({ error: "user_id es requerido" });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE incomes
+       SET total_amount = 0
+       WHERE income_id = $1::uuid AND user_id = $2::uuid
+       RETURNING income_id`,
+      [income_id, user_id],
+    );
+
+    if (result.rows.length === 0) {
+      return res
+        .status(404)
+        .json({ error: "Ingreso no encontrado o no autorizado" });
+    }
+
+    console.log(`🚫 Ingreso ocultado (amount=0): ${income_id}`);
+    res.json({ success: true, zeroed_id: income_id });
+  } catch (err) {
+    console.error("Error ocultando ingreso:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- "ELIMINAR" RECORDATORIO (pone total_amount en 0) ---
+app.patch("/reminders/:reminder_id/zero", async (req, res) => {
+  const { reminder_id } = req.params;
+  const { user_id } = req.query;
+
+  if (!user_id) {
+    return res.status(400).json({ error: "user_id es requerido" });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE reminders
+       SET total_amount = 0
+       WHERE reminder_id = $1::uuid AND user_id = $2::uuid
+       RETURNING reminder_id`,
+      [reminder_id, user_id],
+    );
+
+    if (result.rows.length === 0) {
+      return res
+        .status(404)
+        .json({ error: "Recordatorio no encontrado o no autorizado" });
+    }
+
+    console.log(`🚫 Recordatorio ocultado (amount=0): ${reminder_id}`);
+    res.json({ success: true, zeroed_id: reminder_id });
+  } catch (err) {
+    console.error("Error ocultando recordatorio:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+// --- PAGAR RECORDATORIO (crea gasto + pone reminder en 0) ---
+app.patch("/reminders/:reminder_id/pay", async (req, res) => {
+  const { reminder_id } = req.params;
+  const { user_id } = req.query;
+
+  if (!user_id) {
+    return res.status(400).json({ error: "user_id es requerido" });
+  }
+
+  try {
+    // 1. Obtener datos del recordatorio
+    const reminderResult = await pool.query(
+      `SELECT * FROM reminders
+       WHERE reminder_id = $1::uuid AND user_id = $2::uuid`,
+      [reminder_id, user_id],
+    );
+
+    if (reminderResult.rows.length === 0) {
+      return res
+        .status(404)
+        .json({ error: "Recordatorio no encontrado o no autorizado" });
+    }
+
+    const reminder = reminderResult.rows[0];
+
+    // 2. Crear el gasto con los datos del recordatorio
+    const expenseResult = await pool.query(
+      `INSERT INTO expenses (macrocategoria, categoria, negocio, total_amount, user_id, shared_id)
+       VALUES ($1, $2, $3, $4, $5::uuid, $6)
+       RETURNING *`,
+      [
+        reminder.macrocategoria,
+        reminder.categoria,
+        reminder.negocio,
+        reminder.total_amount,
+        user_id,
+        reminder.shared_id || null,
+      ],
+    );
+
+    const newExpense = expenseResult.rows[0];
+
+    // 3. Poner el recordatorio en 0 (ocultarlo)
+    await pool.query(
+      `UPDATE reminders SET total_amount = 0 WHERE reminder_id = $1::uuid`,
+      [reminder_id],
+    );
+
+    console.log(
+      `✅ Recordatorio pagado: ${reminder_id} → gasto creado: ${newExpense.expense_id}`,
+    );
+    res.json({ success: true, expense: newExpense });
+  } catch (err) {
+    console.error("Error pagando recordatorio:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+// --- ELIMINAR GASTO ---
+app.delete("/expenses/:expense_id", async (req, res) => {
+  const { expense_id } = req.params;
+  const { user_id } = req.query;
+
+  console.log(`🗑️ DELETE /expenses/${expense_id} - user_id: ${user_id}`);
+
+  if (!user_id) {
+    return res.status(400).json({ error: "user_id es requerido" });
+  }
+
+  try {
+    // 1. Verificar que el gasto existe y pertenece al usuario
+    const check = await pool.query(
+      "SELECT expense_id, user_id FROM expenses WHERE expense_id = $1::uuid",
+      [expense_id],
+    );
+
+    console.log(`🔍 Gasto encontrado:`, check.rows);
+
+    if (check.rows.length === 0) {
+      return res.status(404).json({ error: "Gasto no encontrado" });
+    }
+
+    if (check.rows[0].user_id !== user_id) {
+      return res
+        .status(403)
+        .json({ error: "No autorizado para eliminar este gasto" });
+    }
+
+    // 2. Eliminar ML features primero (foreign key)
+    await pool.query(
+      "DELETE FROM expense_ml_features WHERE expense_id = $1::uuid",
+      [expense_id],
+    );
+
+    // 3. Eliminar el gasto
+    await pool.query("DELETE FROM expenses WHERE expense_id = $1::uuid", [
+      expense_id,
+    ]);
+
+    console.log(`✅ Gasto eliminado: ${expense_id}`);
     res.json({ success: true, deleted_id: expense_id });
   } catch (err) {
     console.error("Error eliminando gasto:", err);
@@ -1614,21 +1921,35 @@ app.delete("/incomes/:income_id", async (req, res) => {
   const { income_id } = req.params;
   const { user_id } = req.query;
 
+  console.log(`🗑️ DELETE /incomes/${income_id} - user_id: ${user_id}`);
+
   if (!user_id) {
     return res.status(400).json({ error: "user_id es requerido" });
   }
 
   try {
-    const result = await pool.query(
-      "DELETE FROM incomes WHERE income_id = $1 AND user_id = $2 RETURNING income_id",
-      [income_id, user_id]
+    const check = await pool.query(
+      "SELECT income_id, user_id FROM incomes WHERE income_id = $1::uuid",
+      [income_id],
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Ingreso no encontrado o no autorizado" });
+    console.log(`🔍 Ingreso encontrado:`, check.rows);
+
+    if (check.rows.length === 0) {
+      return res.status(404).json({ error: "Ingreso no encontrado" });
     }
 
-    console.log(`🗑️ Ingreso eliminado: ${income_id}`);
+    if (check.rows[0].user_id !== user_id) {
+      return res
+        .status(403)
+        .json({ error: "No autorizado para eliminar este ingreso" });
+    }
+
+    await pool.query("DELETE FROM incomes WHERE income_id = $1::uuid", [
+      income_id,
+    ]);
+
+    console.log(`✅ Ingreso eliminado: ${income_id}`);
     res.json({ success: true, deleted_id: income_id });
   } catch (err) {
     console.error("Error eliminando ingreso:", err);
@@ -1641,21 +1962,35 @@ app.delete("/reminders/:reminder_id", async (req, res) => {
   const { reminder_id } = req.params;
   const { user_id } = req.query;
 
+  console.log(`🗑️ DELETE /reminders/${reminder_id} - user_id: ${user_id}`);
+
   if (!user_id) {
     return res.status(400).json({ error: "user_id es requerido" });
   }
 
   try {
-    const result = await pool.query(
-      "DELETE FROM reminders WHERE reminder_id = $1 AND user_id = $2 RETURNING reminder_id",
-      [reminder_id, user_id]
+    const check = await pool.query(
+      "SELECT reminder_id, user_id FROM reminders WHERE reminder_id = $1::uuid",
+      [reminder_id],
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Recordatorio no encontrado o no autorizado" });
+    console.log(`🔍 Recordatorio encontrado:`, check.rows);
+
+    if (check.rows.length === 0) {
+      return res.status(404).json({ error: "Recordatorio no encontrado" });
     }
 
-    console.log(`🗑️ Recordatorio eliminado: ${reminder_id}`);
+    if (check.rows[0].user_id !== user_id) {
+      return res
+        .status(403)
+        .json({ error: "No autorizado para eliminar este recordatorio" });
+    }
+
+    await pool.query("DELETE FROM reminders WHERE reminder_id = $1::uuid", [
+      reminder_id,
+    ]);
+
+    console.log(`✅ Recordatorio eliminado: ${reminder_id}`);
     res.json({ success: true, deleted_id: reminder_id });
   } catch (err) {
     console.error("Error eliminando recordatorio:", err);

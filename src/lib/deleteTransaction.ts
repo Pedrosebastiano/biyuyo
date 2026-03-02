@@ -3,11 +3,10 @@ import { getApiUrl } from "@/lib/config";
 const API_URL = getApiUrl();
 
 export async function deleteExpense(expenseId: string, userId: string): Promise<void> {
-  // expenseId comes as "exp-<uuid>" from useTransactions, strip prefix
   const rawId = expenseId.startsWith("exp-") ? expenseId.replace("exp-", "") : expenseId;
 
-  const res = await fetch(`${API_URL}/expenses/${rawId}?user_id=${userId}`, {
-    method: "DELETE",
+  const res = await fetch(`${API_URL}/expenses/${rawId}/zero?user_id=${userId}`, {
+    method: "PATCH",
   });
 
   if (!res.ok) {
@@ -17,11 +16,10 @@ export async function deleteExpense(expenseId: string, userId: string): Promise<
 }
 
 export async function deleteIncome(incomeId: string, userId: string): Promise<void> {
-  // incomeId comes as "inc-<uuid>"
   const rawId = incomeId.startsWith("inc-") ? incomeId.replace("inc-", "") : incomeId;
 
-  const res = await fetch(`${API_URL}/incomes/${rawId}?user_id=${userId}`, {
-    method: "DELETE",
+  const res = await fetch(`${API_URL}/incomes/${rawId}/zero?user_id=${userId}`, {
+    method: "PATCH",
   });
 
   if (!res.ok) {
@@ -31,8 +29,8 @@ export async function deleteIncome(incomeId: string, userId: string): Promise<vo
 }
 
 export async function deleteReminder(reminderId: string, userId: string): Promise<void> {
-  const res = await fetch(`${API_URL}/reminders/${reminderId}?user_id=${userId}`, {
-    method: "DELETE",
+  const res = await fetch(`${API_URL}/reminders/${reminderId}/zero?user_id=${userId}`, {
+    method: "PATCH",
   });
 
   if (!res.ok) {
