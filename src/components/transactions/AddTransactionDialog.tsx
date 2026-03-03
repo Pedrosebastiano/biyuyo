@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingDown, TrendingUp, Bell } from "lucide-react";
@@ -37,6 +38,7 @@ export function AddTransactionDialog({ open, onOpenChange, initialTab = "expense
       <DialogContent className="sm:max-w-[500px] border-2 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Nueva Transacción</DialogTitle>
+          <DialogDescription className="hidden">Agrega una nueva transacción a tu registro.</DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

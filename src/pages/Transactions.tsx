@@ -346,7 +346,7 @@ export default function Transactions() {
 
           try {
             const API_URL = getApiUrl();
-            const res = await fetch(`${API_URL}`, {
+            const res = await fetch(`${API_URL}/api/smart-assistant`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ text, user_id: user.user_id })
