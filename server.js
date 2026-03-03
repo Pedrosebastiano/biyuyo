@@ -724,6 +724,83 @@ app.get("/users", async (req, res) => {
   }
 });
 
+// --- METAS DE AHORRO (SAVINGS GOALS) ---
+
+// Obtener metas de un usuario
+app.get("/goals/:userId", async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const result = await pool.query(
+      "SELECT * FROM goals WHERE user_id = $1 ORDER BY created_at DESC",
+      [userId],
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching goals:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Crear nueva meta
+app.post("/goals", async (req, res) => {
+  const { user_id, title, target_amount, current_amount, deadline, icon } = req.body;
+
+  if (!user_id || !title || !target_amount) {
+    return res.status(400).json({ error: "Faltan campos obligatorios" });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO goals (user_id, title, target_amount, current_amount, deadline, icon)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [user_id, title, target_amount, current_amount || 0, deadline, icon || "target"],
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error("Error creating goal:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Eliminar meta
+app.delete("/goals/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      "DELETE FROM goals WHERE id = $1 RETURNING *",
+      [id],
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Meta no encontrada" });
+    }
+    res.json({ message: "Meta eliminada correctamente", goal: result.rows[0] });
+  } catch (err) {
+    console.error("Error deleting goal:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Actualizar progreso de meta
+app.patch("/goals/:id", async (req, res) => {
+  const { id } = req.params;
+  const { current_amount } = req.body;
+
+  try {
+    const result = await pool.query(
+      "UPDATE goals SET current_amount = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+      [current_amount, id],
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Meta no encontrada" });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error updating goal:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- PERFILES COMPARTIDOS (SHARED PROFILES) ---
 
 // Crear perfil compartido
