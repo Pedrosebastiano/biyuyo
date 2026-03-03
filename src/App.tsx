@@ -21,6 +21,7 @@ import { SharedProfileProvider } from "@/contexts/SharedProfileContext";
 import { PrivacyProvider } from "@/contexts/PrivacyContext";
 import Goals from "./pages/Goals"; // Importamos la nueva página de Metas
 import Configuration from "./pages/Configuration.tsx"; // Importamos la nueva página de Configuración
+import Appearance from "./pages/Appearance.tsx"; // Importamos la nueva página de Apariencia
 
 const queryClient = new QueryClient();
 
@@ -60,6 +61,7 @@ const AppRoutes = () => (
     <Route path="/shared/join/:shareCode" element={<ProtectedRoute><JoinSharedProfile /></ProtectedRoute>} />
     <Route path="/goals" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
     <Route path="/configuration" element={<ProtectedRoute><Configuration /></ProtectedRoute>} />
+    <Route path="/appearance" element={<ProtectedRoute><Appearance /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

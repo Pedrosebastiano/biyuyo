@@ -13,6 +13,7 @@ import {
   Moon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 // Subcomponente para cada fila de configuración
 function SettingsItem({ icon: Icon, title, subtitle, color, onClick }: any) {
@@ -37,6 +38,7 @@ function SettingsItem({ icon: Icon, title, subtitle, color, onClick }: any) {
 
 export default function Settings() {
   const { user } = useAuth(); 
+  const navigate = useNavigate();
 
   if (!user) {
     return (
@@ -106,7 +108,8 @@ export default function Settings() {
                 title="Apariencia" 
                 subtitle="Tema claro y oscuro" 
                 color="bg-slate-700" 
-              />
+                onClick={() => navigate("/appearance")} // <--- Agregas el evento onClick
+              /> 
             </section>
 
             {/* Sección Destacada de la App (PWA) */}
