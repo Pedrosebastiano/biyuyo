@@ -16,6 +16,8 @@ import { getApiUrl } from "@/lib/config";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
+import { DatePicker } from "@/components/ui/date-picker";
+
 const API_URL = getApiUrl();
 
 interface AddGoalDialogProps {
@@ -36,10 +38,14 @@ export function AddGoalDialog({ open, onOpenChange, onSuccess }: AddGoalDialogPr
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedIcon, setSelectedIcon] = useState("target");
+  const [date, setDate] = useState<Date | undefined>();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !date) {
+      if (!date) toast.error("Por favor selecciona una fecha límite");
+      return;
+    }
 
     setLoading(true);
     const formData = new FormData(e.currentTarget as HTMLFormElement);
@@ -49,7 +55,7 @@ export function AddGoalDialog({ open, onOpenChange, onSuccess }: AddGoalDialogPr
       title: formData.get("title"),
       target_amount: parseFloat(formData.get("target_amount") as string),
       current_amount: parseFloat(formData.get("current_amount") as string) || 0,
-      deadline: formData.get("deadline"),
+      deadline: date.toISOString().split('T')[0], // yyyy-mm-dd
       icon: selectedIcon,
     };
 
@@ -64,6 +70,7 @@ export function AddGoalDialog({ open, onOpenChange, onSuccess }: AddGoalDialogPr
         toast.success("¡Meta creada con éxito!");
         onSuccess?.();
         onOpenChange(false);
+        setDate(undefined); // Reset state
       } else {
         const error = await response.json();
         toast.error(`Error: ${error.error}`);
@@ -121,7 +128,7 @@ export function AddGoalDialog({ open, onOpenChange, onSuccess }: AddGoalDialogPr
                 id="title"
                 name="title"
                 placeholder="Ej. Viaje a la playa"
-                className="rounded-xl border-muted-foreground/20 focus-visible:ring-primary"
+                className="rounded-xl border-muted-foreground/20 focus-visible:ring-primary h-12"
                 required
               />
             </div>
@@ -137,7 +144,7 @@ export function AddGoalDialog({ open, onOpenChange, onSuccess }: AddGoalDialogPr
                     type="number"
                     step="0.01"
                     placeholder="0.00"
-                    className="pl-9 rounded-xl"
+                    className="pl-9 rounded-xl h-12"
                     required
                   />
                 </div>
@@ -152,7 +159,7 @@ export function AddGoalDialog({ open, onOpenChange, onSuccess }: AddGoalDialogPr
                     type="number"
                     step="0.01"
                     placeholder="0.00"
-                    className="pl-9 rounded-xl"
+                    className="pl-9 rounded-xl h-12"
                   />
                 </div>
               </div>
@@ -160,16 +167,11 @@ export function AddGoalDialog({ open, onOpenChange, onSuccess }: AddGoalDialogPr
 
             <div className="space-y-2">
               <Label htmlFor="deadline">Fecha Límite</Label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="deadline"
-                  name="deadline"
-                  type="date"
-                  className="pl-9 rounded-xl"
-                  required
-                />
-              </div>
+              <DatePicker
+                date={date}
+                setDate={setDate}
+                placeholder="Selecciona una fecha"
+              />
             </div>
           </div>
 

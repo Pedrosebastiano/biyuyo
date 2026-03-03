@@ -4,7 +4,7 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
-import { Plus, Target, TrendingUp, Calendar, Trash2 } from "lucide-react";
+import { Plus, Target, TrendingUp, Calendar, Trash2, Rocket, Star, Heart, Briefcase } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGoals } from "@/hooks/useGoals";
 import { AddGoalDialog } from "@/goals/AddGoalDialog";
@@ -25,6 +25,14 @@ import {
 
 const API_URL = getApiUrl();
 
+const iconMap: Record<string, any> = {
+  target: Target,
+  travel: Rocket,
+  savings: Star,
+  personal: Heart,
+  work: Briefcase,
+};
+
 // Componente Interno para la Card de Meta
 function GoalCard({ goal, onDeleted, onOpenUpdate }: {
   goal: any,
@@ -33,6 +41,7 @@ function GoalCard({ goal, onDeleted, onOpenUpdate }: {
 }) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const progress = Math.min((goal.current_amount / goal.target_amount) * 100, 100);
+  const Icon = iconMap[goal.icon] || Target;
 
   const handleDelete = async () => {
     try {
@@ -55,7 +64,7 @@ function GoalCard({ goal, onDeleted, onOpenUpdate }: {
     <div className="relative overflow-hidden rounded-3xl border bg-card p-5 transition-all hover:shadow-md bg-gradient-to-br from-primary/5 to-transparent">
       <div className="flex items-start justify-between mb-4">
         <div className="p-3 rounded-2xl bg-primary text-primary-foreground">
-          <Target size={20} />
+          <Icon size={20} />
         </div>
         <div className="flex gap-2">
           <Button variant="ghost" size="icon" onClick={() => setIsDeleteDialogOpen(true)} className="text-muted-foreground hover:text-destructive h-8 w-8">
