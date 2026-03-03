@@ -11,7 +11,7 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 interface SpeechRecognitionPanelProps {
     isOpen: boolean;
     onClose: () => void;
-    onConfirm: (audioBlob: Blob, text: string) => void;
+    onConfirm: (audioBlob: Blob, text: string, base64Audio: string) => void;
 }
 
 export const SpeechRecognitionPanel: React.FC<SpeechRecognitionPanelProps> = ({ isOpen, onClose, onConfirm }) => {
@@ -138,7 +138,14 @@ export const SpeechRecognitionPanel: React.FC<SpeechRecognitionPanelProps> = ({ 
 
     const handleConfirm = () => {
         if (audioBlob) {
-            onConfirm(audioBlob, transcript);
+            const reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+            reader.onloadend = () => {
+                const dataUrl = reader.result as string;
+                // Strip the "data:audio/webm;base64," prefix to get raw base64
+                const base64Audio = dataUrl.split(',')[1];
+                onConfirm(audioBlob, transcript, base64Audio);
+            };
             onClose();
         }
     };

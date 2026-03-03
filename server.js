@@ -2150,10 +2150,10 @@ app.get("/ml/last-features/:user_id", async (req, res) => {
 
 // --- SMART ASSISTANT (GEMINI API) ---
 app.post("/api/smart-assistant", async (req, res) => {
-  const { text, user_id } = req.body;
+  const { text, audio, mimeType, user_id } = req.body;
 
-  if (!text) {
-    return res.status(400).json({ error: "No text provided" });
+  if (!text && !audio) {
+    return res.status(400).json({ error: "No text or audio provided" });
   }
 
   if (!process.env.GEMINI_SMART_ASSISTANT_API_KEY) {
@@ -2219,14 +2219,33 @@ app.post("/api/smart-assistant", async (req, res) => {
       ]
     }];
 
+    // Build content parts: audio takes priority, text is fallback
+    const userParts = [];
+
+    if (audio) {
+      userParts.push({
+        inlineData: {
+          data: audio,
+          mimeType: mimeType || 'audio/webm'
+        }
+      });
+      userParts.push({
+        text: "Parse this audio recording of a financial transaction. The speaker is describing a financial transaction (expense, income, or reminder). Call the right tool to record it. Numbers and amounts are in Spanish."
+      });
+    } else {
+      userParts.push({
+        text: "Parse the following financial text related to my transactions. Call the right tool to record the transaction.\nText: " + text
+      });
+    }
+
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [
-        { role: 'user', parts: [{ text: "Parse the following financial text related to my transactions. Call the right tool to record the transaction.\nText: " + text }] }
+        { role: 'user', parts: userParts }
       ],
       config: {
         tools: tools,
-        systemInstruction: `You are a specialized smart financial assistant. Your job is to extract financial data accurately from the user's input, which often comes from speech-to-text. Map the data cleanly into the tool schemas. The current date and time is ${new Date().toISOString()}. Use this context to accurately resolve relative dates like 'hoy' (today), 'ayer' (yesterday), or 'mañana' (tomorrow). The input will likely be in Spanish. Provide extracted string values (like categories) in Spanish.`
+        systemInstruction: `You are a specialized smart financial assistant. Your job is to extract financial data accurately from the user's input, which often comes from speech-to-text or audio recordings. Map the data cleanly into the tool schemas. The current date and time is ${new Date().toISOString()}. Use this context to accurately resolve relative dates like 'hoy' (today), 'ayer' (yesterday), or 'mañana' (tomorrow). The input will likely be in Spanish. Provide extracted string values (like categories) in Spanish.`
       }
     });
 

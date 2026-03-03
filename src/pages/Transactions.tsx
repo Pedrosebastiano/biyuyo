@@ -338,7 +338,7 @@ export default function Transactions() {
       <SpeechRecognitionPanel
         isOpen={isSpeechPanelOpen}
         onClose={() => setIsSpeechPanelOpen(false)}
-        onConfirm={async (blob, text) => {
+        onConfirm={async (blob, text, base64Audio) => {
           console.log("Audio capturado Blob:", blob);
           console.log("Texto del Speech Recognition:", text);
 
@@ -349,7 +349,12 @@ export default function Transactions() {
             const res = await fetch(`${API_URL}/api/smart-assistant`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text, user_id: user.user_id })
+              body: JSON.stringify({
+                audio: base64Audio,
+                mimeType: blob.type || 'audio/webm',
+                text,           // still sent as fallback
+                user_id: user.user_id
+              })
             });
             const result = await res.json();
 
