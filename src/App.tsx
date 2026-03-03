@@ -19,6 +19,7 @@ import JoinSharedProfile from "./pages/JoinSharedProfile";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SharedProfileProvider } from "@/contexts/SharedProfileContext";
 import { PrivacyProvider } from "@/contexts/PrivacyContext";
+import Goals from "./pages/Goals"; // Importamos la nueva página de Metas
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,7 @@ const AppRoutes = () => (
     <Route path="/ml" element={<ProtectedRoute><ML /></ProtectedRoute>} />
     <Route path="/shared" element={<ProtectedRoute><SharedProfiles /></ProtectedRoute>} />
     <Route path="/shared/join/:shareCode" element={<ProtectedRoute><JoinSharedProfile /></ProtectedRoute>} />
+    <Route path="/goals" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
