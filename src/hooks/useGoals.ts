@@ -1,26 +1,31 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase"; // O tu cliente de DB
+import { useState, useEffect, useCallback } from "react";
+import { getApiUrl } from "@/lib/config";
+
+const API_URL = getApiUrl();
 
 export function useGoals(userId: string) {
   const [goals, setGoals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchGoals = useCallback(async () => {
     if (!userId) return;
-
-    const fetchGoals = async () => {
-      const { data, error } = await supabase
-        .from("goals")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
-
-      if (!error) setGoals(data);
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/goals/${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setGoals(data);
+      }
+    } catch (error) {
+      console.error("Error fetching goals:", error);
+    } finally {
       setLoading(false);
-    };
-
-    fetchGoals();
+    }
   }, [userId]);
 
-  return { goals, setGoals, loading };
+  useEffect(() => {
+    fetchGoals();
+  }, [fetchGoals]);
+
+  return { goals, setGoals, loading, refreshGoals: fetchGoals };
 }
