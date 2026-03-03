@@ -20,6 +20,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SharedProfileProvider } from "@/contexts/SharedProfileContext";
 import { PrivacyProvider } from "@/contexts/PrivacyContext";
 import Goals from "./pages/Goals"; // Importamos la nueva página de Metas
+import Configuration from "./pages/Configuration.tsx"; // Importamos la nueva página de Configuración
 
 const queryClient = new QueryClient();
 
@@ -58,6 +59,7 @@ const AppRoutes = () => (
     <Route path="/shared" element={<ProtectedRoute><SharedProfiles /></ProtectedRoute>} />
     <Route path="/shared/join/:shareCode" element={<ProtectedRoute><JoinSharedProfile /></ProtectedRoute>} />
     <Route path="/goals" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
+    <Route path="/configuration" element={<ProtectedRoute><Configuration /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
