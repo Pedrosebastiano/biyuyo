@@ -2333,15 +2333,21 @@ NOTA: En el llamado a la herramienta (JSON), la 'Categoría' general se mapea al
 // --- CONFIGURACIÓN DEL PUERTO ---
 const PORT = process.env.PORT || 3001;
 
-app.listen(PORT, async () => {
-  console.log(`🚀 Backend corriendo en el puerto ${PORT}`);
+if (process.env.VERCEL) {
+  // Vercel provides its own server, just export the Express app
+  module.exports = app;
+} else {
+  app.listen(PORT, async () => {
+    console.log(`🚀 Backend corriendo en el puerto ${PORT}`);
 
-  // Verificar la conexión a la base de datos al iniciar
-  try {
-    const client = await pool.connect();
-    console.log("✅ Conexión a la base de datos exitosa");
-    client.release();
-  } catch (err) {
-    console.error("❌ Error al conectar a la base de datos:", err);
-  }
-});
+    // Verificar la conexión a la base de datos al iniciar
+    try {
+      const client = await pool.connect();
+      console.log("✅ Conexión a la base de datos exitosa");
+      client.release();
+    } catch (err) {
+      console.error("❌ Error al conectar a la base de datos:", err);
+    }
+  });
+}
+
