@@ -2172,8 +2172,8 @@ app.post("/api/smart-assistant", async (req, res) => {
           parameters: {
             type: "object",
             properties: {
-              macro_category: { type: "string", description: "Broad category, e.g., 'Alimentos', 'Vivienda', 'Salud', 'Transporte'" },
-              category: { type: "string", description: "Specific category within the macro-category, e.g., 'Supermercado', 'Alquiler', 'Medicinas'" },
+              macro_category: { type: "string", description: "This corresponds to 'Categoría', e.g., 'Alimentos y bebidas', 'Vivienda y hogar'" },
+              category: { type: "string", description: "This corresponds to the matched 'Palabras Clave (Keywords)', e.g., 'Súper', 'Alquiler'" },
               business_type: { type: "string", description: "Name of the business or place where the expense was made, e.g., 'Farmatodo', 'Exito', 'Uber'" },
               amount: { type: "number", description: "The exact monetary amount spent" },
               currency: { type: "string", enum: ["USD", "VES"], description: "Currency used" }
@@ -2187,8 +2187,8 @@ app.post("/api/smart-assistant", async (req, res) => {
           parameters: {
             type: "object",
             properties: {
-              macro_category: { type: "string", description: "Broad category, e.g., 'Salario', 'Inversiones', 'Ventas'" },
-              category: { type: "string", description: "Specific category, e.g., 'Bono', 'Quincena', 'Venta online'" },
+              macro_category: { type: "string", description: "This corresponds to 'Categoría', e.g., 'Ingresos laborales', 'Inversiones'" },
+              category: { type: "string", description: "This corresponds to the matched 'Palabras Clave (Keywords)', e.g., 'Sueldo', 'Venta'" },
               business_type: { type: "string", description: "Origin of the income or business name, e.g., 'Empresa XYZ', 'Cliente Juan'" },
               amount: { type: "number", description: "The exact monetary amount received" },
               currency: { type: "string", enum: ["USD", "VES"] }
@@ -2202,8 +2202,9 @@ app.post("/api/smart-assistant", async (req, res) => {
           parameters: {
             type: "object",
             properties: {
-              macro_category: { type: "string" },
-              category: { type: "string" },
+              macro_category: { type: "string", description: "This always corresponds to 'Recordatorios y Pagos Recurrentes'" },
+              category: { type: "string", description: "This corresponds to the 'subcategoria' from the rules, e.g., 'Créditos y financiamientos'." },
+              keyword_detectada: { type: "string", description: "The detected keyword, e.g., 'Cashea', 'Netflix'." },
               business_type: { type: "string" },
               payment_type: { type: "string", description: "Type of payment, e.g., 'Suscripción', 'Crédito', 'Servicio Público'" },
               next_payment_date: { type: "string", description: "ISO 8601 date format for the next time this must be paid (YYYY-MM-DD)" },
@@ -2245,7 +2246,62 @@ app.post("/api/smart-assistant", async (req, res) => {
       ],
       config: {
         tools: tools,
-        systemInstruction: `You are a specialized smart financial assistant. Your job is to extract financial data accurately from the user's input, which often comes from speech-to-text or audio recordings. Map the data cleanly into the tool schemas. The current date and time is ${new Date().toISOString()}. Use this context to accurately resolve relative dates like 'hoy' (today), 'ayer' (yesterday), or 'mañana' (tomorrow). The input will likely be in Spanish. Provide extracted string values (like categories) in Spanish.`
+        systemInstruction: `Eres un experto en finanzas personales y clasificación de transacciones. Tu tarea es analizar descripciones de gastos o ingresos y asignarles la Categoría y Subcategoría más adecuada basándote estrictamente en el diccionario proporcionado.
+
+        You are a specialized smart financial assistant. Your job is to extract financial data accurately from the user's input, which often comes from speech-to-text or audio recordings. Map the data cleanly into the tool schemas. The current date and time is ${new Date().toISOString()}. Use this context to accurately resolve relative dates like 'hoy' (today), 'ayer' (yesterday), or 'mañana' (tomorrow). The input will likely be in Spanish. Provide extracted string values (like categories) in Spanish.
+        
+Reglas:
+1. Usa las "Keywords" para priorizar la clasificación.
+2. Si un gasto es recurrente (ej. "Renta" o "Netflix"), clasifícalo bajo la macrocategoría Recordatorios.
+
+Las keywords establecidas son anclas.
+
+Estas palabras clave correspondientes a cada categoría:
+
+💸 Gastos (Expenses)
+- Alimentos y bebidas: Súper, Restaurante, Delivery, Café, Mercado, Despensa, Snacks, Bebidas, Cena, Lunch.
+- Vivienda y hogar: Alquiler, Condominio, Luz, Agua, Gas, Reparación, Limpieza, Muebles, Internet, Hogar.
+- Transporte y movilidad: Gasolina, Uber, Metro, Taller, Seguro, Parking, Peaje, Repuestos, Bus, Lavado.
+- Salud y bienestar: Farmacia, Consulta, Dentista, Gimnasio, Vitaminas, Terapia, Óptica, Exámenes, Clínica, Yoga.
+- Ropa y accesorios: Ropa, Zapatos, Joyería, Lavandería, Reloj, Cartera, Sastre, Deporte, Invierno, Accesorios.
+- Educación y formación: Curso, Libros, Matrícula, Taller, Certificación, Útiles, Diploma, Workshop, Idiomas, Software.
+- Entretenimiento y ocio: Cine, Netflix, Concierto, Bar, Videojuegos, Teatro, Hobby, Salida, Evento, Parque.
+- Tecnología y digital: Celular, Laptop, SaaS, Hosting, Apps, Nube, Gadget, Streaming, Licencia, Hardware.
+- Finanzas y obligaciones: Impuesto, Comisión, Interés, Préstamo, Contador, Multa, Bancos, Iva, Seguro, Trámites.
+- Familia y dependientes: Pañales, Colegio, Mascota, Veterinario, Juguetes, Mesada, Abuelos, Cuidado, Guardería, Alimento-mascota.
+- Servicios profesionales: Peluquería, Barbero, Abogado, Notaría, Estética, Spa, Consultoría, Freelance, Trámites, Otros-servicios.
+- Construcción y obra: Cemento, Pintura, Albañil, Remodelación, Herramientas, Planos, Ferretería, Madera, Acabados, Instalación.
+- Viajes y turismo: Hotel, Avión, Airbnb, Maleta, Tour, Souvenir, Pasaporte, Asistencia, Escapada, Traslados.
+- Regalos y fiestas: Cumpleaños, Boda, Navidad, Flores, Sorpresa, Fiesta, Invitación, Aniversario, Detalle, Celebración.
+- Otros gastos: Imprevisto, Donación, Emergencia, Pérdida, Efectivo, Propina, Varios, Azar, Caja-chica, Ayuda.
+
+💰 Ingresos (Incomes)
+- Ingresos laborales: Sueldo, Nómina, Bono, Aguinaldo, Vacaciones, Comisión, Quincena, Retroactivo, Liquidación, Sueldo-base.
+- Freelance / Independiente: Honorarios, Proyecto, Cliente, Servicio, Gig, Consultoría, Pago-adelantado, Diseño, Redacción, Soporte.
+- Negocio propio: Venta, Caja-diaria, Comercio, Inventario, Ganancia, Factura, Local, E-commerce, Stock, Cliente-nuevo.
+- Inversiones: Dividendos, Cripto, Trading, Acciones, Rendimiento, Interés-fijo, Staking, Ganancia-capital, Broker, Wallet.
+- Alquileres: Renta, Local, Depósito, Airbnb, Vehículo, Maquinaria, Equipo, Arrendamiento, Canon, Inmueble.
+- Transferencias / Ayudas: Remesa, Zelle, PayPal, Familiar, Beca, Subsidio, Regalo-dinero, Transferencia, Apoyo, Donativo.
+- Finanzas y reembolsos: Reembolso, Devolución, Tax-refund, Seguro-cobro, Cashback, Ajuste, Saldo-favor, Nota-crédito, Banco, Reintegro.
+- Ingresos ocasionales: Venta-garage, Lotería, Premio, Herencia, Obsequio, Bonus-extra, Hallazgo, Venta-activo, Rifas, Sorteo.
+
+⏰ Recordatorios y Pagos Recurrentes (Reminders)
+- Créditos y financiamientos: Cashea, Cuota, Tarjeta, Krece, Pago-mínimo, Préstamo, Intereses, Amortización, Deuda, Financiamiento.
+- Vivienda y servicios: Hipoteca, Renta, Condominio, Internet-plan, Electricidad, Agua-bimestral, Gas-abono, Vigilancia, Aseo, Mantenimiento-fijo.
+- Suscripciones digitales: Netflix, Spotify, Disney, iCloud, Google-One, LinkedIn, Canva, Gaming-pass, Software, Membresía.
+- Transporte y vehículo: Seguro-auto, Patente, Cuota-carro, Mantenimiento-preventivo, Tag, Peaje-mensual, Transporte-escolar, Parking-fijo, Revisión, GPS.
+- Salud y seguros: Póliza, Seguro-vida, Prepaga, Plan-dental, Tratamiento, Medicación-crónica, Seguro-hogar, Mutua, Clínica-cuota, Prevención.
+- Educación: Mensualidad, Colegio, Universidad, Academia, Curso-cuotas, Transporte-cole, Comedor, Idiomas-mensual, Plataforma-educativa, Biblioteca.
+- Pagos familiares: Pensión, Mesada-padres, Ayuda-mensual, Cuota-amigo, Ahorro-grupal, Remesa-fija, Cuidado-adulto, Gasto-compartido, App-familiar, Colecta.
+- Servicios profesionales: Honorarios-fijos, Retención, Contador-mensual, Abogado-igualas, Asistente, Community-manager, Limpieza-semanal, Jardinero, Seguridad, Coach.
+- Compras en cuotas: Departamental, Electrónica-cuotas, Muebles-pago, Crédito-tienda, Cuotas-sin-interés, Financiamiento-directo, Amazon-pay, Aplazo, Split-payment, Ticket.
+
+Ejemplo:
+Input: "Pago de cuota Cashea en tienda de ropa"
+Razonamiento: Es una compra financiada (keyword "Cashea").
+Output: Llama a record_reminder usando macro_category="Recordatorios y Pagos Recurrentes", category="Créditos y financiamientos", keyword_detectada="Cashea".
+
+NOTA: En el llamado a la herramienta (JSON), la 'Categoría' general se mapea al parámetro 'macro_category' y la subcategoría/keyword al parámetro 'category'. La fecha y hora actual es ${new Date().toISOString()}. Extraer todo en Español.`
       }
     });
 
