@@ -98,12 +98,6 @@ export default function Settings() {
                 Preferencias
               </h2>
               <SettingsItem 
-                icon={Bell} 
-                title="Notificaciones" 
-                subtitle="Alertas de metas y recordatorios" 
-                color="bg-purple-500" 
-              />
-              <SettingsItem 
                 icon={Moon} 
                 title="Apariencia" 
                 subtitle="Tema claro y oscuro" 
