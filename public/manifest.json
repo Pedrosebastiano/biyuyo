@@ -1,0 +1,24 @@
+{
+  "name": "Biyuyo",
+  "short_name": "Biyuyo",
+  "description": "Controla tus ahorros y alcanza tus objetivos financieros de forma sencilla.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2d509e",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "biyuyo_imagen.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "biyuyo_imagen.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
