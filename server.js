@@ -174,7 +174,7 @@ if (process.env.NODE_ENV === "production" || process.env.RENDER) {
   mlServicesReady = true;
 }
 
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
 
 // NOTA DE SEGURIDAD: Eventualmente moveremos esto a variables de entorno.
 const connectionString =
@@ -2152,8 +2152,8 @@ app.get("/ml/last-features/:user_id", async (req, res) => {
 app.post("/api/smart-assistant", async (req, res) => {
   const { text, audio, mimeType, user_id } = req.body;
 
-  if (!text && !audio) {
-    return res.status(400).json({ error: "No text or audio provided" });
+  if (!text) {
+    return res.status(400).json({ error: "No text provided" });
   }
 
   if (!process.env.GEMINI_SMART_ASSISTANT_API_KEY) {
@@ -2220,10 +2220,11 @@ app.post("/api/smart-assistant", async (req, res) => {
       ]
     }];
 
-    // Build content parts: audio takes priority, text is fallback
+    // Build content parts depending on whether audio was provided
     const userParts = [];
 
     if (audio) {
+      // Audio is within size limit: send both audio and text for best accuracy
       userParts.push({
         inlineData: {
           data: audio,
@@ -2231,9 +2232,10 @@ app.post("/api/smart-assistant", async (req, res) => {
         }
       });
       userParts.push({
-        text: "Parse this audio recording of a financial transaction. The speaker is describing a financial transaction (expense, income, or reminder). Call the right tool to record it. Numbers and amounts are in Spanish."
+        text: "Parse this audio recording of a financial transaction. The speaker is describing a transaction (expense, income, or reminder) in Spanish. Also use the following speech-to-text transcription as a hint:\nTranscription: " + text + "\n\nCall the most appropriate tool to record the transaction."
       });
     } else {
+      // Audio too large or unavailable: fall back to speech-to-text transcript only
       userParts.push({
         text: "Parse the following financial text related to my transactions. Call the right tool to record the transaction.\nText: " + text
       });
@@ -2271,7 +2273,7 @@ Estas palabras clave correspondientes a cada categoría:
 - Familia y dependientes: Pañales, Colegio, Mascota, Veterinario, Juguetes, Mesada, Abuelos, Cuidado, Guardería, Alimento-mascota.
 - Servicios profesionales: Peluquería, Barbero, Abogado, Notaría, Estética, Spa, Consultoría, Freelance, Trámites, Otros-servicios.
 - Construcción y obra: Cemento, Pintura, Albañil, Remodelación, Herramientas, Planos, Ferretería, Madera, Acabados, Instalación.
-- Viajes y turismo: Hotel, Avión, Airbnb, Maleta, Tour, Souvenir, Pasaporte, Asistencia, Escapada, Traslados.
+- Viajes y turismo: Hotel, Avión, Airbnb, Maleta, Tour, Souvenir, Pasaporte, Asistencia, Escapada, Traslados, Estadía.
 - Regalos y fiestas: Cumpleaños, Boda, Navidad, Flores, Sorpresa, Fiesta, Invitación, Aniversario, Detalle, Celebración.
 - Otros gastos: Imprevisto, Donación, Emergencia, Pérdida, Efectivo, Propina, Varios, Azar, Caja-chica, Ayuda.
 

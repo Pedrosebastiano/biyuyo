@@ -11,7 +11,7 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 interface SpeechRecognitionPanelProps {
     isOpen: boolean;
     onClose: () => void;
-    onConfirm: (audioBlob: Blob, text: string, base64Audio: string) => void;
+    onConfirm: (audioBlob: Blob, text: string, base64Audio: string | null) => void;
 }
 
 export const SpeechRecognitionPanel: React.FC<SpeechRecognitionPanelProps> = ({ isOpen, onClose, onConfirm }) => {
@@ -136,16 +136,23 @@ export const SpeechRecognitionPanel: React.FC<SpeechRecognitionPanelProps> = ({ 
         setIsRecording(false);
     };
 
+    const MAX_INLINE_BYTES = 20 * 1024 * 1024; // 20 MB — Gemini inline audio limit
+
     const handleConfirm = () => {
         if (audioBlob) {
-            const reader = new FileReader();
-            reader.readAsDataURL(audioBlob);
-            reader.onloadend = () => {
-                const dataUrl = reader.result as string;
-                // Strip the "data:audio/webm;base64," prefix to get raw base64
-                const base64Audio = dataUrl.split(',')[1];
-                onConfirm(audioBlob, transcript, base64Audio);
-            };
+            if (audioBlob.size <= MAX_INLINE_BYTES) {
+                // Within limit: convert to base64 and send alongside text
+                const reader = new FileReader();
+                reader.readAsDataURL(audioBlob);
+                reader.onloadend = () => {
+                    const dataUrl = reader.result as string;
+                    const base64Audio = dataUrl.split(',')[1];
+                    onConfirm(audioBlob, transcript, base64Audio);
+                };
+            } else {
+                // Too large: fall back to text-only
+                onConfirm(audioBlob, transcript, null);
+            }
             onClose();
         }
     };

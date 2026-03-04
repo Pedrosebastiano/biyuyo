@@ -339,8 +339,9 @@ export default function Transactions() {
         isOpen={isSpeechPanelOpen}
         onClose={() => setIsSpeechPanelOpen(false)}
         onConfirm={async (blob, text, base64Audio) => {
-          console.log("Audio capturado Blob:", blob);
+          console.log("Audio capturado Blob:", blob, "size:", blob.size);
           console.log("Texto del Speech Recognition:", text);
+          console.log("Modo:", base64Audio ? "audio + texto" : "solo texto (archivo grande)");
 
           toast.loading("Procesando con el Asistente Inteligente...", { id: "smart-assistant" });
 
@@ -350,9 +351,8 @@ export default function Transactions() {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                audio: base64Audio,
-                mimeType: blob.type || 'audio/webm',
-                text,           // still sent as fallback
+                text,
+                ...(base64Audio ? { audio: base64Audio, mimeType: blob.type || 'audio/webm' } : {}),
                 user_id: user.user_id
               })
             });
