@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,9 +35,10 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface ExpenseFormProps {
   onSubmit: () => void;
+  initialData?: any;
 }
 
-export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
+export function ExpenseForm({ onSubmit, initialData }: ExpenseFormProps) {
   const { user } = useAuth();
   const { activeSharedProfile } = useSharedProfile();
   const { refreshTransactions } = useTransactions(
@@ -55,6 +56,46 @@ export function ExpenseForm({ onSubmit }: ExpenseFormProps) {
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Prefill form from Smart Assistant data
+  useEffect(() => {
+    if (initialData && typeof initialData === 'object') {
+      if (initialData.macro_category) {
+        // Find the macro ID that matches the string name returned by Gemini
+        const macro = macroCategories.find(m => m.name.toLowerCase().includes(initialData.macro_category.toLowerCase()) || initialData.macro_category.toLowerCase().includes(m.name.toLowerCase()));
+        if (macro) {
+          setSelectedMacro(macro.id);
+
+          if (initialData.category) {
+            // Find category
+            const cat = macro.categories.find(c => c.name.toLowerCase().includes(initialData.category.toLowerCase()) || initialData.category.toLowerCase().includes(c.name.toLowerCase()));
+            if (cat) {
+              setSelectedCategory(cat.id);
+
+              if (initialData.business_type) {
+                // Find business or set custom
+                const bus = cat.businessTypes.find(b => b.name.toLowerCase() === initialData.business_type.toLowerCase());
+                if (bus) {
+                  setSelectedBusiness(bus.name);
+                } else {
+                  setSelectedBusiness("custom");
+                  setCustomBusiness(initialData.business_type);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (initialData.amount) {
+        setAmount(initialData.amount.toString());
+      }
+
+      if (initialData.currency === "VES" || initialData.currency === "USD") {
+        setCurrency(initialData.currency);
+      }
+    }
+  }, [initialData]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
