@@ -2245,29 +2245,45 @@ app.post("/api/smart-assistant", async (req, res) => {
       functionDeclarations: [
         {
           name: "record_expense",
-          description: "Records an expense transaction. Use this when the user mentions spending money, buying something, or paying a bill.",
+          description: "Records a one-time expense. DO NOT use this for recurring payments like Netflix or Rent.",
           parameters: {
             type: "object",
             properties: {
-              macro_category: { type: "string", description: "This corresponds to 'Categoría', e.g., 'Alimentos y bebidas', 'Vivienda y hogar'" },
-              category: { type: "string", description: "This corresponds to the matched 'Palabras Clave (Keywords)', e.g., 'Súper', 'Alquiler'" },
-              business_type: { type: "string", description: "Name of the business or place where the expense was made, e.g., 'Farmatodo', 'Exito', 'Uber'" },
-              amount: { type: "number", description: "The exact monetary amount spent" },
-              currency: { type: "string", enum: ["USD", "VES"], description: "Currency used" }
+              macro_category: {
+                type: "string",
+                enum: [
+                  "Alimentos y bebidas", "Vivienda y hogar", "Transporte y movilidad",
+                  "Salud y bienestar", "Ropa y accesorios", "Educación y formación",
+                  "Entretenimiento y ocio", "Tecnología y digital", "Finanzas y obligaciones",
+                  "Familia y dependientes", "Servicios profesionales", "Construcción y obra",
+                  "Viajes y turismo", "Regalos y fiestas", "Otros gastos"
+                ]
+              },
+              category: { type: "string", description: "The specific subcategory or keyword matched." },
+              business_type: { type: "string", description: "Merchant name (e.g., 'Walmart', 'Uber')." },
+              amount: { type: "number" },
+              currency: { type: "string", enum: ["USD", "VES"] }
             },
             required: ["macro_category", "category", "business_type", "amount", "currency"]
           }
         },
         {
           name: "record_income",
-          description: "Records an income transaction. Use this when the user mentions receiving money, getting a salary, or an incoming transfer.",
+          description: "Records an income transaction.",
           parameters: {
             type: "object",
             properties: {
-              macro_category: { type: "string", description: "This corresponds to 'Categoría', e.g., 'Ingresos laborales', 'Inversiones'" },
-              category: { type: "string", description: "This corresponds to the matched 'Palabras Clave (Keywords)', e.g., 'Sueldo', 'Venta'" },
-              business_type: { type: "string", description: "Origin of the income or business name, e.g., 'Empresa XYZ', 'Cliente Juan'" },
-              amount: { type: "number", description: "The exact monetary amount received" },
+              macro_category: {
+                type: "string",
+                enum: [
+                  "Ingresos laborales", "Freelance / Independiente", "Negocio propio",
+                  "Inversiones", "Alquileres", "Transferencias / Ayudas",
+                  "Finanzas y reembolsos", "Ingresos ocasionales"
+                ]
+              },
+              category: { type: "string" },
+              business_type: { type: "string" },
+              amount: { type: "number" },
               currency: { type: "string", enum: ["USD", "VES"] }
             },
             required: ["macro_category", "category", "business_type", "amount", "currency"]
@@ -2275,21 +2291,28 @@ app.post("/api/smart-assistant", async (req, res) => {
         },
         {
           name: "record_reminder",
-          description: "Records a payment reminder, subscription, or installment. Use this when the user talks about a future payment, something they have to pay recurrently, or a purchase made in installments (cuotas).",
+          description: "Records recurring payments, subscriptions, or installments (e.g., Netflix, Cashea).",
           parameters: {
             type: "object",
             properties: {
-              macro_category: { type: "string", description: "This always corresponds to 'Recordatorios y Pagos Recurrentes'" },
-              category: { type: "string", description: "This corresponds to the 'subcategoria' from the rules, e.g., 'Créditos y financiamientos'." },
-              keyword_detectada: { type: "string", description: "The detected keyword, e.g., 'Cashea', 'Netflix'." },
+              macro_category: { type: "string", enum: ["Recordatorios y Pagos Recurrentes"] },
+              category: {
+                type: "string",
+                enum: [
+                  "Créditos y financiamientos", "Vivienda y servicios", "Suscripciones digitales",
+                  "Transporte y vehículo", "Salud y seguros", "Educación",
+                  "Pagos familiares", "Servicios profesionales", "Compras en cuotas"
+                ]
+              },
+              keyword_detectada: { type: "string" },
               business_type: { type: "string" },
-              payment_type: { type: "string", description: "Type of payment, e.g., 'Suscripción', 'Crédito', 'Servicio Público'" },
-              next_payment_date: { type: "string", description: "ISO 8601 date format for the next time this must be paid (YYYY-MM-DD)" },
-              pay_frequency: { type: "string", description: "Frequency of the payment", enum: ["Diario", "Semanal", "Quincenal", "Mensual", "Anual", "Único"] },
+              payment_type: { type: "string" },
+              next_payment_date: { type: "string", description: "YYYY-MM-DD" },
+              pay_frequency: { type: "string", enum: ["Diario", "Semanal", "Quincenal", "Mensual", "Anual", "Único"] },
               amount: { type: "number" },
               currency: { type: "string", enum: ["USD", "VES"] },
-              is_installment: { type: "boolean", description: "True if this is a 'pago en cuotas' (installments)" },
-              total_payments: { type: "number", description: "Total number of payments/installments to make. Only required if is_installment is true." }
+              is_installment: { type: "boolean" },
+              total_payments: { type: "number" }
             },
             required: ["macro_category", "category", "business_type", "next_payment_date", "pay_frequency", "amount", "currency"]
           }
@@ -2297,108 +2320,51 @@ app.post("/api/smart-assistant", async (req, res) => {
       ]
     }];
 
-    // Build content parts depending on whether audio was provided
     const userParts = [];
-
     if (audio) {
-      // Audio is within size limit: send both audio and text for best accuracy
-      userParts.push({
-        inlineData: {
-          data: audio,
-          mimeType: mimeType || 'audio/webm'
-        }
-      });
-      userParts.push({
-        text: "Parse this audio recording of a financial transaction. The speaker is describing a transaction (expense, income, or reminder) in Spanish. Also use the following speech-to-text transcription as a hint:\nTranscription: " + text + "\n\nCall the most appropriate tool to record the transaction."
-      });
+      userParts.push({ inlineData: { data: audio, mimeType: mimeType || 'audio/webm' } });
+      userParts.push({ text: `Analyze this audio. Transcription hint: ${text}` });
     } else {
-      // Audio too large or unavailable: fall back to speech-to-text transcript only
-      userParts.push({
-        text: "Parse the following financial text related to my transactions. Call the right tool to record the transaction.\nText: " + text
-      });
+      userParts.push({ text: `Analyze this transaction: ${text}` });
     }
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        { role: 'user', parts: userParts }
-      ],
-      config: {
-        tools: tools,
-        systemInstruction: `Eres un experto en finanzas personales y clasificación de transacciones. Tu tarea es analizar descripciones de gastos o ingresos y asignarles la Categoría y Subcategoría más adecuada basándote estrictamente en el diccionario proporcionado.
+    const model = ai.getGenerativeModel({
+      model: "gemini-2.0-flash-thinking-preview-01-21",
+      systemInstruction: `You are a financial assistant. Current date: ${new Date().toISOString()}.
+      
+      RULES:
+      1. One-time spending -> record_expense (Check macro_category enum).
+      2. Recurring/Subscriptions/Debt (Netflix, Cashea, Rent) -> record_reminder.
+      3. Receiving money -> record_income.
+      
+      Output ONLY the tool call.`
+    });
 
-        You are a specialized smart financial assistant. Your job is to extract financial data accurately from the user's input, which often comes from speech-to-text or audio recordings. Map the data cleanly into the tool schemas. The current date and time is ${new Date().toISOString()}. Use this context to accurately resolve relative dates like 'hoy' (today), 'ayer' (yesterday), or 'mañana' (tomorrow). The input will likely be in Spanish. Provide extracted string values (like categories) in Spanish.
-        
-Reglas:
-1. Usa las "Keywords" para priorizar la clasificación.
-2. Si un gasto es recurrente (ej. "Renta" o "Netflix"), clasifícalo bajo la macrocategoría Recordatorios.
-
-Las keywords establecidas son anclas.
-
-Estas palabras clave correspondientes a cada categoría:
-
-💸 Gastos (Expenses)
-- Alimentos y bebidas: Súper, Restaurante, Delivery, Café, Mercado, Despensa, Snacks, Bebidas, Cena, Lunch.
-- Vivienda y hogar: Alquiler, Condominio, Luz, Agua, Gas, Reparación, Limpieza, Muebles, Internet, Hogar.
-- Transporte y movilidad: Gasolina, Uber, Metro, Taller, Seguro, Parking, Peaje, Repuestos, Bus, Lavado.
-- Salud y bienestar: Farmacia, Consulta, Dentista, Gimnasio, Vitaminas, Terapia, Óptica, Exámenes, Clínica, Yoga.
-- Ropa y accesorios: Ropa, Zapatos, Joyería, Lavandería, Reloj, Cartera, Sastre, Deporte, Invierno, Accesorios.
-- Educación y formación: Curso, Libros, Matrícula, Taller, Certificación, Útiles, Diploma, Workshop, Idiomas, Software.
-- Entretenimiento y ocio: Cine, Netflix, Concierto, Bar, Videojuegos, Teatro, Hobby, Salida, Evento, Parque.
-- Tecnología y digital: Celular, Laptop, SaaS, Hosting, Apps, Nube, Gadget, Streaming, Licencia, Hardware.
-- Finanzas y obligaciones: Impuesto, Comisión, Interés, Préstamo, Contador, Multa, Bancos, Iva, Seguro, Trámites.
-- Familia y dependientes: Pañales, Colegio, Mascota, Veterinario, Juguetes, Mesada, Abuelos, Cuidado, Guardería, Alimento-mascota.
-- Servicios profesionales: Peluquería, Barbero, Abogado, Notaría, Estética, Spa, Consultoría, Freelance, Trámites, Otros-servicios.
-- Construcción y obra: Cemento, Pintura, Albañil, Remodelación, Herramientas, Planos, Ferretería, Madera, Acabados, Instalación.
-- Viajes y turismo: Hotel, Avión, Airbnb, Maleta, Tour, Souvenir, Pasaporte, Asistencia, Escapada, Traslados, Estadía.
-- Regalos y fiestas: Cumpleaños, Boda, Navidad, Flores, Sorpresa, Fiesta, Invitación, Aniversario, Detalle, Celebración.
-- Otros gastos: Imprevisto, Donación, Emergencia, Pérdida, Efectivo, Propina, Varios, Azar, Caja-chica, Ayuda.
-
-💰 Ingresos (Incomes)
-- Ingresos laborales: Sueldo, Nómina, Bono, Aguinaldo, Vacaciones, Comisión, Quincena, Retroactivo, Liquidación, Sueldo-base.
-- Freelance / Independiente: Honorarios, Proyecto, Cliente, Servicio, Gig, Consultoría, Pago-adelantado, Diseño, Redacción, Soporte.
-- Negocio propio: Venta, Caja-diaria, Comercio, Inventario, Ganancia, Factura, Local, E-commerce, Stock, Cliente-nuevo.
-- Inversiones: Dividendos, Cripto, Trading, Acciones, Rendimiento, Interés-fijo, Staking, Ganancia-capital, Broker, Wallet.
-- Alquileres: Renta, Local, Depósito, Airbnb, Vehículo, Maquinaria, Equipo, Arrendamiento, Canon, Inmueble.
-- Transferencias / Ayudas: Remesa, Zelle, PayPal, Familiar, Beca, Subsidio, Regalo-dinero, Transferencia, Apoyo, Donativo.
-- Finanzas y reembolsos: Reembolso, Devolución, Tax-refund, Seguro-cobro, Cashback, Ajuste, Saldo-favor, Nota-crédito, Banco, Reintegro.
-- Ingresos ocasionales: Venta-garage, Lotería, Premio, Herencia, Obsequio, Bonus-extra, Hallazgo, Venta-activo, Rifas, Sorteo.
-
-⏰ Recordatorios y Pagos Recurrentes (Reminders)
-- Créditos y financiamientos: Cashea, Cuota, Tarjeta, Krece, Pago-mínimo, Préstamo, Intereses, Amortización, Deuda, Financiamiento.
-- Vivienda y servicios: Hipoteca, Renta, Condominio, Internet-plan, Electricidad, Agua-bimestral, Gas-abono, Vigilancia, Aseo, Mantenimiento-fijo.
-- Suscripciones digitales: Netflix, Spotify, Disney, iCloud, Google-One, LinkedIn, Canva, Gaming-pass, Software, Membresía.
-- Transporte y vehículo: Seguro-auto, Patente, Cuota-carro, Mantenimiento-preventivo, Tag, Peaje-mensual, Transporte-escolar, Parking-fijo, Revisión, GPS.
-- Salud y seguros: Póliza, Seguro-vida, Prepaga, Plan-dental, Tratamiento, Medicación-crónica, Seguro-hogar, Mutua, Clínica-cuota, Prevención.
-- Educación: Mensualidad, Colegio, Universidad, Academia, Curso-cuotas, Transporte-cole, Comedor, Idiomas-mensual, Plataforma-educativa, Biblioteca.
-- Pagos familiares: Pensión, Mesada-padres, Ayuda-mensual, Cuota-amigo, Ahorro-grupal, Remesa-fija, Cuidado-adulto, Gasto-compartido, App-familiar, Colecta.
-- Servicios profesionales: Honorarios-fijos, Retención, Contador-mensual, Abogado-igualas, Asistente, Community-manager, Limpieza-semanal, Jardinero, Seguridad, Coach.
-- Compras en cuotas: Departamental, Electrónica-cuotas, Muebles-pago, Crédito-tienda, Cuotas-sin-interés, Financiamiento-directo, Amazon-pay, Aplazo, Split-payment, Ticket.
-
-Ejemplo:
-Input: "Pago de cuota Cashea en tienda de ropa"
-Razonamiento: Es una compra financiada (keyword "Cashea").
-Output: Llama a record_reminder usando macro_category="Recordatorios y Pagos Recurrentes", category="Créditos y financiamientos", keyword_detectada="Cashea".
-
-NOTA: En el llamado a la herramienta (JSON), la 'Categoría' general se mapea al parámetro 'macro_category' y la subcategoría/keyword al parámetro 'category'. La fecha y hora actual es ${new Date().toISOString()}. Extraer todo en Español.`
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: userParts }],
+      tools: tools,
+      generationConfig: {
+        thinkingConfig: { includeThoughts: true }
       }
     });
 
-    const functionCalls = response.functionCalls;
+    const response = result.response;
+    const functionCalls = response.functionCalls();
 
     if (functionCalls && functionCalls.length > 0) {
       const call = functionCalls[0];
       return res.json({
         success: true,
         type: call.name,
-        data: call.args
+        data: call.args,
+        thoughts: response.candidates[0].groundingMetadata?.thoughts || ""
       });
     }
 
     return res.json({
       success: false,
       message: "Could not map text to a transaction.",
-      rawResponse: response.text
+      rawResponse: response.text()
     });
 
   } catch (error) {
