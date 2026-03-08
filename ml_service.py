@@ -12,6 +12,7 @@ import json
 import pickle
 import logging
 import datetime
+import asyncio
 from contextlib import asynccontextmanager
 
 import numpy as np
@@ -43,13 +44,27 @@ DB_URL       = os.getenv("DATABASE_URL") or "postgresql://postgres.pmjjguyibxydz
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 MODEL_BUNDLE = None # Global for Decision Model
 
-# --- LIFESPAN (Pre-load) ---
+# --- LIFESPAN (Non-blocking) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global MODEL_BUNDLE
     log.info("🚀 Consolidated ML Service starting...")
-    # Pre-load Decision Bundle if exists
-    MODEL_BUNDLE = load_decision_model_bundle()
+    
+    # Initialize background model loading
+    async def load_models_bg():
+        global MODEL_BUNDLE
+        log.info("📡 [BG] Iniciando carga de modelos desde Supabase...")
+        try:
+            res = load_decision_model_bundle()
+            MODEL_BUNDLE = res
+            if MODEL_BUNDLE:
+                log.info("✅ [BG] Modelo de decisión cargado con éxito.")
+            else:
+                log.error("❌ [BG] No se pudo cargar el modelo de decisión.")
+        except Exception as e:
+            log.error(f"💥 [BG] Error crítico cargando modelos: {e}")
+
+    asyncio.create_task(load_models_bg())
     yield
     log.info("🛑 Consolidated ML Service shutting down.")
 
@@ -148,7 +163,36 @@ def get_temporal_insight(user_id, cursor):
 @app.get("/health")
 def health():
     log.info("📢 Health check request received")
-    return {"status": "ok", "service": "consolidated", "decision_model_loaded": MODEL_BUNDLE is not None}
+    return {
+        "status": "ok", 
+        "service": "consolidated", 
+        "decision_model_loaded": MODEL_BUNDLE is not None,
+        "python_version": sys.version,
+        "startup_time": datetime.datetime.now().isoformat()
+    }
+
+@app.get("/debug")
+def debug_info():
+    import importlib.metadata
+    packages = ["fastapi", "uvicorn", "xgboost", "pandas", "scikit-learn", "psycopg2-binary", "supabase"]
+    installed = {}
+    for p in packages:
+        try:
+            installed[p] = importlib.metadata.version(p)
+        except importlib.metadata.PackageNotFoundError:
+            installed[p] = "NOT_FOUND"
+
+    return {
+        "sys_path": sys.path,
+        "cwd": os.getcwd(),
+        "python_libs_exists": os.path.exists(PYTHON_LIBS),
+        "installed_packages": installed,
+        "env_vars_present": {
+            "SUPABASE_URL": bool(os.getenv("SUPABASE_URL")),
+            "SUPABASE_KEY": bool(os.getenv("SUPABASE_KEY")),
+            "DATABASE_URL": bool(os.getenv("DATABASE_URL"))
+        }
+    }
 
 # Decision Model Routes
 @app.post("/decision/predict-decision")

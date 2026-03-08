@@ -150,8 +150,8 @@ async function startMLServices() {
   // Health check polling instead of fixed timeout
   const checkHealth = async () => {
     try {
-      console.log("🔍 [HealthCheck] Verificando servicio de IA en http://127.0.0.1:8000/health...");
-      const response = await fetch("http://127.0.0.1:8000/health");
+      const url = "http://127.0.0.1:8000/health";
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         console.log("✅ [HealthCheck] Servicio de IA online:", data);
@@ -159,11 +159,14 @@ async function startMLServices() {
         mlInitializationStatus = "Servicios activos";
         console.log("🚀 INFO: Servicios de IA listos para recibir tráfico.");
       } else {
-        console.warn(`⚠️ [HealthCheck] Servicio respondió con status ${response.status}`);
+        const errorText = `Status ${response.status}`;
+        console.warn(`⚠️ [HealthCheck] Servicio respondió con ${errorText}`);
+        mlInitializationStatus = `Error en health check: ${errorText}. Reintentando...`;
         setTimeout(checkHealth, 3000);
       }
     } catch (err) {
       console.error("❌ [HealthCheck] Error conectando al servicio de IA:", err.message);
+      mlInitializationStatus = `Error de conexión: ${err.message}. ¿El servicio de Python crasheó?`;
       setTimeout(checkHealth, 3000);
     }
   };
