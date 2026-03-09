@@ -105,65 +105,77 @@ function createLocalProxy(targetPort, serviceName) {
   };
 }
 
-app.use("/api/ml", createLocalProxy(8000, "Simulador ML"));
-app.use("/api/decision", createLocalProxy(8001, "IA Decisión"));
+app.get("/api/ai-status", (req, res) => {
+  res.json({
+    ready: mlServicesReady,
+    status: mlInitializationStatus,
+    environment: process.env.NODE_ENV || "development",
+    is_render: !!process.env.RENDER,
+    python_path: path.resolve("./python_libs"),
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get("/api/ping", (req, res) => {
+  res.json({ pong: true, timestamp: new Date().toISOString() });
+});
+
+app.use("/api/ml", createLocalProxy(8000, "ML-Consolidated-API"));
+app.use("/api/decision", createLocalProxy(8000, "ML-Consolidated-API"));
 
 async function startMLServices() {
   console.log("🐍 INFO: Iniciando servicios de IA en segundo plano...");
-  mlInitializationStatus = "Instalando dependencias de Python...";
 
   const pythonLibsDir = path.resolve("./python_libs");
-  if (!fs.existsSync(pythonLibsDir)) {
-    fs.mkdirSync(pythonLibsDir, { recursive: true });
-  }
+  const env = { ...process.env, PYTHONPATH: pythonLibsDir };
 
-  // Ejecutamos la instalación en background
-  const installCmd = `python3 -m pip install --no-cache-dir --upgrade --target ${pythonLibsDir} -r ML/requirements.txt -r ml_decision/requirements.txt --quiet --break-system-packages`;
+  const spawnService = (file, port, name) => {
+    const pythonPath = "python3";
+    console.log(`🤖 Lanzando ${name} en puerto ${port} usando ${pythonPath}...`);
 
-  exec(installCmd, (err) => {
-    if (err) {
-      console.error(
-        "❌ ERROR: Falló la instalación de dependencias Python:",
-        err.message,
-      );
-      mlInitializationStatus = "Error en instalación. Reintentando pronto...";
-      setTimeout(startMLServices, 30000); // Reintento largo
-      return;
+    const proc = spawn(pythonPath, [file], { env });
+
+    proc.on("error", (err) => {
+      console.error(`❌ [${name}] Error FATAL al intentar ejecutar '${pythonPath}':`, err.message);
+      mlInitializationStatus = `Error al lanzar Python: ${err.message}`;
+    });
+
+    proc.stdout.on("data", (data) => console.log(`[${name}] ${data}`));
+    proc.stderr.on("data", (data) => console.error(`[${name} ERROR] ${data}`));
+
+    proc.on("close", (code) => {
+      console.warn(`⚠️ ${name} se cerró con código ${code}. Reiniciando en 5s...`);
+      mlServicesReady = false;
+      mlInitializationStatus = `Servicio se cerró (code ${code}). Reiniciando...`;
+      setTimeout(() => spawnService(file, port, name), 5000);
+    });
+  };
+
+  // Launch only the consolidated service
+  spawnService("ml_service.py", 8000, "ML-Consolidated-API");
+
+  // Health check polling
+  const checkHealth = async () => {
+    try {
+      const url = "http://127.0.0.1:8000/health";
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        console.log("✅ [HealthCheck] Servicio de IA online:", data);
+        mlServicesReady = true;
+        mlInitializationStatus = "Servicios activos";
+      } else {
+        mlInitializationStatus = `Esperando IA... (Status ${response.status})`;
+        setTimeout(checkHealth, 3000);
+      }
+    } catch (err) {
+      mlInitializationStatus = `Conectando... (${err.message})`;
+      setTimeout(checkHealth, 3000);
     }
+  };
 
-    console.log("✅ INFO: Dependencias Python listas.");
-    mlInitializationStatus = "Lanzando APIs de IA...";
-
-    const env = { ...process.env, PYTHONPATH: pythonLibsDir };
-
-    const spawnService = (file, port, name) => {
-      console.log(`🤖 Lanzando ${name} en puerto ${port}...`);
-      const proc = spawn("python3", [file], { env });
-
-      proc.stdout.on("data", (data) => console.log(`[${name}] ${data}`));
-      proc.stderr.on("data", (data) =>
-        console.error(`[${name} ERROR] ${data}`),
-      );
-
-      proc.on("close", (code) => {
-        console.warn(
-          `⚠️ ${name} se cerró con código ${code}. Reiniciando en 5s...`,
-        );
-        mlServicesReady = false;
-        setTimeout(() => spawnService(file, port, name), 5000);
-      });
-    };
-
-    spawnService("ML/api.py", 8000, "Simulador-API");
-    spawnService("ml_decision/decision_api.py", 8001, "Decision-API");
-
-    // Damos unos segundos para que arranquen antes de marcar como listos
-    setTimeout(() => {
-      mlServicesReady = true;
-      mlInitializationStatus = "Servicios activos";
-      console.log("🚀 INFO: Servicios de IA listos para recibir tráfico.");
-    }, 10000);
-  });
+  checkHealth();
 }
 
 // Lanzar orquestación SIN bloquear el event loop principal del servidor

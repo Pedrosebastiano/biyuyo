@@ -8,13 +8,14 @@
     "prestart": "node scripts/cleanup.js",
     "start": "node server.js",
     "start:win": "concurrently \"node server.js\" \"py ml_decision/decision_api.py\" \"py ML/api.py\"",
-    "build": "vite build",
+    "build": "vite build && python3 -m pip install --no-cache-dir --target ./python_libs -r ML/requirements.txt -r ml_decision/requirements.txt --quiet --break-system-packages",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "scraper": "tsx src/scripts/bcv-scraper.ts --once"
+    "scraper": "tsx src/scripts/bcv-scraper.ts --once",
+    "postinstall": "mkdir -p python_libs"
   },
   "dependencies": {
     "@google/genai": "^1.43.0",
