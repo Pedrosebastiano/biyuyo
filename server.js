@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { GoogleGenAI } from "@google/genai";
 import express from "express";
 import pg from "pg";
 import cors from "cors";
@@ -15,6 +16,21 @@ import fs from "fs";
 
 const { Pool } = pg;
 const app = express();
+
+// --- RUTA DE STATUS DE IA (Movida arriba para evitar interferencias) ---
+app.get("/api/ai-status", (req, res) => {
+  res.json({
+    ready: mlServicesReady,
+    status: mlInitializationStatus,
+    environment: process.env.NODE_ENV || "development",
+    is_render: !!process.env.RENDER,
+    python_path: path.resolve("./python_libs"),
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get("/api/ping", (req, res) => res.send("pong"));
 
 // Enable CORS for all origins to avoid issues with Vercel deployment
 // Enable CORS for all origins to avoid issues with Vercel deployment and Localhost
@@ -104,76 +120,69 @@ function createLocalProxy(targetPort, serviceName) {
   };
 }
 
-app.use("/api/ml", createLocalProxy(8000, "Simulador ML"));
-app.use("/api/decision", createLocalProxy(8001, "IA Decisión"));
+app.use("/api/ml", createLocalProxy(8000, "ML Service (Simulador)"));
+app.use("/api/decision", createLocalProxy(8000, "ML Service (Decision)"));
 
 async function startMLServices() {
-  console.log("🐍 INFO: Iniciando servicios de IA en segundo plano...");
-  mlInitializationStatus = "Instalando dependencias de Python...";
+  console.log("🐍 INFO: Iniciando servicio de IA consolidado en segundo plano...");
+  mlInitializationStatus = "Esperando que el servicio de IA esté online...";
 
   const pythonLibsDir = path.resolve("./python_libs");
-  if (!fs.existsSync(pythonLibsDir)) {
-    fs.mkdirSync(pythonLibsDir, { recursive: true });
-  }
+  const env = { ...process.env, PYTHONPATH: pythonLibsDir };
 
-  // Ejecutamos la instalación en background
-  const installCmd = `python3 -m pip install --no-cache-dir --upgrade --target ${pythonLibsDir} -r ML/requirements.txt -r ml_decision/requirements.txt --quiet --break-system-packages`;
+  const spawnService = (file, port, name) => {
+    console.log(`🤖 Lanzando ${name} en puerto ${port}...`);
+    const proc = spawn("python3", [file], { env });
 
-  exec(installCmd, (err) => {
-    if (err) {
-      console.error(
-        "❌ ERROR: Falló la instalación de dependencias Python:",
-        err.message,
-      );
-      mlInitializationStatus = "Error en instalación. Reintentando pronto...";
-      setTimeout(startMLServices, 30000); // Reintento largo
-      return;
+    proc.stdout.on("data", (data) => console.log(`[${name}] ${data}`));
+    proc.stderr.on("data", (data) => console.error(`[${name} ERROR] ${data}`));
+
+    proc.on("close", (code) => {
+      console.warn(`⚠️ ${name} se cerró con código ${code}. Reiniciando en 5s...`);
+      mlServicesReady = false;
+      setTimeout(() => spawnService(file, port, name), 5000);
+    });
+  };
+
+  // Launch consolidated service on port 8000
+  spawnService("ml_service.py", 8000, "ML-Consolidated-API");
+
+  // Health check polling instead of fixed timeout
+  const checkHealth = async () => {
+    try {
+      const url = "http://127.0.0.1:8000/health";
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        console.log("✅ [HealthCheck] Servicio de IA online:", data);
+        mlServicesReady = true;
+        mlInitializationStatus = "Servicios activos";
+        console.log("🚀 INFO: Servicios de IA listos para recibir tráfico.");
+      } else {
+        const errorText = `Status ${response.status}`;
+        console.warn(`⚠️ [HealthCheck] Servicio respondió con ${errorText}`);
+        mlInitializationStatus = `Error en health check: ${errorText}. Reintentando...`;
+        setTimeout(checkHealth, 3000);
+      }
+    } catch (err) {
+      console.error("❌ [HealthCheck] Error conectando al servicio de IA:", err.message);
+      mlInitializationStatus = `Error de conexión: ${err.message}. ¿El servicio de Python crasheó?`;
+      setTimeout(checkHealth, 3000);
     }
+  };
 
-    console.log("✅ INFO: Dependencias Python listas.");
-    mlInitializationStatus = "Lanzando APIs de IA...";
-
-    const env = { ...process.env, PYTHONPATH: pythonLibsDir };
-
-    const spawnService = (file, port, name) => {
-      console.log(`🤖 Lanzando ${name} en puerto ${port}...`);
-      const proc = spawn("python3", [file], { env });
-
-      proc.stdout.on("data", (data) => console.log(`[${name}] ${data}`));
-      proc.stderr.on("data", (data) =>
-        console.error(`[${name} ERROR] ${data}`),
-      );
-
-      proc.on("close", (code) => {
-        console.warn(
-          `⚠️ ${name} se cerró con código ${code}. Reiniciando en 5s...`,
-        );
-        mlServicesReady = false;
-        setTimeout(() => spawnService(file, port, name), 5000);
-      });
-    };
-
-    spawnService("ML/api.py", 8000, "Simulador-API");
-    spawnService("ml_decision/decision_api.py", 8001, "Decision-API");
-
-    // Damos unos segundos para que arranquen antes de marcar como listos
-    setTimeout(() => {
-      mlServicesReady = true;
-      mlInitializationStatus = "Servicios activos";
-      console.log("🚀 INFO: Servicios de IA listos para recibir tráfico.");
-    }, 10000);
-  });
+  setTimeout(checkHealth, 2000);
 }
 
 // Lanzar orquestación SIN bloquear el event loop principal del servidor
 if (process.env.NODE_ENV === "production" || process.env.RENDER) {
   startMLServices();
 } else {
-  // En local, asumimos que el usuario usa 'npm run start:win' que ya lanza todo
+  // En local, asumimos que el usuario usa 'npm run start:win' o similar
   mlServicesReady = true;
 }
 
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
 
 // NOTA DE SEGURIDAD: Eventualmente moveremos esto a variables de entorno.
 const connectionString =
@@ -216,6 +225,8 @@ async function sendEmail(toEmail, toName, subject, htmlContent) {
   }
   return await response.json();
 }
+
+// Route moved to top
 
 // --- RUTA DE PRUEBA ---
 app.get("/", (req, res) => {
@@ -2224,18 +2235,172 @@ app.get("/ml/last-features/:user_id", async (req, res) => {
   }
 });
 
+// --- SMART ASSISTANT (GEMINI API) ---
+app.post("/api/smart-assistant", async (req, res) => {
+  const { text, audio, mimeType, user_id } = req.body;
+
+  if (!text) {
+    return res.status(400).json({ error: "No text provided" });
+  }
+
+  if (!process.env.GEMINI_SMART_ASSISTANT_API_KEY) {
+    console.error("Smart Assistant API Key is missing in environment variables.");
+    return res.status(500).json({ error: "El servicio de asistente inteligente no está configurado." });
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_SMART_ASSISTANT_API_KEY });
+
+    const tools = [{
+      functionDeclarations: [
+        {
+          name: "record_expense",
+          description: "Records a one-time expense. DO NOT use this for recurring payments like Netflix or Rent.",
+          parameters: {
+            type: "object",
+            properties: {
+              macro_category: {
+                type: "string",
+                enum: [
+                  "Alimentos y bebidas", "Vivienda y hogar", "Transporte y movilidad",
+                  "Salud y bienestar", "Ropa y accesorios", "Educación y formación",
+                  "Entretenimiento y ocio", "Tecnología y digital", "Finanzas y obligaciones",
+                  "Familia y dependientes", "Servicios profesionales", "Construcción y obra",
+                  "Viajes y turismo", "Regalos y fiestas", "Otros gastos"
+                ]
+              },
+              category: { type: "string", description: "The specific subcategory or keyword matched." },
+              business_type: { type: "string", description: "Merchant name (e.g., 'Walmart', 'Uber')." },
+              amount: { type: "number" },
+              currency: { type: "string", enum: ["USD", "VES"] }
+            },
+            required: ["macro_category", "category", "business_type", "amount", "currency"]
+          }
+        },
+        {
+          name: "record_income",
+          description: "Records an income transaction.",
+          parameters: {
+            type: "object",
+            properties: {
+              macro_category: {
+                type: "string",
+                enum: [
+                  "Ingresos laborales", "Freelance / Independiente", "Negocio propio",
+                  "Inversiones", "Alquileres", "Transferencias / Ayudas",
+                  "Finanzas y reembolsos", "Ingresos ocasionales"
+                ]
+              },
+              category: { type: "string" },
+              business_type: { type: "string" },
+              amount: { type: "number" },
+              currency: { type: "string", enum: ["USD", "VES"] }
+            },
+            required: ["macro_category", "category", "business_type", "amount", "currency"]
+          }
+        },
+        {
+          name: "record_reminder",
+          description: "Records recurring payments, subscriptions, or installments (e.g., Netflix, Cashea).",
+          parameters: {
+            type: "object",
+            properties: {
+              macro_category: { type: "string", enum: ["Recordatorios y Pagos Recurrentes"] },
+              category: {
+                type: "string",
+                enum: [
+                  "Créditos y financiamientos", "Vivienda y servicios", "Suscripciones digitales",
+                  "Transporte y vehículo", "Salud y seguros", "Educación",
+                  "Pagos familiares", "Servicios profesionales", "Compras en cuotas"
+                ]
+              },
+              keyword_detectada: { type: "string" },
+              business_type: { type: "string" },
+              payment_type: { type: "string" },
+              next_payment_date: { type: "string", description: "YYYY-MM-DD" },
+              pay_frequency: { type: "string", enum: ["Diario", "Semanal", "Quincenal", "Mensual", "Anual", "Único"] },
+              amount: { type: "number" },
+              currency: { type: "string", enum: ["USD", "VES"] },
+              is_installment: { type: "boolean" },
+              total_payments: { type: "number" }
+            },
+            required: ["macro_category", "category", "business_type", "next_payment_date", "pay_frequency", "amount", "currency"]
+          }
+        }
+      ]
+    }];
+
+    const userParts = [];
+    if (audio) {
+      userParts.push({ inlineData: { data: audio, mimeType: mimeType || 'audio/webm' } });
+      userParts.push({ text: `Analyze this audio. Transcription hint: ${text}` });
+    } else {
+      userParts.push({ text: `Analyze this transaction: ${text}` });
+    }
+
+    const model = ai.getGenerativeModel({
+      model: "gemini-2.0-flash-thinking-preview-01-21",
+      systemInstruction: `You are a financial assistant. Current date: ${new Date().toISOString()}.
+      
+      RULES:
+      1. One-time spending -> record_expense (Check macro_category enum).
+      2. Recurring/Subscriptions/Debt (Netflix, Cashea, Rent) -> record_reminder.
+      3. Receiving money -> record_income.
+      
+      Output ONLY the tool call.`
+    });
+
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: userParts }],
+      tools: tools,
+      generationConfig: {
+        thinkingConfig: { includeThoughts: true }
+      }
+    });
+
+    const response = result.response;
+    const functionCalls = response.functionCalls();
+
+    if (functionCalls && functionCalls.length > 0) {
+      const call = functionCalls[0];
+      return res.json({
+        success: true,
+        type: call.name,
+        data: call.args,
+        thoughts: response.candidates[0].groundingMetadata?.thoughts || ""
+      });
+    }
+
+    return res.json({
+      success: false,
+      message: "Could not map text to a transaction.",
+      rawResponse: response.text()
+    });
+
+  } catch (error) {
+    console.error("Error in Smart Assistant API:", error);
+    return res.status(500).json({ error: "Error processing the request with AI" });
+  }
+});
+
 // --- CONFIGURACIÓN DEL PUERTO ---
 const PORT = process.env.PORT || 3001;
 
-app.listen(PORT, async () => {
-  console.log(`🚀 Backend corriendo en el puerto ${PORT}`);
+if (process.env.VERCEL) {
+  // Vercel provides its own server, just export the Express app
+  module.exports = app;
+} else {
+  app.listen(PORT, async () => {
+    console.log(`🚀 Backend corriendo en el puerto ${PORT}`);
 
-  // Verificar la conexión a la base de datos al iniciar
-  try {
-    const client = await pool.connect();
-    console.log("✅ Conexión a la base de datos exitosa");
-    client.release();
-  } catch (err) {
-    console.error("❌ Error al conectar a la base de datos:", err);
-  }
-});
+    // Verificar la conexión a la base de datos al iniciar
+    try {
+      const client = await pool.connect();
+      console.log("✅ Conexión a la base de datos exitosa");
+      client.release();
+    } catch (err) {
+      console.error("❌ Error al conectar a la base de datos:", err);
+    }
+  });
+}
+

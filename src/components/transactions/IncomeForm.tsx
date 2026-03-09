@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,9 +28,10 @@ import { triggerMLTraining } from "@/lib/ml";
 
 interface IncomeFormProps {
   onSubmit: () => void;
+  initialData?: any;
 }
 
-export function IncomeForm({ onSubmit }: IncomeFormProps) {
+export function IncomeForm({ onSubmit, initialData }: IncomeFormProps) {
   const { user } = useAuth();
   const { activeSharedProfile } = useSharedProfile();
   const { refreshTransactions } = useTransactions(
@@ -47,6 +48,43 @@ export function IncomeForm({ onSubmit }: IncomeFormProps) {
   const [currency, setCurrency] = useState<Currency>("USD");
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Prefill form from Smart Assistant data
+  useEffect(() => {
+    if (initialData && typeof initialData === 'object') {
+      if (initialData.macro_category) {
+        const macro = incomeMacroCategories.find(m => m.name.toLowerCase().includes(initialData.macro_category.toLowerCase()) || initialData.macro_category.toLowerCase().includes(m.name.toLowerCase()));
+        if (macro) {
+          setSelectedMacro(macro.id);
+
+          if (initialData.category) {
+            const cat = macro.categories.find(c => c.name.toLowerCase().includes(initialData.category.toLowerCase()) || initialData.category.toLowerCase().includes(c.name.toLowerCase()));
+            if (cat) {
+              setSelectedCategory(cat.id);
+
+              if (initialData.business_type) {
+                const bus = cat.businessTypes.find(b => b.name.toLowerCase() === initialData.business_type.toLowerCase());
+                if (bus) {
+                  setSelectedBusiness(bus.name);
+                } else {
+                  setSelectedBusiness("custom");
+                  setCustomBusiness(initialData.business_type);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (initialData.amount) {
+        setAmount(initialData.amount.toString());
+      }
+
+      if (initialData.currency === "VES" || initialData.currency === "USD") {
+        setCurrency(initialData.currency);
+      }
+    }
+  }, [initialData]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 

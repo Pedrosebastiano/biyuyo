@@ -14,6 +14,10 @@ import { Plus } from "lucide-react";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSharedProfile } from "@/contexts/SharedProfileContext";
+import { SpeechRecognitionBubble } from "@/components/transactions/SpeechRecognitionBubble";
+import { SpeechRecognitionPanel } from "@/components/transactions/SpeechRecognitionPanel";
+import { toast } from "sonner";
+import { getApiUrl } from "@/lib/config";
 
 const defaultFilters: FilterState = {
   category: "",
@@ -32,7 +36,7 @@ export default function Transactions() {
     user?.user_id || "",
     activeSharedProfile?.shared_id
   );
-  
+
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("expenses");
   const [expenseFilters, setExpenseFilters] = useState<FilterState>(defaultFilters);
@@ -42,7 +46,10 @@ export default function Transactions() {
     sortBy: "dueDate",
   });
   const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
-  
+  const [dialogInitialTab, setDialogInitialTab] = useState<"expense" | "income" | "reminder">("expense");
+  const [dialogInitialData, setDialogInitialData] = useState<any>(null);
+  const [isSpeechPanelOpen, setIsSpeechPanelOpen] = useState(false);
+
   // Estado para manejo de borrado instantáneo en UI
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
@@ -242,9 +249,9 @@ export default function Transactions() {
                 </div>
                 <div className="space-y-3">
                   {filteredExpenses.map((expense) => (
-                    <TransactionCard 
-                      key={expense.id} 
-                      {...expense} 
+                    <TransactionCard
+                      key={expense.id}
+                      {...expense}
                       onDeleted={handleDeleted}
                     />
                   ))}
@@ -274,9 +281,9 @@ export default function Transactions() {
                 </div>
                 <div className="space-y-3">
                   {filteredIncome.map((incomeItem) => (
-                    <TransactionCard 
-                      key={incomeItem.id} 
-                      {...incomeItem} 
+                    <TransactionCard
+                      key={incomeItem.id}
+                      {...incomeItem}
                       onDeleted={handleDeleted}
                     />
                   ))}
@@ -307,9 +314,9 @@ export default function Transactions() {
                 </div>
                 <div className="space-y-3">
                   {filteredReminders.map((reminder) => (
-                    <ReminderCard 
-                      key={reminder.id} 
-                      {...reminder} 
+                    <ReminderCard
+                      key={reminder.id}
+                      {...reminder}
                       onDeleted={handleDeleted}
                     />
                   ))}
@@ -327,9 +334,62 @@ export default function Transactions() {
 
       <BottomNav />
 
+      <SpeechRecognitionBubble onClick={() => setIsSpeechPanelOpen(true)} />
+      <SpeechRecognitionPanel
+        isOpen={isSpeechPanelOpen}
+        onClose={() => setIsSpeechPanelOpen(false)}
+        onConfirm={async (blob, text, base64Audio) => {
+          console.log("Audio capturado Blob:", blob, "size:", blob.size);
+          console.log("Texto del Speech Recognition:", text);
+          console.log("Modo:", base64Audio ? "audio + texto" : "solo texto (archivo grande)");
+
+          toast.loading("Procesando con el Asistente Inteligente...", { id: "smart-assistant" });
+
+          try {
+            const API_URL = getApiUrl();
+            const res = await fetch(`${API_URL}/api/smart-assistant`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                text,
+                ...(base64Audio ? { audio: base64Audio, mimeType: blob.type || 'audio/webm' } : {}),
+                user_id: user.user_id
+              })
+            });
+            const result = await res.json();
+
+            if (res.ok && result.success && result.type) {
+              let tab: "expense" | "income" | "reminder" = "expense";
+              if (result.type === "record_income") tab = "income";
+              if (result.type === "record_reminder") tab = "reminder";
+
+              setDialogInitialTab(tab);
+              setDialogInitialData(result.data);
+              setIsTransactionDialogOpen(true);
+
+              toast.success("Información extraída correctamente. Verifica los datos.", { id: "smart-assistant" });
+            } else {
+              console.error("Smart Assistant Parse Error: ", result);
+              toast.error(result.message || "No se pudo extraer información financiera válida.", { id: "smart-assistant" });
+            }
+          } catch (error) {
+            console.error(error);
+            toast.error("Error contactando al asistente inteligente", { id: "smart-assistant" });
+          }
+        }}
+      />
+
       <AddTransactionDialog
         open={isTransactionDialogOpen}
-        onOpenChange={setIsTransactionDialogOpen}
+        onOpenChange={(open) => {
+          setIsTransactionDialogOpen(open);
+          if (!open) {
+            setDialogInitialData(null); // Clear data when closed
+            setDialogInitialTab("expense");
+          }
+        }}
+        initialTab={dialogInitialTab}
+        initialData={dialogInitialData}
       />
     </div>
   );
