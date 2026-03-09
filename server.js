@@ -17,21 +17,6 @@ import fs from "fs";
 const { Pool } = pg;
 const app = express();
 
-// --- RUTA DE STATUS DE IA (Movida arriba para evitar interferencias) ---
-app.get("/api/ai-status", (req, res) => {
-  res.json({
-    ready: mlServicesReady,
-    status: mlInitializationStatus,
-    environment: process.env.NODE_ENV || "development",
-    is_render: !!process.env.RENDER,
-    python_path: path.resolve("./python_libs"),
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString()
-  });
-});
-
-app.get("/api/ping", (req, res) => res.send("pong"));
-
 // Enable CORS for all origins to avoid issues with Vercel deployment
 // Enable CORS for all origins to avoid issues with Vercel deployment and Localhost
 const allowedOrigins = [
@@ -223,7 +208,17 @@ async function sendEmail(toEmail, toName, subject, htmlContent) {
   return await response.json();
 }
 
-// Route moved to top
+// --- RUTA DE STATUS DE IA ---
+app.get("/api/ai-status", (req, res) => {
+  res.json({
+    ready: mlServicesReady,
+    status: mlInitializationStatus,
+    environment: process.env.NODE_ENV || "development",
+    is_render: !!process.env.RENDER,
+    python_path: path.resolve("./python_libs"),
+    uptime: process.uptime(),
+  });
+});
 
 // --- RUTA DE PRUEBA ---
 app.get("/", (req, res) => {
