@@ -8,7 +8,7 @@
     "prestart": "node scripts/cleanup.js",
     "start": "node server.js",
     "start:win": "concurrently \"node server.js\" \"py ml_decision/decision_api.py\" \"py ML/api.py\"",
-    "build": "vite build && python3 -m pip install --no-cache-dir --target ./python_libs -r ML/requirements.txt -r ml_decision/requirements.txt --quiet --break-system-packages",
+    "build": "vite build && (mkdir -p python_libs && python3 -m pip install --no-cache-dir --target ./python_libs -r ML/requirements.txt -r ml_decision/requirements.txt --break-system-packages && echo '✅ Build-time pip install complete') || echo '⚠️ Build-time pip install failed, will fallback to runtime.'",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",

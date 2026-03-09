@@ -125,17 +125,39 @@ app.use("/api/ml", createLocalProxy(8000, "ML-Consolidated-API"));
 app.use("/api/decision", createLocalProxy(8000, "ML-Consolidated-API"));
 
 async function startMLServices() {
-  console.log("🐍 INFO: Iniciando servicios de IA en segundo plano...");
+  console.log("🐍 INFO: Iniciando orquestación de servicios de IA...");
 
   const pythonLibsDir = path.resolve("./python_libs");
-  console.log(`📂 [ML] Verificando ruta de librerías: ${pythonLibsDir}`);
-  if (fs.existsSync(pythonLibsDir)) {
-    console.log("✅ [ML] Directorio python_libs encontrado.");
-    const files = fs.readdirSync(pythonLibsDir);
-    console.log(`📦 [ML] Cantidad de archivos en librerías: ${files.length}`);
-  } else {
-    console.error("❌ [ML] Directorio python_libs NO EXISTE.");
-  }
+  const requirementsPaths = ["ML/requirements.txt", "ml_decision/requirements.txt"];
+
+  const checkAndInstall = async () => {
+    const hasFastapi = fs.existsSync(path.join(pythonLibsDir, "fastapi"));
+    if (!hasFastapi) {
+      console.warn("⚠️ [ML] Librerías faltantes. Iniciando instalación de emergencia (Runtime)...");
+      mlInitializationStatus = "Instalando librerías (Fallback)...";
+
+      if (!fs.existsSync(pythonLibsDir)) fs.mkdirSync(pythonLibsDir, { recursive: true });
+
+      const installCmd = `python3 -m pip install --no-cache-dir --target ${pythonLibsDir} ${requirementsPaths.map(r => `-r ${r}`).join(" ")} --quiet --break-system-packages`;
+
+      return new Promise((resolve) => {
+        exec(installCmd, (err) => {
+          if (err) {
+            console.error("❌ [ML] Falló instalación de emergencia:", err.message);
+            mlInitializationStatus = `Error crítico: ${err.message}`;
+          } else {
+            console.log("✅ [ML] Instalación de emergencia completada.");
+          }
+          resolve();
+        });
+      });
+    } else {
+      console.log("✅ [ML] Librerías detectadas (Build-time).");
+    }
+  };
+
+  await checkAndInstall();
+  mlInitializationStatus = "Lanzando API de IA...";
 
   const env = { ...process.env, PYTHONPATH: pythonLibsDir };
 
@@ -147,7 +169,7 @@ async function startMLServices() {
 
     proc.on("error", (err) => {
       console.error(`❌ [${name}] Error FATAL al intentar ejecutar '${pythonPath}':`, err.message);
-      mlInitializationStatus = `Error al lanzar Python: ${err.message}`;
+      mlInitializationStatus = `Error al lanzar:' ${err.message}`;
     });
 
     proc.stdout.on("data", (data) => console.log(`[${name}] ${data}`));
@@ -161,10 +183,8 @@ async function startMLServices() {
     });
   };
 
-  // Launch only the consolidated service
   spawnService("ml_service.py", 8000, "ML-Consolidated-API");
 
-  // Health check polling
   const checkHealth = async () => {
     try {
       const url = "http://127.0.0.1:8000/health";
