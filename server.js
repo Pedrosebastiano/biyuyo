@@ -105,7 +105,7 @@ function createLocalProxy(targetPort, serviceName) {
   };
 }
 
-app.use("/api/ml", createLocalProxy(8000, "ML Service (Simulador)"));
+app.use("/api/ml", createLocalProxy(8000, "ML Service"));
 app.use("/api/decision", createLocalProxy(8000, "ML Service (Decision)"));
 
 async function startMLServices() {
@@ -135,21 +135,16 @@ async function startMLServices() {
   // Health check polling instead of fixed timeout
   const checkHealth = async () => {
     try {
-      console.log("🔍 [HealthCheck] Verificando servicio de IA en http://127.0.0.1:8000/health...");
       const response = await fetch("http://127.0.0.1:8000/health");
       if (response.ok) {
-        const data = await response.json();
-        console.log("✅ [HealthCheck] Servicio de IA online:", data);
         mlServicesReady = true;
         mlInitializationStatus = "Servicios activos";
         console.log("🚀 INFO: Servicios de IA listos para recibir tráfico.");
       } else {
-        console.warn(`⚠️ [HealthCheck] Servicio respondió con status ${response.status}`);
-        setTimeout(checkHealth, 3000);
+        setTimeout(checkHealth, 2000);
       }
     } catch (err) {
-      console.error("❌ [HealthCheck] Error conectando al servicio de IA:", err.message);
-      setTimeout(checkHealth, 3000);
+      setTimeout(checkHealth, 2000);
     }
   };
 
@@ -207,18 +202,6 @@ async function sendEmail(toEmail, toName, subject, htmlContent) {
   }
   return await response.json();
 }
-
-// --- RUTA DE STATUS DE IA ---
-app.get("/api/ai-status", (req, res) => {
-  res.json({
-    ready: mlServicesReady,
-    status: mlInitializationStatus,
-    environment: process.env.NODE_ENV || "development",
-    is_render: !!process.env.RENDER,
-    python_path: path.resolve("./python_libs"),
-    uptime: process.uptime(),
-  });
-});
 
 // --- RUTA DE PRUEBA ---
 app.get("/", (req, res) => {

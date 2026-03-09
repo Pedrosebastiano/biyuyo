@@ -147,7 +147,6 @@ def get_temporal_insight(user_id, cursor):
 
 @app.get("/health")
 def health():
-    log.info("📢 Health check request received")
     return {"status": "ok", "service": "consolidated", "decision_model_loaded": MODEL_BUNDLE is not None}
 
 # Decision Model Routes
