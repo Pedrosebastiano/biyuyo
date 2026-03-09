@@ -105,57 +105,72 @@ function createLocalProxy(targetPort, serviceName) {
   };
 }
 
-app.use("/api/ml", createLocalProxy(8000, "ML Service"));
-app.use("/api/decision", createLocalProxy(8000, "ML Service (Decision)"));
+app.use("/api/ml", createLocalProxy(8000, "Simulador ML"));
+app.use("/api/decision", createLocalProxy(8001, "IA Decisión"));
 
 async function startMLServices() {
-  console.log("🐍 INFO: Iniciando servicio de IA consolidado en segundo plano...");
-  mlInitializationStatus = "Esperando que el servicio de IA esté online...";
+  console.log("🐍 INFO: Iniciando servicios de IA en segundo plano...");
+  mlInitializationStatus = "Instalando dependencias de Python...";
 
   const pythonLibsDir = path.resolve("./python_libs");
-  const env = { ...process.env, PYTHONPATH: pythonLibsDir };
+  if (!fs.existsSync(pythonLibsDir)) {
+    fs.mkdirSync(pythonLibsDir, { recursive: true });
+  }
 
-  const spawnService = (file, port, name) => {
-    console.log(`🤖 Lanzando ${name} en puerto ${port}...`);
-    const proc = spawn("python3", [file], { env });
+  // Ejecutamos la instalación en background
+  const installCmd = `python3 -m pip install --no-cache-dir --upgrade --target ${pythonLibsDir} -r ML/requirements.txt -r ml_decision/requirements.txt --quiet --break-system-packages`;
 
-    proc.stdout.on("data", (data) => console.log(`[${name}] ${data}`));
-    proc.stderr.on("data", (data) => console.error(`[${name} ERROR] ${data}`));
-
-    proc.on("close", (code) => {
-      console.warn(`⚠️ ${name} se cerró con código ${code}. Reiniciando en 5s...`);
-      mlServicesReady = false;
-      setTimeout(() => spawnService(file, port, name), 5000);
-    });
-  };
-
-  // Launch consolidated service on port 8000
-  spawnService("ml_service.py", 8000, "ML-Consolidated-API");
-
-  // Health check polling instead of fixed timeout
-  const checkHealth = async () => {
-    try {
-      const response = await fetch("http://127.0.0.1:8000/health");
-      if (response.ok) {
-        mlServicesReady = true;
-        mlInitializationStatus = "Servicios activos";
-        console.log("🚀 INFO: Servicios de IA listos para recibir tráfico.");
-      } else {
-        setTimeout(checkHealth, 2000);
-      }
-    } catch (err) {
-      setTimeout(checkHealth, 2000);
+  exec(installCmd, (err) => {
+    if (err) {
+      console.error(
+        "❌ ERROR: Falló la instalación de dependencias Python:",
+        err.message,
+      );
+      mlInitializationStatus = "Error en instalación. Reintentando pronto...";
+      setTimeout(startMLServices, 30000); // Reintento largo
+      return;
     }
-  };
 
-  setTimeout(checkHealth, 2000);
+    console.log("✅ INFO: Dependencias Python listas.");
+    mlInitializationStatus = "Lanzando APIs de IA...";
+
+    const env = { ...process.env, PYTHONPATH: pythonLibsDir };
+
+    const spawnService = (file, port, name) => {
+      console.log(`🤖 Lanzando ${name} en puerto ${port}...`);
+      const proc = spawn("python3", [file], { env });
+
+      proc.stdout.on("data", (data) => console.log(`[${name}] ${data}`));
+      proc.stderr.on("data", (data) =>
+        console.error(`[${name} ERROR] ${data}`),
+      );
+
+      proc.on("close", (code) => {
+        console.warn(
+          `⚠️ ${name} se cerró con código ${code}. Reiniciando en 5s...`,
+        );
+        mlServicesReady = false;
+        setTimeout(() => spawnService(file, port, name), 5000);
+      });
+    };
+
+    spawnService("ML/api.py", 8000, "Simulador-API");
+    spawnService("ml_decision/decision_api.py", 8001, "Decision-API");
+
+    // Damos unos segundos para que arranquen antes de marcar como listos
+    setTimeout(() => {
+      mlServicesReady = true;
+      mlInitializationStatus = "Servicios activos";
+      console.log("🚀 INFO: Servicios de IA listos para recibir tráfico.");
+    }, 10000);
+  });
 }
 
 // Lanzar orquestación SIN bloquear el event loop principal del servidor
 if (process.env.NODE_ENV === "production" || process.env.RENDER) {
   startMLServices();
 } else {
-  // En local, asumimos que el usuario usa 'npm run start:win' o similar
+  // En local, asumimos que el usuario usa 'npm run start:win' que ya lanza todo
   mlServicesReady = true;
 }
 
