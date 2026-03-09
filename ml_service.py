@@ -1,3 +1,11 @@
+import sys
+import os
+
+# Explicitly add the local python_libs to the path
+libs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "python_libs")
+if os.path.exists(libs_path):
+    sys.path.insert(0, libs_path)
+
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any

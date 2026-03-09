@@ -128,6 +128,15 @@ async function startMLServices() {
   console.log("🐍 INFO: Iniciando servicios de IA en segundo plano...");
 
   const pythonLibsDir = path.resolve("./python_libs");
+  console.log(`📂 [ML] Verificando ruta de librerías: ${pythonLibsDir}`);
+  if (fs.existsSync(pythonLibsDir)) {
+    console.log("✅ [ML] Directorio python_libs encontrado.");
+    const files = fs.readdirSync(pythonLibsDir);
+    console.log(`📦 [ML] Cantidad de archivos en librerías: ${files.length}`);
+  } else {
+    console.error("❌ [ML] Directorio python_libs NO EXISTE.");
+  }
+
   const env = { ...process.env, PYTHONPATH: pythonLibsDir };
 
   const spawnService = (file, port, name) => {
