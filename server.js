@@ -165,7 +165,9 @@ async function startMLServices() {
     const pythonPath = "python3";
     console.log(`🤖 Lanzando ${name} en puerto ${port} usando ${pythonPath}...`);
 
-    const proc = spawn(pythonPath, [file], { env });
+    // Override PORT env to avoid conflict with Render's main port (10000)
+    const serviceEnv = { ...env, PORT: port.toString() };
+    const proc = spawn(pythonPath, [file], { env: serviceEnv });
 
     proc.on("error", (err) => {
       console.error(`❌ [${name}] Error FATAL al intentar ejecutar '${pythonPath}':`, err.message);
