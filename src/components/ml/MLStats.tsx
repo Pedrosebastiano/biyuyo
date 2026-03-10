@@ -55,9 +55,17 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
     setLoadingMeta(true);
     try {
       const res = await fetch(`${ML_API}/model-info`);
-      if (res.ok) setMeta(await res.json());
-    } catch {
-      /* microservice offline */
+      if (res.ok) {
+        const data = await res.json();
+        // Solo guardamos si tiene la estructura esperada
+        if (data && data.metrics) {
+          setMeta(data);
+        } else {
+          setMeta(null);
+        }
+      }
+    } catch (err) {
+      console.warn("ML model-info fetch failed:", err);
     } finally {
       setLoadingMeta(false);
     }
@@ -101,8 +109,8 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
   // Top 5 features sorted by importance
   const topFeatures = meta
     ? Object.entries(meta.metrics.feature_importance)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
     : [];
 
   const total = parseInt(stats?.total_expenses ?? "0");
@@ -142,10 +150,19 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
               <Loader2 className="h-4 w-4 animate-spin" /> Cargando modelo…
             </div>
           ) : !meta ? (
-            <p className="text-sm text-muted-foreground">
-              Microservicio offline — verifica que el servicio de IA esté
-              activo.
-            </p>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                El modelo aún no ha sido entrenado o no hay suficientes datos históricos.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={fetchMeta}
+                className="text-xs"
+              >
+                <RefreshCw className="h-3 w-3 mr-1" /> Reintentar
+              </Button>
+            </div>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3">
