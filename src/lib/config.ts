@@ -2,8 +2,8 @@ export const APP_CONFIG = {
   // API URLs
   LOCAL_API: "http://localhost:3001",
   PRODUCTION_API: "https://biyuyo-pruebas.onrender.com",
-  ML_LOCAL_API: "http://localhost:8000",
-  ML_PRODUCTION_API: "https://biyuyo-pruebas.onrender.com/api/ml",
+  ML_LOCAL_API: "http://localhost:8001",
+  ML_PRODUCTION_API: "https://biyuyo-pruebas.onrender.com/api/decision",
   SIMULATOR_ML_LOCAL_API: "http://localhost:8000",
   SIMULATOR_ML_PRODUCTION_API: "https://biyuyo-pruebas.onrender.com/api/ml",
 };
