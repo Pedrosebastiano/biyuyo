@@ -83,7 +83,7 @@ export function ExpenseChart({
     return (
       <Card className="border-2">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-[#29488e] text-center">Gastos por Categoría</CardTitle>
+          <CardTitle className="text-2xl font-bold text-primary text-center">Gastos por Categoría</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[410px] w-full flex flex-col items-center justify-center text-muted-foreground">
@@ -150,17 +150,17 @@ export function ExpenseChart({
   return (
     <Card className="border-2">
       <CardHeader className="flex flex-row items-center justify-between pb-0 pt-6 px-6">
-        <CardTitle className="text-lg sm:text-2xl font-bold text-[#2d509e] flex-1">
+        <CardTitle className="text-lg sm:text-2xl font-bold text-primary flex-1">
           Gastos por Categoría
         </CardTitle>
         <Popover>
           <PopoverTrigger asChild>
-            <button className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-gray-50 hover:bg-gray-50 transition-colors shrink-0 ml-2">
-              <Info className="w-4 h-4 sm:w-5 sm:h-5 text-[#2d509e]" />
+            <button className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-background rounded-xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-border hover:bg-accent transition-colors shrink-0 ml-2">
+              <Info className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto max-w-[250px] p-3" side="left" align="start">
-            <p className="text-sm font-medium text-[#2d509e]">Desglose de tus gastos según sus categorías. Aquellos gastos menores al 5% no se muestran.</p>
+            <p className="text-sm font-medium text-primary">Desglose de tus gastos según sus categorías. Aquellos gastos menores al 5% no se muestran.</p>
           </PopoverContent>
         </Popover>
       </CardHeader>
@@ -194,6 +194,7 @@ export function ExpenseChart({
                   y="50%"
                   textAnchor="middle"
                   dominantBaseline="middle"
+                  fill="currentColor"
                   className="fill-foreground text-xl font-bold lg:text-2xl"
                 >
                   {getCurrencySymbol()}{total.toFixed(2)}

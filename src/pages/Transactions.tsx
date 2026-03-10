@@ -216,7 +216,7 @@ export default function Transactions() {
         <main className="p-4 pt-20 pb-20 lg:p-6 lg:pt-6 lg:pb-6">
           <div className="space-y-4">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-[#2d509e]">
+              <h1 className="text-3xl font-bold tracking-tight text-primary">
                 Transacciones
               </h1>
               <p className="text-muted-foreground mt-1">

@@ -3,6 +3,7 @@ import { Progress } from "@/components/ui/progress";
 import { Target, Rocket, Star, Heart, Briefcase, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGoals } from "@/hooks/useGoals";
+import { useSharedProfile } from "@/contexts/SharedProfileContext";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
@@ -16,7 +17,11 @@ const iconMap: Record<string, any> = {
 
 export function FinancialGoals() {
   const { user } = useAuth();
-  const { goals, loading } = useGoals(user?.user_id || "");
+  const { activeSharedProfile } = useSharedProfile();
+  const { goals, loading } = useGoals(
+    user?.user_id || "",
+    activeSharedProfile?.shared_id
+  );
 
   if (loading) {
     return (
@@ -41,7 +46,9 @@ export function FinancialGoals() {
   return (
     <Card className="border-2 overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-lg font-semibold">Metas de Ahorro</CardTitle>
+        <CardTitle className="text-lg font-semibold">
+          {activeSharedProfile ? "Ahorro Grupal" : "Metas de Ahorro"}
+        </CardTitle>
         <Link to="/goals">
           <Button variant="ghost" size="sm" className="text-primary text-xs h-8">
             Ver todas

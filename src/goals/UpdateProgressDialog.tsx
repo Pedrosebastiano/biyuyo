@@ -32,12 +32,11 @@ export function UpdateProgressDialog({ goal, open, onOpenChange, onUpdate }: Upd
         if (!goal) return;
 
         const val = parseFloat(amount);
-        if (isNaN(val)) return;
+        if (isNaN(val) || val <= 0) return;
 
         setLoading(true);
-        // the value is added to current_amount as per original logic
-        const newTotal = Number(goal.current_amount) + val;
-        await onUpdate(goal.id, newTotal);
+        // Ahora pasamos solo el monto que se agrega
+        await onUpdate(goal.id, val);
         setLoading(false);
         onOpenChange(false);
     };

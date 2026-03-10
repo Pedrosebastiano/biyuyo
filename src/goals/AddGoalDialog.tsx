@@ -24,6 +24,7 @@ interface AddGoalDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  sharedId?: string;
 }
 
 const icons = [
@@ -34,7 +35,7 @@ const icons = [
   { id: "work", icon: Briefcase, label: "Negocio" },
 ];
 
-export function AddGoalDialog({ open, onOpenChange, onSuccess }: AddGoalDialogProps) {
+export function AddGoalDialog({ open, onOpenChange, onSuccess, sharedId }: AddGoalDialogProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedIcon, setSelectedIcon] = useState("target");
@@ -57,6 +58,7 @@ export function AddGoalDialog({ open, onOpenChange, onSuccess }: AddGoalDialogPr
       current_amount: parseFloat(formData.get("current_amount") as string) || 0,
       deadline: date.toISOString().split('T')[0], // yyyy-mm-dd
       icon: selectedIcon,
+      shared_id: sharedId || null,
     };
 
     try {

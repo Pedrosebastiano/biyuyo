@@ -31,30 +31,9 @@ interface MonthsGoalCardProps {
 
 const MonthsGoalCard: React.FC<MonthsGoalCardProps> = ({ months }) => {
     return (
-        <div
-            style={{
-                background: "#C5D3F7",
-                borderRadius: 12,
-                padding: "0.75rem 1.5rem",
-                display: "inline-flex",
-                alignItems: "center",
-                color: "#29488e",
-                fontWeight: 500,
-                fontSize: 18,
-                marginTop: "1rem",
-                marginBottom: "1rem"
-            }}
-        >
+        <div className="bg-[#C5D3F7] dark:bg-primary/10 rounded-xl px-6 py-3 inline-flex items-center text-[#29488e] dark:text-primary font-medium text-lg mt-4 mb-4">
             <span className="mr-3">Meses meta:</span>
-            <div
-                style={{
-                    background: "white",
-                    borderRadius: 8,
-                    padding: "2px 12px",
-                    fontWeight: 700,
-                    color: "#29488e"
-                }}
-            >
+            <div className="bg-white dark:bg-background rounded-lg px-3 py-0.5 font-bold text-[#29488e] dark:text-primary border border-[#A5B3D7] dark:border-primary/20">
                 {months}
             </div>
         </div>
@@ -131,17 +110,17 @@ export function EmergencyFund({
     return (
         <Card className="border-2 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-0 pt-6 px-6">
-                <CardTitle className="text-lg sm:text-2xl font-bold text-[#2d509e] flex-1">
+                <CardTitle className="text-lg sm:text-2xl font-bold text-primary flex-1">
                     Fondo actual V.S Meta
                 </CardTitle>
                 <Popover>
                     <PopoverTrigger asChild>
-                        <button className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-gray-50 hover:bg-gray-50 transition-colors shrink-0 ml-2">
-                            <Info className="w-4 h-4 sm:w-5 sm:h-5 text-[#2d509e]" />
+                        <button className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-background rounded-xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-border hover:bg-accent transition-colors shrink-0 ml-2">
+                            <Info className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                         </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto max-w-[250px] p-3" side="left" align="start">
-                        <p className="text-sm font-medium text-[#2d509e]">Fondo de emergencia y meses de libertad</p>
+                        <p className="text-sm font-medium text-primary">Fondo de emergencia y meses de libertad</p>
                     </PopoverContent>
                 </Popover>
             </CardHeader>
@@ -166,27 +145,30 @@ export function EmergencyFund({
                             <CartesianGrid
                                 strokeDasharray="3 3"
                                 vertical={false}
-                                stroke="#e0e0e0"
+                                stroke="hsl(var(--border))"
+                                className="stroke-border/50"
                             />
                             <XAxis
                                 dataKey="name"
                                 axisLine={true}
                                 tickLine={false}
-                                tick={{ fill: '#444', fontSize: 13 }}
-                                stroke="#888"
+                                tick={{ fill: 'currentColor', fontSize: 13 }}
+                                stroke="hsl(var(--border))"
+                                className="fill-muted-foreground text-muted-foreground"
                             />
                             <YAxis
                                 axisLine={false}
                                 tickLine={false}
-                                tick={{ fill: '#666', fontSize: 12 }}
-                                domain={[0, Math.max(targetMetaAmount, totalSavings) + 200]}
+                                tick={{ fill: 'currentColor', fontSize: 12 }}
+                                className="fill-muted-foreground text-muted-foreground"
+                                domain={[0, Math.max(targetMetaAmount, totalSavings) * 1.2]}
                             />
                             <Tooltip
                                 cursor={{ fill: 'transparent' }}
                                 contentStyle={{
-                                    backgroundColor: "white",
-                                    border: "1px solid #ddd",
-                                    borderRadius: "8px",
+                                    backgroundColor: "hsl(var(--card))",
+                                    border: "2px solid hsl(var(--border))",
+                                    borderRadius: "var(--radius)",
                                 }}
                                 formatter={(value: number) => [`${getCurrencySymbol()}${value}`, "Ahorros"]}
                             />
@@ -194,7 +176,7 @@ export function EmergencyFund({
                                 verticalAlign="bottom"
                                 height={36}
                                 iconType="square"
-                                formatter={() => <span style={{ color: '#444' }}>Ahorros</span>}
+                                formatter={() => <span className="text-muted-foreground">Ahorros</span>}
                             />
 
                             <Bar
@@ -210,7 +192,7 @@ export function EmergencyFund({
                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
                             <Button
-                                className="w-full bg-[#29488e] hover:bg-[#1e356d] text-white font-bold py-6 rounded-xl text-lg shadow-md"
+                                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-6 rounded-xl text-lg shadow-md"
                                 onClick={() => setTempGoalMonths(goalMonths.toString())}
                             >
                                 Cambiar meta
@@ -218,11 +200,11 @@ export function EmergencyFund({
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[425px]">
                             <DialogHeader>
-                                <DialogTitle className="text-[#2d509e] text-2xl">Cambiar meses meta</DialogTitle>
+                                <DialogTitle className="text-primary text-2xl">Cambiar meses meta</DialogTitle>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
                                 <div className="grid gap-2">
-                                    <Label htmlFor="fund-goal" className="text-[#2d509e] font-semibold">
+                                    <Label htmlFor="fund-goal" className="text-primary font-semibold">
                                         Nuevos meses meta
                                     </Label>
                                     <Input
@@ -231,7 +213,7 @@ export function EmergencyFund({
                                         value={tempGoalMonths}
                                         onChange={(e) => setTempGoalMonths(e.target.value)}
                                         placeholder="Ej: 6"
-                                        className="rounded-lg border-[#2d509e]/20 focus-visible:ring-[#2d509e]"
+                                        className="rounded-lg border-primary/20 focus-visible:ring-primary"
                                     />
                                 </div>
                                 <div className="text-sm text-muted-foreground">
@@ -241,7 +223,7 @@ export function EmergencyFund({
                             <DialogFooter>
                                 <Button
                                     onClick={handleSaveGoal}
-                                    className="bg-[#29488e] hover:bg-[#1e356d] text-white font-bold px-8"
+                                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-8"
                                 >
                                     Guardar cambios
                                 </Button>

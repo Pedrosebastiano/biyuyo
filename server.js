@@ -727,14 +727,26 @@ app.get("/users", async (req, res) => {
 
 // --- METAS DE AHORRO (SAVINGS GOALS) ---
 
-// Obtener metas de un usuario
+// Obtener metas de un usuario o de un perfil compartido
 app.get("/goals/:userId", async (req, res) => {
   const { userId } = req.params;
+  const { sharedId } = req.query;
+  const logMsg = `${new Date().toISOString()} - [GET /goals] userId: ${userId}, sharedId: ${sharedId}\n`;
+  fs.appendFileSync("api_logs.txt", logMsg);
   try {
-    const result = await pool.query(
-      "SELECT * FROM goals WHERE user_id = $1 ORDER BY created_at DESC",
-      [userId],
-    );
+    let query = "SELECT * FROM goals WHERE ";
+    let values = [];
+
+    if (sharedId) {
+      query += "shared_id = $1";
+      values.push(sharedId);
+    } else {
+      query += "user_id = $1 AND shared_id IS NULL";
+      values.push(userId);
+    }
+
+    query += " ORDER BY created_at DESC";
+    const result = await pool.query(query, values);
     res.json(result.rows);
   } catch (err) {
     console.error("Error fetching goals:", err);
@@ -742,9 +754,9 @@ app.get("/goals/:userId", async (req, res) => {
   }
 });
 
-// Crear nueva meta
+// Crear nueva meta (personal o compartida)
 app.post("/goals", async (req, res) => {
-  const { user_id, title, target_amount, current_amount, deadline, icon } = req.body;
+  const { user_id, title, target_amount, current_amount, deadline, icon, shared_id } = req.body;
 
   if (!user_id || !title || !target_amount) {
     return res.status(400).json({ error: "Faltan campos obligatorios" });
@@ -752,10 +764,10 @@ app.post("/goals", async (req, res) => {
 
   try {
     const result = await pool.query(
-      `INSERT INTO goals (user_id, title, target_amount, current_amount, deadline, icon)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO goals (user_id, title, target_amount, current_amount, deadline, icon, shared_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [user_id, title, target_amount, current_amount || 0, deadline, icon || "target"],
+      [user_id, title, target_amount, current_amount || 0, deadline, icon || "target", shared_id || null],
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -782,7 +794,66 @@ app.delete("/goals/:id", async (req, res) => {
   }
 });
 
-// Actualizar progreso de meta
+// Aportar a una meta (Registra contribución y actualiza progreso)
+app.post("/goals/:id/contribute", async (req, res) => {
+  const { id } = req.params;
+  const { user_id, amount } = req.body;
+
+  if (!user_id || !amount) {
+    return res.status(400).json({ error: "user_id y amount son requeridos" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // 1. Registrar contribución
+    await client.query(
+      "INSERT INTO goal_contributions (goal_id, user_id, amount) VALUES ($1, $2, $3)",
+      [id, user_id, amount]
+    );
+
+    // 2. Actualizar monto actual en la meta
+    const result = await client.query(
+      "UPDATE goals SET current_amount = current_amount + $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+      [amount, id]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error("Meta no encontrada");
+    }
+
+    await client.query("COMMIT");
+    res.json(result.rows[0]);
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error updating goal contribution:", err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Obtener contribuciones de una meta (Desglose por usuario)
+app.get("/goals/:id/contributions", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT gc.id, gc.amount, gc.created_at, u.name as user_name 
+       FROM goal_contributions gc
+       JOIN users u ON gc.user_id = u.user_id
+       WHERE gc.goal_id = $1
+       ORDER BY gc.created_at DESC`,
+      [id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching contributions:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Actualizar progreso de meta (Simple, sin tracking de quien)
 app.patch("/goals/:id", async (req, res) => {
   const { id } = req.params;
   const { current_amount } = req.body;

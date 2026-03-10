@@ -31,40 +31,30 @@ interface DebtListCardProps {
 
 const DebtListCard: React.FC<DebtListCardProps> = ({ items, currencySymbol }) => {
     return (
-        <div
-            style={{
-                background: "#D1FDFC", // Light cyan from reference image
-                borderRadius: 12,
-                padding: "1.5rem",
-                marginTop: "1rem",
-                color: "#2d509e"
-            }}
-        >
-            <h3 className="text-xl font-bold mb-4 italic text-[#4DD0E1]">Deudas pendientes</h3>
-            <div className="bg-white rounded-xl overflow-hidden shadow-sm">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="border-b border-[#D1FDFC]">
-                            <th className="px-4 py-3 text-[#29488e] font-bold text-sm uppercase tracking-wider">Deuda</th>
-                            <th className="px-4 py-3 text-[#29488e] font-bold text-sm uppercase tracking-wider text-right">Monto</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {items.length > 0 ? (
-                            items.map((item, index) => (
-                                <tr key={index} className={index !== items.length - 1 ? "border-b border-[#f0f9f9]" : ""}>
-                                    <td className="px-4 py-3 text-[#29488e] font-medium">{item.name}</td>
-                                    <td className="px-4 py-3 text-[#29488e] font-bold text-right">{currencySymbol}{item.amount.toFixed(2)}</td>
-                                </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan={2} className="px-4 py-3 text-[#29488e] text-center opacity-50">No hay deudas pendientes</td>
+        <div className="bg-[#D1FDFC] dark:bg-primary/10 rounded-xl p-6 mt-4 text-[#29488e] dark:text-primary">
+            <h3 className="text-xl font-bold mb-4 italic text-[#4DD0E1] dark:text-primary/80">Deudas pendientes</h3>
+            <table className="w-full text-left border-collapse">
+                <thead>
+                    <tr className="border-b border-[#A6EFEF] dark:border-primary/20">
+                        <th className="px-4 py-3 text-[#29488e] dark:text-primary font-bold text-sm uppercase tracking-wider">Deuda</th>
+                        <th className="px-4 py-3 text-[#29488e] dark:text-primary font-bold text-sm uppercase tracking-wider text-right">Monto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {items.length > 0 ? (
+                        items.map((item, index) => (
+                            <tr key={index} className={index !== items.length - 1 ? "border-b border-[#B1EBEB] dark:border-primary/5" : ""}>
+                                <td className="px-4 py-3 text-[#29488e] dark:text-primary font-medium">{item.name}</td>
+                                <td className="px-4 py-3 text-[#29488e] dark:text-primary font-bold text-right">{currencySymbol}{item.amount.toFixed(2)}</td>
                             </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                        ))
+                    ) : (
+                        <tr>
+                            <td colSpan={2} className="px-4 py-3 text-[#29488e] dark:text-primary text-center opacity-50">No hay deudas pendientes</td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
         </div>
     );
 };
@@ -112,17 +102,17 @@ export function DebtRatio({
     return (
         <Card className="border-2 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-0 pt-6 px-6">
-                <CardTitle className="text-lg sm:text-2xl font-bold text-[#2d509e] flex-1">
+                <CardTitle className="text-lg sm:text-2xl font-bold text-primary flex-1">
                     Compromiso financiero
                 </CardTitle>
                 <Popover>
                     <PopoverTrigger asChild>
-                        <button className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-gray-50 hover:bg-gray-50 transition-colors shrink-0 ml-2">
-                            <Info className="w-4 h-4 sm:w-5 sm:h-5 text-[#2d509e]" />
+                        <button className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-background rounded-xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-border hover:bg-accent transition-colors shrink-0 ml-2">
+                            <Info className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                         </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto max-w-[250px] p-3" side="left" align="start">
-                        <p className="text-sm font-medium text-[#2d509e]">Deudas sobre balance de cuenta</p>
+                        <p className="text-sm font-medium text-primary">Deudas sobre balance de cuenta</p>
                     </PopoverContent>
                 </Popover>
             </CardHeader>
@@ -149,7 +139,8 @@ export function DebtRatio({
                                 tick={false}
                             />
                             <RadialBar
-                                background={{ fill: '#D1FDFC' }}
+                                background={{ fill: 'currentColor' }}
+                                className="text-[#D1FDFC] dark:text-primary/10"
                                 dataKey="value"
                                 cornerRadius={5}
                             />
@@ -163,7 +154,7 @@ export function DebtRatio({
                                 content={() => (
                                     <div className="flex items-center justify-center gap-2 mt-4">
                                         <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: fillColor }}></span>
-                                        <span className="text-gray-600 font-medium">Deudas</span>
+                                        <span className="text-muted-foreground font-medium">Deudas</span>
                                     </div>
                                 )}
                             />
@@ -172,7 +163,7 @@ export function DebtRatio({
 
                     {/* Centered Total Amount */}
                     <div className="absolute top-[75%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                        <span className="text-4xl font-bold text-[#1a1a1a]">{getCurrencySymbol()}{debtAmount.toFixed(2)}</span>
+                        <span className="text-4xl font-bold text-foreground">{getCurrencySymbol()}{debtAmount.toFixed(2)}</span>
                     </div>
                 </div>
 
