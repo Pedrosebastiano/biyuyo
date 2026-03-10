@@ -55,9 +55,17 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
     setLoadingMeta(true);
     try {
       const res = await fetch(`${ML_API}/model-info`);
-      if (res.ok) setMeta(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        // Solo guardamos si tiene la estructura esperada de métricas
+        if (data && data.metrics) {
+          setMeta(data);
+        } else {
+          setMeta(null);
+        }
+      }
     } catch {
-      /* microservice offline */
+      setMeta(null);
     } finally {
       setLoadingMeta(false);
     }
@@ -101,8 +109,8 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
   // Top 5 features sorted by importance
   const topFeatures = meta
     ? Object.entries(meta.metrics.feature_importance)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
     : [];
 
   const total = parseInt(stats?.total_expenses ?? "0");
@@ -143,8 +151,7 @@ export const MLStats: React.FC<Props> = ({ userId }) => {
             </div>
           ) : !meta ? (
             <p className="text-sm text-muted-foreground">
-              Microservicio offline — verifica que el servicio de IA esté
-              activo.
+              El modelo aún no ha sido entrenado o el servicio de IA no está disponible.
             </p>
           ) : (
             <>
