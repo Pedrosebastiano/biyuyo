@@ -111,6 +111,10 @@ async def predict_decision(request: DecisionRequest):
     }
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    logger.info(f"Starting ML service on port {port}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8000)))
+    args = parser.parse_args()
+
+    logger.info(f"Starting ML service on port {args.port}")
+    uvicorn.run(app, host="0.0.0.0", port=args.port)
