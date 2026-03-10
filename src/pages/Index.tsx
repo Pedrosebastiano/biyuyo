@@ -107,9 +107,9 @@ const Index = () => {
   const fmt = (n: number) =>
     `$${n.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
 
-  const displayBalance  = isPrivacyMode ? MASKED : fmt(rawStats.totalBalance);
-  const displayIncome   = isPrivacyMode ? MASKED : fmt(rawStats.monthlyIncome);
-  const displayExpense  = isPrivacyMode ? MASKED : fmt(rawStats.monthlyExpense);
+  const displayBalance = isPrivacyMode ? MASKED : fmt(rawStats.totalBalance);
+  const displayIncome = isPrivacyMode ? MASKED : fmt(rawStats.monthlyIncome);
+  const displayExpense = isPrivacyMode ? MASKED : fmt(rawStats.monthlyExpense);
 
   const stats = [
     {
@@ -178,7 +178,7 @@ const Index = () => {
         {/* ── Encabezado de página ── */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-[#2d509e]">
+            <h1 className="text-3xl font-bold tracking-tight text-primary">
               Dashboard
             </h1>
             <p className="text-muted-foreground mt-1">

@@ -4,9 +4,10 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
-import { Plus, Target, TrendingUp, Calendar, Trash2, Rocket, Star, Heart, Briefcase } from "lucide-react";
+import { Plus, Target, TrendingUp, Calendar, Trash2, Rocket, Star, Heart, Briefcase, Users, History, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGoals } from "@/hooks/useGoals";
+import { useSharedProfile } from "@/contexts/SharedProfileContext";
 import { AddGoalDialog } from "@/goals/AddGoalDialog";
 import { UpdateProgressDialog } from "@/goals/UpdateProgressDialog";
 import { getApiUrl } from "@/lib/config";
@@ -40,8 +41,33 @@ function GoalCard({ goal, onDeleted, onOpenUpdate }: {
   onOpenUpdate: (goal: any) => void
 }) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [contributions, setContributions] = useState<any[]>([]);
+  const [loadingContributions, setLoadingContributions] = useState(false);
+
   const progress = Math.min((goal.current_amount / goal.target_amount) * 100, 100);
   const Icon = iconMap[goal.icon] || Target;
+
+  const fetchContributions = async () => {
+    if (showHistory) {
+      setShowHistory(false);
+      return;
+    }
+
+    setLoadingContributions(true);
+    try {
+      const response = await fetch(`${API_URL}/goals/${goal.id}/contributions`);
+      if (response.ok) {
+        const data = await response.json();
+        setContributions(data);
+        setShowHistory(true);
+      }
+    } catch (error) {
+      console.error("Error fetching contributions:", error);
+    } finally {
+      setLoadingContributions(false);
+    }
+  };
 
   const handleDelete = async () => {
     try {
@@ -61,7 +87,7 @@ function GoalCard({ goal, onDeleted, onOpenUpdate }: {
   };
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border bg-card p-5 transition-all hover:shadow-md bg-gradient-to-br from-primary/5 to-transparent">
+    <div className="relative overflow-hidden rounded-3xl border bg-card p-5 transition-all hover:shadow-md bg-gradient-to-br from-primary/10 to-transparent">
       <div className="flex items-start justify-between mb-4">
         <div className="p-3 rounded-2xl bg-primary text-primary-foreground">
           <Icon size={20} />
@@ -95,10 +121,50 @@ function GoalCard({ goal, onDeleted, onOpenUpdate }: {
         />
       </div>
 
-      <Button onClick={() => onOpenUpdate(goal)} variant="outline" size="sm" className="w-full rounded-xl text-xs flex gap-1 h-9">
-        <TrendingUp size={14} />
-        Actualizar Progreso
-      </Button>
+      <div className="flex gap-2">
+        <Button onClick={() => onOpenUpdate(goal)} variant="outline" size="sm" className="flex-1 rounded-xl text-xs flex gap-1 h-9">
+          <TrendingUp size={14} />
+          Aportar
+        </Button>
+        <Button onClick={fetchContributions} variant="ghost" size="sm" className="rounded-xl h-9 px-3 text-muted-foreground">
+          {loadingContributions ? (
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          ) : (
+            showHistory ? <ChevronUp size={16} /> : <History size={16} />
+          )}
+        </Button>
+      </div>
+
+      {showHistory && (
+        <div className="mt-4 pt-4 border-t space-y-3 animate-in fade-in slide-in-from-top-2">
+          <h4 className="text-xs font-bold text-muted-foreground flex items-center gap-1 uppercase tracking-wider">
+            <Users size={12} /> Contribuciones
+          </h4>
+          <div className="space-y-2 max-h-32 overflow-y-auto pr-2 custom-scrollbar">
+            {contributions.length === 0 ? (
+              <p className="text-[10px] text-muted-foreground text-center py-2 italic">Sin aportes registrados todavía.</p>
+            ) : (
+              // Agrupar por usuario para mostrar totales por persona
+              Object.values(contributions.reduce((acc: any, curr: any) => {
+                if (!acc[curr.user_name]) {
+                  acc[curr.user_name] = { name: curr.user_name, total: 0, count: 0 };
+                }
+                acc[curr.user_name].total += Number(curr.amount);
+                acc[curr.user_name].count += 1;
+                return acc;
+              }, {})).map((contrib: any) => (
+                <div key={contrib.name} className="flex justify-between items-center bg-background/40 p-2 rounded-xl border border-primary/5">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold">{contrib.name}</span>
+                    <span className="text-[10px] text-muted-foreground">{contrib.count} aporte{contrib.count !== 1 ? 's' : ''}</span>
+                  </div>
+                  <span className="text-sm font-bold text-primary">+${Number(contrib.total).toLocaleString()}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent className="rounded-3xl">
@@ -122,7 +188,11 @@ function GoalCard({ goal, onDeleted, onOpenUpdate }: {
 
 export default function Goals() {
   const { user } = useAuth();
-  const { goals, loading, setGoals, refreshGoals } = useGoals(user?.user_id || "");
+  const { activeSharedProfile } = useSharedProfile();
+  const { goals, loading, setGoals, refreshGoals } = useGoals(
+    user?.user_id || "",
+    activeSharedProfile?.shared_id
+  );
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<any>(null);
@@ -138,10 +208,14 @@ export default function Goals() {
 
   const handleUpdateProgress = async (id: string, newAmount: number) => {
     try {
-      const response = await fetch(`${API_URL}/goals/${id}`, {
-        method: "PATCH",
+      // Usamos el endpoint de contribución si estamos en perfil compartido o queremos tracking
+      const response = await fetch(`${API_URL}/goals/${id}/contribute`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ current_amount: newAmount }),
+        body: JSON.stringify({
+          user_id: user?.user_id,
+          amount: newAmount // Aquí el diálogo ahora pasará el "delta" (incremento)
+        }),
       });
       if (response.ok) {
         const updatedGoal = await response.json();
@@ -181,8 +255,12 @@ export default function Goals() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight text-[#2d509e]">Mis Metas</h1>
-                <p className="text-muted-foreground mt-1">Ahorra para lo que más importa.</p>
+                <h1 className="text-3xl font-bold tracking-tight text-primary">
+                  {activeSharedProfile ? `Metas: ${activeSharedProfile.name}` : "Mis Metas"}
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  {activeSharedProfile ? "Metas colectivas del grupo." : "Ahorra para lo que más importa."}
+                </p>
               </div>
               <Button onClick={() => setIsAddDialogOpen(true)} className="rounded-full shadow-lg h-11 px-6">
                 <Plus className="h-5 w-5 mr-2" /> Nueva Meta
@@ -231,6 +309,7 @@ export default function Goals() {
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
         onSuccess={refreshGoals}
+        sharedId={activeSharedProfile?.shared_id}
       />
 
       <UpdateProgressDialog

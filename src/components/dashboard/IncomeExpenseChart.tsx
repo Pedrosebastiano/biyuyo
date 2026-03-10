@@ -69,17 +69,17 @@ export function IncomeExpenseChart({
   return (
     <Card className="border-2">
       <CardHeader className="flex flex-row items-center justify-between pb-0 pt-6 px-6">
-        <CardTitle className="text-lg sm:text-2xl font-bold text-[#2d509e] flex-1">
-            Gastos V.S Ingresos
+        <CardTitle className="text-lg sm:text-2xl font-bold text-primary flex-1">
+          Gastos V.S Ingresos
         </CardTitle>
         <Popover>
           <PopoverTrigger asChild>
-            <button className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-gray-50 hover:bg-gray-50 transition-colors shrink-0 ml-2">
-              <Info className="w-4 h-4 sm:w-5 sm:h-5 text-[#2d509e]" />
+            <button className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 bg-background rounded-xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] border border-border hover:bg-accent transition-colors shrink-0 ml-2">
+              <Info className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto max-w-[250px] p-3" side="left" align="start">
-            <p className="text-sm font-medium text-[#2d509e]">Comparativa de ingresos y gastos mensuales</p>
+            <p className="text-sm font-medium text-primary">Comparativa de ingresos y gastos mensuales</p>
           </PopoverContent>
         </Popover>
       </CardHeader>
@@ -87,9 +87,9 @@ export function IncomeExpenseChart({
         <div className="h-[220px] sm:h-[260px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-              <CartesianGrid stroke="#ececec" strokeDasharray="6 6" />
-              <XAxis dataKey="date" tick={{ fill: '#888', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#888', fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
+              <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="6 6" className="stroke-border/50" />
+              <XAxis dataKey="date" tick={{ fill: 'currentColor', fontSize: 11 }} axisLine={false} tickLine={false} className="fill-muted-foreground text-muted-foreground" />
+              <YAxis tick={{ fill: 'currentColor', fontSize: 11 }} axisLine={false} tickLine={false} width={40} className="fill-muted-foreground text-muted-foreground" />
               <Tooltip
                 formatter={(value: number) => [`${getCurrencySymbol()}${value.toFixed(2)}`, ""]}
                 contentStyle={{

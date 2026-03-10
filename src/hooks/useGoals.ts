@@ -3,7 +3,7 @@ import { getApiUrl } from "@/lib/config";
 
 const API_URL = getApiUrl();
 
-export function useGoals(userId: string) {
+export function useGoals(userId: string, sharedId?: string) {
   const [goals, setGoals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -11,7 +11,10 @@ export function useGoals(userId: string) {
     if (!userId) return;
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/goals/${userId}`);
+      const url = sharedId
+        ? `${API_URL}/goals/${userId}?sharedId=${sharedId}`
+        : `${API_URL}/goals/${userId}`;
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setGoals(data);
@@ -21,7 +24,7 @@ export function useGoals(userId: string) {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, sharedId]);
 
   useEffect(() => {
     fetchGoals();
