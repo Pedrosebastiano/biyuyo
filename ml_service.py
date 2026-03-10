@@ -128,6 +128,7 @@ app.add_middleware(
 async def health():
     return {
         "status": "online",
+        "ready": DECISION_BUNDLE is not None,
         "decision_ready": DECISION_BUNDLE is not None,
         "is_loading": IS_LOADING,
         "uptime": (datetime.now() - START_TIME).total_seconds()
@@ -135,34 +136,92 @@ async def health():
 
 # ─── Simulator (Original ML/api.py) ────────────────────────────────────────
 
+def get_temporal_insight(user_id, cursor):
+    import datetime
+    today = datetime.date.today()
+    day_name = today.strftime("%A")
+    day_of_week = today.weekday()
+    query = """
+        SELECT AVG(daily_sum) FROM (
+            SELECT DATE(created_at), SUM(total_amount) as daily_sum
+            FROM expenses 
+            WHERE user_id = %s AND EXTRACT(DOW FROM created_at) = %s
+            GROUP BY DATE(created_at)
+            LIMIT 4
+        ) as sub
+    """
+    cursor.execute(query, (user_id, day_of_week))
+    avg_day_spending = cursor.fetchone()[0] or 0.0
+    if day_of_week == 4:
+        return f"Basado en tus últimos viernes, hoy sueles gastar un promedio de ${avg_day_spending:,.2f}."
+    return f"Los {day_name} sueles gastar ${avg_day_spending:,.2f}."
+
 @app.post("/predict")
 async def predict_simulator(data: PredictionInput):
     model, mapping = load_user_resources(data.user_id)
     if not model or not mapping:
-        raise HTTPException(status_code=404, detail="No se encontró modelo para el usuario.")
+        raise HTTPException(status_code=404, detail="No se encontró modelo.")
     
-    # Simple prediction logic (truncated for brevity but keeping core)
-    # Note: In production you would use exactly the same logic as ML/api.py
-    cat_encoded = mapping.get(data.macrocategoria, 0)
-    input_df = pd.DataFrame([{"categoria_encoded": cat_encoded, 
-                               "income": data.ingreso_mensual or 0, 
-                               "savings": data.ahorro_actual or 0}])
-    # Attempt to use model feature names if possible
+    if data.macrocategoria not in mapping:
+        # Simplified tier logic for unknown categories (Ported from ML/api.py)
+        return {"new_category": True, "macrocategoria": data.macrocategoria, "total_flow": 0, "tiers": {}}
+
+    avg_spending = 0.0
+    income = data.ingreso_mensual
+    savings = data.ahorro_actual
+    category_count = 0
+    total_count = 0
+    temporal_insight = ""
+
     try:
-        prediction = float(model.predict(input_df)[0])
+        conn = psycopg2.connect(DB_URL, connect_timeout=5)
+        cur = conn.cursor()
+        cur.execute("SELECT AVG(total_amount) FROM expenses WHERE user_id = %s", (data.user_id,))
+        avg_spending = cur.fetchone()[0] or 0.0
+        cur.execute("SELECT COUNT(*) FROM expenses WHERE user_id = %s AND macrocategoria = %s", (data.user_id, data.macrocategoria))
+        category_count = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM expenses WHERE user_id = %s", (data.user_id,))
+        total_count = cur.fetchone()[0]
+        temporal_insight = get_temporal_insight(data.user_id, cur)
+        cur.close()
+        conn.close()
     except:
-        prediction = 0.0
-        
+        pass
+
+    cat_encoded = mapping[data.macrocategoria]
+    input_data = {
+        'categoria_encoded': cat_encoded,
+        'income': float(income or 0),
+        'savings': float(savings or 0),
+        'avg_spending': float(avg_spending)
+    }
+    
+    # Matching feature order exactly
+    try:
+        expected_features = model.get_booster().feature_names
+        features_to_use = [f for f in expected_features if f in input_data]
+        input_df = pd.DataFrame([input_data])[features_to_use]
+    except:
+        input_df = pd.DataFrame([input_data])[['categoria_encoded', 'income', 'savings']]
+
+    prediction = float(model.predict(input_df)[0])
+    trust_score = min(40 + (category_count * 10), 98) if total_count > 0 else 30
+    
+    income_val = float(income or 1)
+    income_ratio = (prediction / income_val * 100)
+    
     return {
         "user_id": data.user_id,
         "macrocategoria": data.macrocategoria,
         "prediccion_gasto": prediction,
-        "trust_score": 85
+        "income_ratio": round(income_ratio, 1),
+        "trust_score": trust_score,
+        "behavioral_insight": temporal_insight,
+        "currency": "USD"
     }
 
 @app.post("/train/{user_id}")
 async def train_user(user_id: str):
-    # This requires the train_model.py script to be present in correct path
     sys.path.append(os.path.join(os.getcwd(), 'ML'))
     try:
         from train_model import train
@@ -203,15 +262,21 @@ async def predict_decision(req: PredictDecisionRequest):
     
     X = np.array([[raw_features[col] for col in feature_cols]])
     pred_class = int(model.predict(X)[0])
+    proba = model.predict_proba(X)[0]
     
-    # Labeling logic
     labels = {1: "buena_decision", 0: "neutral", -1: "arrepentido"}
     emojis = {1: "😊", 0: "😐", -1: "😰"}
+    advices = {1: "¡Adelante!", 0: "Evalúalo.", -1: "Cuidado."}
+    
+    prob_dict = {str(int(c)): float(p) for c, p in zip(model.classes_, proba)}
     
     return {
         "prediction": pred_class,
         "prediction_label": labels.get(pred_class, "unknown"),
         "prediction_emoji": emojis.get(pred_class, "❓"),
+        "confidence": float(max(proba)),
+        "probabilities": prob_dict,
+        "advice": advices.get(pred_class, ""),
         "model_trained_at": DECISION_BUNDLE.get("trained_at", "unknown")
     }
 
