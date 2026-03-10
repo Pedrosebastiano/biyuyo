@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, ShieldCheck, ShieldX } from "lucide-react";
-import biyuyoLogo from "@/assets/biyuyo-logo.png";
+import biyuyoLogo from "@/assets/biyuyo_imagen.png";
 
 export default function Consent() {
   const [searchParams] = useSearchParams();

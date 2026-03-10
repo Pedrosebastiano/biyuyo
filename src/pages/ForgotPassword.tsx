@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Mail, ArrowLeft, Loader2, Eye, EyeOff, Check, X } from "lucide-react";
-import biyuyoLogo from "@/assets/biyuyo-logo.png";
+import biyuyoLogo from "@/assets/biyuyo_imagen.png";
 import { toast } from "sonner";
 import { getApiUrl } from "@/lib/config";
 
@@ -48,13 +48,13 @@ export default function ForgotPassword() {
       }
 
       toast.success("¡Revisa tu correo electrónico!");
-      
+
       // SOLO PARA DESARROLLO - Mostrar token
       if (data.dev_token) {
         console.log("🔑 Token de desarrollo:", data.dev_token);
         toast.info(`Token copiado a consola`, { duration: 5000 });
       }
-      
+
       setStep("reset");
     } catch (error) {
       console.error("Error:", error);
@@ -66,7 +66,7 @@ export default function ForgotPassword() {
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!token || !newPassword) {
       toast.error("Completa todos los campos");
       return;
@@ -75,7 +75,7 @@ export default function ForgotPassword() {
     if (!allChecks) {
       toast.error("La contraseña no cumple con los requisitos");
       return;
-    } 
+    }
 
     setIsSubmitting(true);
 
@@ -93,12 +93,12 @@ export default function ForgotPassword() {
       }
 
       toast.success("¡Contraseña actualizada exitosamente!");
-      
+
       // Esperar un momento y redirigir al login
       setTimeout(() => {
         window.location.href = "/login";
       }, 2000);
-      
+
     } catch (error) {
       console.error("Error:", error);
       toast.error(error instanceof Error ? error.message : "Error al restablecer la contraseña");
@@ -153,7 +153,7 @@ export default function ForgotPassword() {
               <p className="text-sm text-muted-foreground">
                 Ingresa el código que recibiste por correo y tu nueva contraseña.
               </p>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="token">Código de verificación</Label>
                 <Input

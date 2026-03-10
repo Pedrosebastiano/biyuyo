@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useExchangeRate } from "@/hooks/useExchangeRate";
-import biyuyoLogo from "@/assets/biyuyo-logo.png";
+import biyuyoLogo from "@/assets/biyuyo_imagen.png";
 import { useAuth } from "@/contexts/AuthContext";
 
 const navigation = [

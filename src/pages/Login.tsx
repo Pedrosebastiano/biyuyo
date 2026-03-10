@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Eye, EyeOff, Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import biyuyoLogo from "@/assets/biyuyo-logo.png";
+import biyuyoLogo from "@/assets/biyuyo_imagen.png";
 import { toast } from "sonner";
 
 export default function Login() {

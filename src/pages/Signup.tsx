@@ -16,7 +16,7 @@ import {
   Star,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import biyuyoLogo from "@/assets/biyuyo-logo.png";
+import biyuyoLogo from "@/assets/biyuyo_imagen.png";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/config";
 

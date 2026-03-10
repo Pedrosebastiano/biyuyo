@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import biyuyoLogo from "@/assets/biyuyo-logo.png";
+import biyuyoLogo from "@/assets/biyuyo_imagen.png";
 import { CurrencyConverterDialog } from "@/components/ui/CurrencyConverterDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSharedProfile } from "@/contexts/SharedProfileContext";
