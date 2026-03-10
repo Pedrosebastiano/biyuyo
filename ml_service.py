@@ -103,6 +103,8 @@ async def load_global_models():
         if raw:
             DECISION_BUNDLE = pickle.load(io.BytesIO(raw))
             logger.info("✅ Decision Model loaded.")
+        else:
+            logger.warning("⚠️ Decision model file not found in Supabase.")
     except Exception as e:
         logger.error(f"❌ Failed to load Decision Model: {e}")
     finally:
@@ -150,11 +152,12 @@ def get_temporal_insight(user_id, cursor):
             LIMIT 4
         ) as sub
     """
-    cursor.execute(query, (user_id, day_of_week))
-    avg_day_spending = cursor.fetchone()[0] or 0.0
-    if day_of_week == 4:
-        return f"Basado en tus últimos viernes, hoy sueles gastar un promedio de ${avg_day_spending:,.2f}."
-    return f"Los {day_name} sueles gastar ${avg_day_spending:,.2f}."
+    try:
+        cursor.execute(query, (user_id, day_of_week))
+        avg_day_spending = cursor.fetchone()[0] or 0.0
+        return f"Los {day_name} sueles gastar promediar ${avg_day_spending:,.2f}."
+    except:
+        return ""
 
 @app.post("/predict")
 async def predict_simulator(data: PredictionInput):
@@ -163,14 +166,22 @@ async def predict_simulator(data: PredictionInput):
         raise HTTPException(status_code=404, detail="No se encontró modelo.")
     
     if data.macrocategoria not in mapping:
-        # Simplified tier logic for unknown categories (Ported from ML/api.py)
-        return {"new_category": True, "macrocategoria": data.macrocategoria, "total_flow": 0, "tiers": {}}
+        total_flow = (float(data.ingreso_mensual or 0) + float(data.ahorro_actual or 0))
+        return {
+            "new_category": True,
+            "macrocategoria": data.macrocategoria,
+            "total_flow": round(total_flow, 2),
+            "tiers": {
+                "conservative": {"amount": round(total_flow * 0.20, 2), "label": "Conservador"},
+                "balanced": {"amount": round(total_flow * 0.40, 2), "label": "Equilibrado"},
+                "aggressive": {"amount": round(total_flow * 0.60, 2), "label": "Agresivo"}
+            }
+        }
 
     avg_spending = 0.0
-    income = data.ingreso_mensual
-    savings = data.ahorro_actual
     category_count = 0
     total_count = 0
+    current_month_expenses = 0.0
     temporal_insight = ""
 
     try:
@@ -182,41 +193,59 @@ async def predict_simulator(data: PredictionInput):
         category_count = cur.fetchone()[0]
         cur.execute("SELECT COUNT(*) FROM expenses WHERE user_id = %s", (data.user_id,))
         total_count = cur.fetchone()[0]
+        cur.execute("SELECT SUM(total_amount) FROM expenses WHERE user_id = %s AND EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM NOW())", (data.user_id,))
+        current_month_expenses = cur.fetchone()[0] or 0.0
         temporal_insight = get_temporal_insight(data.user_id, cur)
         cur.close()
         conn.close()
-    except:
-        pass
+    except Exception as e:
+        logger.error(f"Database error in simulator: {e}")
 
-    cat_encoded = mapping[data.macrocategoria]
     input_data = {
-        'categoria_encoded': cat_encoded,
-        'income': float(income or 0),
-        'savings': float(savings or 0),
+        'categoria_encoded': mapping[data.macrocategoria],
+        'income': float(data.ingreso_mensual or 0),
+        'savings': float(data.ahorro_actual or 0),
         'avg_spending': float(avg_spending)
     }
     
-    # Matching feature order exactly
-    try:
-        expected_features = model.get_booster().feature_names
-        features_to_use = [f for f in expected_features if f in input_data]
-        input_df = pd.DataFrame([input_data])[features_to_use]
-    except:
-        input_df = pd.DataFrame([input_data])[['categoria_encoded', 'income', 'savings']]
+    expected_features = []
+    if hasattr(model, 'feature_names_in_'):
+        expected_features = list(model.feature_names_in_)
+    elif hasattr(model, 'get_booster'):
+        try: expected_features = model.get_booster().feature_names
+        except: pass
+    
+    if expected_features:
+        X_dict = {f: input_data.get(f, 0.0) for f in expected_features}
+        input_df = pd.DataFrame([X_dict])[expected_features]
+    else:
+        cols = ['categoria_encoded', 'income', 'savings']
+        if 'avg_spending' in input_data: cols.append('avg_spending')
+        input_df = pd.DataFrame([input_data])[cols]
 
     prediction = float(model.predict(input_df)[0])
     trust_score = min(40 + (category_count * 10), 98) if total_count > 0 else 30
     
-    income_val = float(income or 1)
-    income_ratio = (prediction / income_val * 100)
-    
+    impact_analysis = None
+    if data.monto_planeado:
+        planned = float(data.monto_planeado)
+        savings_f = float(data.ahorro_actual or 0)
+        income_f = float(data.ingreso_mensual or 0)
+        projected_balance = savings_f + income_f - current_month_expenses - planned
+        impact_analysis = {
+            "monto_planeado": planned,
+            "saldo_proyectado": round(projected_balance, 2),
+            "riesgo_liquidez": "Alto" if projected_balance < (income_f * 0.1) else "Bajo"
+        }
+
     return {
         "user_id": data.user_id,
         "macrocategoria": data.macrocategoria,
         "prediccion_gasto": prediction,
-        "income_ratio": round(income_ratio, 1),
+        "income_ratio": round((prediction / float(data.ingreso_mensual or 1)) * 100, 1),
         "trust_score": trust_score,
         "behavioral_insight": temporal_insight,
+        "impact_analysis": impact_analysis,
         "currency": "USD"
     }
 
@@ -229,6 +258,7 @@ async def train_user(user_id: str):
         if success: return {"success": True}
         else: raise HTTPException(status_code=400, detail="Data insufficient")
     except Exception as e:
+        logger.error(f"Training failed for {user_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ─── Decision (Original ml_decision/decision_api.py) ─────────────────────────
@@ -260,9 +290,9 @@ async def predict_decision(req: PredictDecisionRequest):
         "macrocategoria_encoded": macro_encoded
     }
     
-    X = np.array([[raw_features[col] for col in feature_cols]])
-    pred_class = int(model.predict(X)[0])
-    proba = model.predict_proba(X)[0]
+    X_df = pd.DataFrame([raw_features])[feature_cols]
+    pred_class = int(model.predict(X_df)[0])
+    proba = model.predict_proba(X_df)[0]
     
     labels = {1: "buena_decision", 0: "neutral", -1: "arrepentido"}
     emojis = {1: "😊", 0: "😐", -1: "😰"}
@@ -280,10 +310,22 @@ async def predict_decision(req: PredictDecisionRequest):
         "model_trained_at": DECISION_BUNDLE.get("trained_at", "unknown")
     }
 
+@app.post("/retrain")
+async def retrain_decision():
+    sys.path.append(os.path.join(os.getcwd(), 'ml_decision'))
+    try:
+        from train_decision_model import main as train_main
+        train_main()
+        await load_global_models()
+        return {"success": True, "trained_at": DECISION_BUNDLE.get("trained_at", "now")}
+    except Exception as e:
+        logger.error(f"Decision retraining failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/model-info")
 async def model_info():
     raw = download_from_supabase("decision_model_meta.json")
-    if not raw: raise HTTPException(status_code=404, detail="Meta not found")
+    if not raw: return {"status": "no_meta"}
     return json.loads(raw.decode("utf-8"))
 
 @app.post("/reload-model")
