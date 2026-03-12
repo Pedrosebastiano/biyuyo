@@ -1,0 +1,304 @@
+/* ─── Onboarding Overlay ─────────────────────────────────────────────────── */
+
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.onboarding-overlay.active {
+  pointer-events: auto;
+}
+
+/* Dark backdrop with a transparent "hole" cut via clip-path */
+.onboarding-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 9998;
+  transition: clip-path 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s ease;
+  animation: onboarding-fade-in 0.3s ease forwards;
+}
+
+/* Spotlight glow ring around the target */
+.onboarding-spotlight {
+  position: fixed;
+  z-index: 9999;
+  border-radius: 16px;
+  box-shadow: 0 0 0 4px rgba(45, 80, 158, 0.5),
+    0 0 30px rgba(45, 80, 158, 0.3);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  animation: onboarding-spotlight-pulse 2s ease-in-out infinite;
+}
+
+/* Tooltip container */
+.onboarding-tooltip {
+  position: fixed;
+  z-index: 10000;
+  max-width: 380px;
+  width: calc(100vw - 32px);
+  background: white;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  animation: onboarding-tooltip-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)
+    forwards;
+  transition: top 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.onboarding-tooltip .tooltip-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2d509e;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+
+.onboarding-tooltip .tooltip-description {
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+/* Progress bar */
+.onboarding-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.onboarding-progress .progress-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.onboarding-progress .progress-dot.active {
+  background: #2d509e;
+  width: 24px;
+  border-radius: 4px;
+}
+
+.onboarding-progress .progress-dot.completed {
+  background: #93c5fd;
+}
+
+.onboarding-progress .progress-text {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+/* Action buttons */
+.onboarding-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.onboarding-actions .btn-next {
+  flex: 1;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #2d509e, #1e3a7a);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.onboarding-actions .btn-next:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 15px rgba(45, 80, 158, 0.4);
+}
+
+.onboarding-actions .btn-next:active {
+  transform: scale(0.98);
+}
+
+.onboarding-actions .btn-back {
+  padding: 12px 16px;
+  background: #f1f5f9;
+  color: #64748b;
+  border: none;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.onboarding-actions .btn-back:hover {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.onboarding-actions .btn-skip {
+  padding: 12px 16px;
+  background: transparent;
+  color: #94a3b8;
+  border: none;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.onboarding-actions .btn-skip:hover {
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+/* ─── Animations ─────────────────────────────────────────────────────────── */
+
+@keyframes onboarding-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes onboarding-tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes onboarding-spotlight-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(45, 80, 158, 0.5),
+      0 0 30px rgba(45, 80, 158, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(45, 80, 158, 0.6),
+      0 0 40px rgba(45, 80, 158, 0.4);
+  }
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .onboarding-tooltip {
+    max-width: calc(100vw - 24px);
+    padding: 18px;
+    border-radius: 16px;
+  }
+
+  .onboarding-tooltip .tooltip-title {
+    font-size: 16px;
+  }
+
+  .onboarding-tooltip .tooltip-description {
+    font-size: 13px;
+  }
+
+  .onboarding-actions {
+    flex-wrap: wrap;
+  }
+
+  .onboarding-actions .btn-next {
+    order: 1;
+    min-width: 100%;
+  }
+
+  .onboarding-actions .btn-back {
+    order: 2;
+    flex: 1;
+  }
+
+  .onboarding-actions .btn-skip {
+    order: 3;
+    flex: 1;
+    text-align: center;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .onboarding-tooltip {
+    background: #1e293b;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.1);
+  }
+
+  .onboarding-tooltip .tooltip-title {
+    color: #93c5fd;
+  }
+
+  .onboarding-tooltip .tooltip-description {
+    color: #94a3b8;
+  }
+
+  .onboarding-actions .btn-back {
+    background: #334155;
+    color: #94a3b8;
+  }
+
+  .onboarding-actions .btn-back:hover {
+    background: #475569;
+    color: #cbd5e1;
+  }
+
+  .onboarding-progress .progress-dot {
+    background: #334155;
+  }
+
+  .onboarding-progress .progress-dot.completed {
+    background: #1e3a7a;
+  }
+}
+
+/* Also apply dark mode when the body/html has a dark class (for apps that toggle manually) */
+.dark .onboarding-tooltip {
+  background: #1e293b;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.dark .onboarding-tooltip .tooltip-title {
+  color: #93c5fd;
+}
+
+.dark .onboarding-tooltip .tooltip-description {
+  color: #94a3b8;
+}
+
+.dark .onboarding-actions .btn-back {
+  background: #334155;
+  color: #94a3b8;
+}
+
+.dark .onboarding-progress .progress-dot {
+  background: #334155;
+}
+
+.dark .onboarding-progress .progress-dot.completed {
+  background: #1e3a7a;
+}

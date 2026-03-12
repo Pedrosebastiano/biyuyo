@@ -299,7 +299,7 @@ export default function Profile() {
             </Card>
           ) : (
             /* No verificado aún */
-            <Card className="border-2 border-yellow-300" style={{ background: "#fefce8" }}>
+            <Card className="border-2 border-yellow-300" style={{ background: "#fefce8" }} data-onboarding="unimet-verification-card">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2 text-yellow-700">
                   <Star className="h-4 w-4 fill-yellow-400" />

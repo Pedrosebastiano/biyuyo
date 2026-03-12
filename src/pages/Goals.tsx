@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -13,6 +13,7 @@ import { UpdateProgressDialog } from "@/goals/UpdateProgressDialog";
 import { getApiUrl } from "@/lib/config";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useOnboarding } from "@/contexts/OnboardingContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -196,6 +197,21 @@ export default function Goals() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<any>(null);
+  const { isOnboarding, registerAction, unregisterAction } = useOnboarding();
+
+  // Register onboarding actions to open/close goal dialog
+  useEffect(() => {
+    registerAction("open-goal-dialog", () => {
+      setIsAddDialogOpen(true);
+    });
+    registerAction("close-goal-dialog", () => {
+      setIsAddDialogOpen(false);
+    });
+    return () => {
+      unregisterAction("open-goal-dialog");
+      unregisterAction("close-goal-dialog");
+    };
+  }, [registerAction, unregisterAction]);
 
   const handleDeleted = (id: string) => {
     setGoals(prev => prev.filter(g => g.id !== id));
@@ -254,7 +270,7 @@ export default function Goals() {
         <main className="p-4 pt-20 pb-24 lg:p-6 lg:pt-6 lg:pb-6">
           <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <div>
+              <div data-onboarding="goals-page-title">
                 <h1 className="text-3xl font-bold tracking-tight text-primary">
                   {activeSharedProfile ? `Metas: ${activeSharedProfile.name}` : "Mis Metas"}
                 </h1>
@@ -262,7 +278,7 @@ export default function Goals() {
                   {activeSharedProfile ? "Metas colectivas del grupo." : "Ahorra para lo que más importa."}
                 </p>
               </div>
-              <Button onClick={() => setIsAddDialogOpen(true)} className="rounded-full shadow-lg h-11 px-6">
+              <Button onClick={() => setIsAddDialogOpen(true)} className="rounded-full shadow-lg h-11 px-6" data-onboarding="new-goal-btn">
                 <Plus className="h-5 w-5 mr-2" /> Nueva Meta
               </Button>
             </div>

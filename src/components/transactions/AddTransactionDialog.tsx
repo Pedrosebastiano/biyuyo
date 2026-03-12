@@ -35,14 +35,14 @@ export function AddTransactionDialog({ open, onOpenChange, initialTab = "expense
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] border-2 max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[500px] border-2 max-h-[90vh] overflow-y-auto" data-onboarding="transaction-dialog-content">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Nueva Transacción</DialogTitle>
           <DialogDescription className="hidden">Agrega una nueva transacción a tu registro.</DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-4">
+          <TabsList className="grid w-full grid-cols-3 mb-4" data-onboarding="transaction-dialog-tabs">
             <TabsTrigger value="expense" className="flex items-center gap-2">
               <TrendingDown className="h-4 w-4" />
               <span className="hidden sm:inline">Gasto</span>

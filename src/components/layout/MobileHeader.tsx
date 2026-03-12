@@ -61,7 +61,7 @@ export function MobileHeader() {
       {/* Profile with Dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-1.5 focus:outline-none">
+          <button className="flex items-center gap-1.5 focus:outline-none" data-onboarding="header-profile-btn">
             <Avatar className="h-8 w-8 border-2 border-border">
               <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-xs">
                 {initials}

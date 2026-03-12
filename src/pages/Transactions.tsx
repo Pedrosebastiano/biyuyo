@@ -215,7 +215,7 @@ export default function Transactions() {
 
         <main className="p-4 pt-20 pb-20 lg:p-6 lg:pt-6 lg:pb-6">
           <div className="space-y-4">
-            <div>
+            <div data-onboarding="transactions-page-title">
               <h1 className="text-3xl font-bold tracking-tight text-primary">
                 Transacciones
               </h1>

@@ -90,7 +90,7 @@ const Analytics = () => {
     <DashboardLayout>
       <div className="space-y-6 pb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
+          <div data-onboarding="analytics-page-title">
             <h1 className="text-3xl font-bold tracking-tight text-primary">Estadísticas</h1>
             <p className="text-muted-foreground mt-1">
               Filtra y analiza tus movimientos financieros.

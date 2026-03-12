@@ -145,7 +145,7 @@ const ML = () => {
         <DashboardLayout>
             <div className="space-y-8 max-w-5xl mx-auto pb-10">
 
-                <div>
+                <div data-onboarding="ml-page-title">
                     <h1 className="text-3xl font-bold tracking-tight text-[#2d509e] flex items-center gap-2">
                         <BrainCircuit className="h-8 w-8" />
                         IA Predictor
@@ -357,7 +357,7 @@ const ML = () => {
                 </section>
 
                 {/* ── Sección 2: Predictor de Decisión ── */}
-                <section className="space-y-2">
+                <section className="space-y-2" data-onboarding="decision-predictor">
                     <SectionLabel number={2} title="Predictor de Decisión" />
                     {/* key prop forces a full remount (and context re-fetch) after new transaction */}
                     <DecisionPredictor key={predictorKey} userId={user.user_id} />

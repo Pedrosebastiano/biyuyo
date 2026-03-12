@@ -104,7 +104,7 @@ export function Header() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="gap-3 pl-2 pr-3">
+              <Button variant="ghost" className="gap-3 pl-2 pr-3" data-onboarding="header-profile-btn">
                 <Avatar className="h-8 w-8 border-2 border-border">
                   <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
                     {initials}

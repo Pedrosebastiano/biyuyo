@@ -19,6 +19,8 @@ import JoinSharedProfile from "./pages/JoinSharedProfile";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SharedProfileProvider } from "@/contexts/SharedProfileContext";
 import { PrivacyProvider } from "@/contexts/PrivacyContext";
+import { OnboardingProvider } from "@/contexts/OnboardingContext";
+import { OnboardingOverlay } from "@/components/onboarding/OnboardingOverlay";
 import Goals from "./pages/Goals"; // Importamos la nueva página de Metas
 import Configuration from "./pages/Configuration.tsx"; // Importamos la nueva página de Configuración
 import Appearance from "./pages/Appearance.tsx"; // Importamos la nueva página de Apariencia
@@ -78,10 +80,13 @@ const App = () => (
            * y cargar la preferencia correcta según el user_id activo.
            */}
           <PrivacyProvider>
-            <SharedProfileProvider>
-              <AppInitializer />
-              <AppRoutes />
-            </SharedProfileProvider>
+            <OnboardingProvider>
+              <SharedProfileProvider>
+                <AppInitializer />
+                <AppRoutes />
+                <OnboardingOverlay />
+              </SharedProfileProvider>
+            </OnboardingProvider>
           </PrivacyProvider>
         </AuthProvider>
       </BrowserRouter>

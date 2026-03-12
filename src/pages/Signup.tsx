@@ -298,16 +298,13 @@ export default function Signup() {
         password,
       );
 
-      if (isUnimetEmail(email) && userData?.user_id) {
-        setNewUserId(userData.user_id);
-        setShowVerification(true);
-      } else {
-        toast({
-          title: "¡Cuenta creada!",
-          description: "Tu cuenta ha sido creada exitosamente",
-        });
-        navigate("/");
-      }
+      toast({
+        title: "¡Cuenta creada!",
+        description: "Tu cuenta ha sido creada exitosamente",
+      });
+      localStorage.removeItem("biyuyo_onboarding_complete");
+      localStorage.setItem("biyuyo_onboarding_pending", "true");
+      navigate("/");
     } catch (error) {
       toast({
         title: "Error",
@@ -347,6 +344,8 @@ export default function Signup() {
             title: "⭐ ¡Bienvenido, usuario Premium!",
             description: "Cuenta verificada exitosamente.",
           });
+          localStorage.removeItem("biyuyo_onboarding_complete");
+          localStorage.setItem("biyuyo_onboarding_pending", "true");
           navigate("/");
         }}
         onSkip={() => {
@@ -355,6 +354,8 @@ export default function Signup() {
             description:
               "Ve a tu perfil para activar tu cuenta Premium Unimet gratis.",
           });
+          localStorage.removeItem("biyuyo_onboarding_complete");
+          localStorage.setItem("biyuyo_onboarding_pending", "true");
           navigate("/");
         }}
       />

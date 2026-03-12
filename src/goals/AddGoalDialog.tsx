@@ -87,7 +87,7 @@ export function AddGoalDialog({ open, onOpenChange, onSuccess, sharedId }: AddGo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] rounded-3xl gap-6">
+      <DialogContent className="sm:max-w-[425px] rounded-3xl gap-6" data-onboarding="goal-dialog-content">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-[#2d509e] flex items-center gap-2">
             <Target className="h-6 w-6 text-primary" />
