@@ -1115,12 +1115,13 @@ app.post("/expenses", async (req, res) => {
     user_id,
     receipt_image_url,
     shared_id,
+    budget_type,
   } = req.body;
 
   try {
     const query = `
-      INSERT INTO expenses (macrocategoria, categoria, negocio, total_amount, user_id, receipt_image_url, shared_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO expenses (macrocategoria, categoria, negocio, total_amount, user_id, receipt_image_url, shared_id, budget_type)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *;
     `;
     const values = [
@@ -1131,6 +1132,7 @@ app.post("/expenses", async (req, res) => {
       user_id,
       receipt_image_url || null,
       shared_id || null,
+      budget_type || null,
     ];
 
     const result = await pool.query(query, values);
@@ -1203,6 +1205,118 @@ app.get("/expenses", async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- REGLAS DE PRESUPUESTO (BUDGET RULES 50/30/20) ---
+
+// Obtener las reglas de presupuesto de un usuario
+app.get("/budget-rules/:userId", async (req, res) => {
+  const { userId } = req.params;
+  try {
+    let result = await pool.query(
+      "SELECT * FROM user_budget_rules WHERE user_id = $1::uuid",
+      [userId]
+    );
+
+    // Si no tiene reglas, crear las por defecto (50/30/20)
+    if (result.rows.length === 0) {
+      result = await pool.query(
+        `INSERT INTO user_budget_rules (user_id, necesarios_pct, flexibles_pct, ahorro_pct)
+         VALUES ($1::uuid, 50, 30, 20)
+         RETURNING *`,
+        [userId]
+      );
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error obteniendo reglas de presupuesto:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Actualizar las reglas de presupuesto de un usuario
+app.put("/budget-rules/:userId", async (req, res) => {
+  const { userId } = req.params;
+  const { necesarios_pct, flexibles_pct, ahorro_pct } = req.body;
+
+  // Validar que sumen 100
+  if (necesarios_pct + flexibles_pct + ahorro_pct !== 100) {
+    return res.status(400).json({ error: "Los porcentajes deben sumar 100%" });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO user_budget_rules (user_id, necesarios_pct, flexibles_pct, ahorro_pct)
+       VALUES ($1::uuid, $2, $3, $4)
+       ON CONFLICT (user_id) DO UPDATE SET
+         necesarios_pct = $2,
+         flexibles_pct = $3,
+         ahorro_pct = $4,
+         updated_at = NOW()
+       RETURNING *`,
+      [userId, necesarios_pct, flexibles_pct, ahorro_pct]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error actualizando reglas de presupuesto:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Obtener estadísticas de distribución de gastos del mes actual
+app.get("/budget-stats/:userId", async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT 
+         budget_type,
+         COUNT(*) AS transaction_count,
+         COALESCE(SUM(total_amount), 0) AS total_amount
+       FROM expenses
+       WHERE user_id = $1::uuid
+         AND shared_id IS NULL
+         AND budget_type IS NOT NULL
+         AND created_at >= date_trunc('month', CURRENT_DATE)
+         AND created_at < date_trunc('month', CURRENT_DATE) + interval '1 month'
+       GROUP BY budget_type`,
+      [userId]
+    );
+
+    // Calcular totales
+    const totalTransactions = result.rows.reduce((sum, r) => sum + parseInt(r.transaction_count), 0);
+    const totalAmount = result.rows.reduce((sum, r) => sum + parseFloat(r.total_amount), 0);
+
+    const stats = {
+      necesarios: { count: 0, amount: 0, pct_by_count: 0, pct_by_amount: 0 },
+      flexibles: { count: 0, amount: 0, pct_by_count: 0, pct_by_amount: 0 },
+      ahorro: { count: 0, amount: 0, pct_by_count: 0, pct_by_amount: 0 },
+    };
+
+    for (const row of result.rows) {
+      const key = row.budget_type === 'necesarios' ? 'necesarios' 
+                : row.budget_type === 'flexibles' ? 'flexibles' 
+                : row.budget_type === 'ahorro' ? 'ahorro' : null;
+      if (key) {
+        stats[key].count = parseInt(row.transaction_count);
+        stats[key].amount = parseFloat(row.total_amount);
+        stats[key].pct_by_count = totalTransactions > 0 
+          ? Math.round((parseInt(row.transaction_count) / totalTransactions) * 100) 
+          : 0;
+        stats[key].pct_by_amount = totalAmount > 0 
+          ? Math.round((parseFloat(row.total_amount) / totalAmount) * 100) 
+          : 0;
+      }
+    }
+
+    res.json({
+      stats,
+      totals: { totalTransactions, totalAmount },
+    });
+  } catch (err) {
+    console.error("Error obteniendo estadísticas de presupuesto:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1941,7 +2055,7 @@ app.patch("/expenses/:expense_id/zero", async (req, res) => {
 // --- EDITAR GASTO ---
 app.put("/expenses/:expense_id", async (req, res) => {
   const { expense_id } = req.params;
-  const { user_id, macrocategoria, categoria, negocio, total_amount } =
+  const { user_id, macrocategoria, categoria, negocio, total_amount, budget_type } =
     req.body;
 
   if (!user_id) return res.status(400).json({ error: "user_id es requerido" });
@@ -1959,10 +2073,10 @@ app.put("/expenses/:expense_id", async (req, res) => {
 
     const result = await pool.query(
       `UPDATE expenses 
-       SET macrocategoria = $1, categoria = $2, negocio = $3, total_amount = $4
-       WHERE expense_id = $5::uuid AND user_id = $6::uuid
+       SET macrocategoria = $1, categoria = $2, negocio = $3, total_amount = $4, budget_type = $5
+       WHERE expense_id = $6::uuid AND user_id = $7::uuid
        RETURNING *`,
-      [macrocategoria, categoria, negocio, total_amount, expense_id, user_id],
+      [macrocategoria, categoria, negocio, total_amount, budget_type || null, expense_id, user_id],
     );
 
     console.log(`✏️ Gasto editado: ${expense_id}`);

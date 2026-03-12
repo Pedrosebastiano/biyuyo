@@ -14,6 +14,7 @@ import { getApiUrl } from "@/lib/config";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useOnboarding } from "@/contexts/OnboardingContext";
+import { BudgetDistribution } from "@/components/dashboard/BudgetDistribution";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -314,6 +315,11 @@ export default function Goals() {
                   Crear mi primera meta
                 </Button>
               </div>
+            )}
+
+            {/* Budget Distribution - Regla 50/30/20 (solo para perfil individual) */}
+            {!activeSharedProfile && (
+              <BudgetDistribution />
             )}
           </div>
         </main>

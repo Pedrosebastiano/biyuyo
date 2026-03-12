@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/config";
+import { FinancialEducation } from "@/components/dashboard/FinancialEducation";
 
 const API_URL = getApiUrl();
 const UNIMET_DOMAINS = ["correo.unimet.edu.ve", "unimet.edu.ve"];
@@ -359,6 +360,9 @@ export default function Profile() {
             </Card>
           )
         )}
+
+        {/* Educación Financiera */}
+        <FinancialEducation />
 
         {/* Logout */}
         <Button variant="destructive" className="w-full gap-2" onClick={handleLogout}>

@@ -38,9 +38,9 @@ interface Props {
 }
 
 const RESULT_CONFIG = {
-  1:    { color: "bg-emerald-50 border-emerald-200", badge: "bg-emerald-100 text-emerald-800", icon: CheckCircle2,  iconColor: "text-emerald-500", label: "Buena decisión" },
-  0:    { color: "bg-amber-50 border-amber-200",     badge: "bg-amber-100 text-amber-800",    icon: MinusCircle,   iconColor: "text-amber-500",   label: "Neutral"        },
-  "-1": { color: "bg-rose-50 border-rose-200",       badge: "bg-rose-100 text-rose-800",      icon: AlertTriangle, iconColor: "text-rose-500",    label: "Precaución"     },
+  1:    { color: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800/50", badge: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300", icon: CheckCircle2,  iconColor: "text-emerald-500 dark:text-emerald-400", label: "Buena decisión" },
+  0:    { color: "bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800/50",     badge: "bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300",    icon: MinusCircle,   iconColor: "text-amber-500 dark:text-amber-400",   label: "Neutral"        },
+  "-1": { color: "bg-rose-50 border-rose-200 dark:bg-rose-950/40 dark:border-rose-800/50",       badge: "bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300",      icon: AlertTriangle, iconColor: "text-rose-500 dark:text-rose-400",    label: "Precaución"     },
 } as const;
 
 const NECESSITY_MAP: Record<string, number> = {
@@ -405,7 +405,7 @@ export const DecisionPredictor: React.FC<Props> = ({ userId }) => {
                 return (
                   <div key={key} className="flex items-center gap-2 text-xs">
                     <span className="w-28 text-muted-foreground truncate">{label}</span>
-                    <div className="flex-1 bg-white/60 rounded-full h-2 overflow-hidden">
+                    <div className="flex-1 bg-white/60 dark:bg-white/10 rounded-full h-2 overflow-hidden">
                       <div
                         className={`h-full rounded-full ${color} transition-all duration-500`}
                         style={{ width: `${(prob * 100).toFixed(1)}%` }}

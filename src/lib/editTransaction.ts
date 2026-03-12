@@ -10,6 +10,7 @@ export async function editExpense(
     categoria: string;
     negocio: string;
     total_amount: number;
+    budget_type?: string;
   }
 ): Promise<void> {
   const rawId = expenseId.startsWith("exp-") ? expenseId.replace("exp-", "") : expenseId;

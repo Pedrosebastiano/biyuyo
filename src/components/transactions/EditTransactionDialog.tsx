@@ -42,6 +42,7 @@ interface EditTransactionDialogProps {
     macroCategory: string;
     category: string;
     business: string;
+    budget_type?: string;
   };
   onEdited: () => void;
 }
@@ -66,6 +67,7 @@ export function EditTransactionDialog({
   const [customBusiness, setCustomBusiness] = useState("");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState<Currency>("USD");
+  const [budgetType, setBudgetType] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Pre-fill fields when dialog opens
@@ -100,6 +102,7 @@ export function EditTransactionDialog({
 
       setAmount(transaction.amount.toString());
       setCurrency("USD");
+      setBudgetType(transaction.budget_type || "");
     }
   }, [open, transaction]);
 
@@ -154,6 +157,7 @@ export function EditTransactionDialog({
           categoria: categoryName,
           negocio: businessName,
           total_amount: finalAmount,
+          budget_type: budgetType || undefined,
         });
       } else {
         await editIncome(transaction.id, user.user_id, {
@@ -307,6 +311,29 @@ export function EditTransactionDialog({
               </p>
             )}
           </div>
+
+          {/* Tipo de Presupuesto - solo para gastos */}
+          {isExpense && (
+            <div className="space-y-2">
+              <Label>Tipo de Presupuesto</Label>
+              <Select value={budgetType} onValueChange={setBudgetType}>
+                <SelectTrigger className="border-2">
+                  <SelectValue placeholder="Selecciona el tipo de presupuesto" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="necesarios">
+                    🏠 Gastos Necesarios
+                  </SelectItem>
+                  <SelectItem value="flexibles">
+                    🎉 Gastos Flexibles o Deseos
+                  </SelectItem>
+                  <SelectItem value="ahorro">
+                    💰 Ahorro e Inversión
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Botones */}
           <div className="flex gap-2 pt-2">

@@ -53,6 +53,7 @@ export function ExpenseForm({ onSubmit, initialData }: ExpenseFormProps) {
   const [customBusiness, setCustomBusiness] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [currency, setCurrency] = useState<Currency>("USD");
+  const [budgetType, setBudgetType] = useState<string>("");
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -257,6 +258,7 @@ export function ExpenseForm({ onSubmit, initialData }: ExpenseFormProps) {
         user_id: user.user_id,
         receipt_image_url: imageUrl,
         shared_id: activeSharedProfile?.shared_id || null,
+        budget_type: budgetType || null,
       };
 
       console.log("📤 Enviando gasto a la base de datos:", nuevoGasto);
@@ -295,6 +297,7 @@ export function ExpenseForm({ onSubmit, initialData }: ExpenseFormProps) {
       setSelectedBusiness("");
       setCustomBusiness("");
       setAmount("");
+      setBudgetType("");
       setReceiptImage(null);
       setReceiptFile(null);
 
@@ -313,6 +316,7 @@ export function ExpenseForm({ onSubmit, initialData }: ExpenseFormProps) {
     selectedCategory &&
     selectedBusiness &&
     amount &&
+    budgetType &&
     (currency !== "VES" || (rate && !loadingRate)) && // Validar tasa
     (selectedBusiness !== "custom" || customBusiness.trim() !== "");
 
@@ -431,6 +435,26 @@ export function ExpenseForm({ onSubmit, initialData }: ExpenseFormProps) {
             (Tasa BCV: {rate})
           </div>
         )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="expense-budget-type">Tipo de Presupuesto</Label>
+        <Select value={budgetType} onValueChange={setBudgetType}>
+          <SelectTrigger id="expense-budget-type" className="border-2">
+            <SelectValue placeholder="¿A qué categoría pertenece este gasto?" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="necesarios">
+              🏠 Gastos Necesarios
+            </SelectItem>
+            <SelectItem value="flexibles">
+              🎉 Gastos Flexibles o Deseos
+            </SelectItem>
+            <SelectItem value="ahorro">
+              💰 Ahorro e Inversión
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-2">
