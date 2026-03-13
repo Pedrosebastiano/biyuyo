@@ -81,13 +81,35 @@ export default function Settings() {
               <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-2">
                 Mi Cuenta
               </h2>
-              <div className="p-5 bg-gradient-to-br from-primary/5 to-transparent border rounded-[32px] flex items-center gap-4 mb-4">
-                <div className="h-16 w-16 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-xl font-bold shadow-lg shadow-primary/30">
-                  {user.email?.charAt(0).toUpperCase() || "U"}
+              <div className="p-5 bg-gradient-to-br from-primary/10 via-accent/5 to-transparent border border-primary/10 rounded-[32px] flex items-center gap-5 mb-4 backdrop-blur-sm relative overflow-hidden group hover:shadow-lg hover:shadow-primary/10 transition-all duration-500">
+                {/* Decorative background glow */}
+                <div className="absolute -left-8 -top-8 w-32 h-32 bg-primary/10 rounded-full blur-2xl group-hover:bg-primary/15 transition-all duration-700" />
+                <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-accent/10 rounded-full blur-2xl group-hover:bg-accent/15 transition-all duration-700" />
+                
+                {/* Avatar with animated gradient ring */}
+                <div className="relative shrink-0">
+                  {/* Animated rotating gradient ring */}
+                  <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-primary via-accent to-primary animate-[spin_4s_linear_infinite] opacity-70 group-hover:opacity-100 transition-opacity duration-500" />
+                  {/* Inner background to create ring effect */}
+                  <div className="absolute inset-0 rounded-full bg-card m-[3px]" />
+                  {/* Avatar content */}
+                  <div className="relative h-16 w-16 bg-gradient-to-br from-primary to-[hsl(220,56%,25%)] rounded-full flex items-center justify-center text-primary-foreground text-2xl font-bold shadow-xl shadow-primary/25 ring-2 ring-white/20 dark:ring-white/10">
+                    {user.email?.charAt(0).toUpperCase() || "U"}
+                  </div>
+                  {/* Online status indicator */}
+                  <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 bg-emerald-500 rounded-full border-[2.5px] border-card shadow-sm">
+                    <div className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-40" />
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-lg">Mi Perfil</h3>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
+
+                {/* Profile info */}
+                <div className="relative z-10 min-w-0">
+                  <h3 className="font-bold text-lg tracking-tight">Mi Perfil</h3>
+                  <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                  <span className="inline-flex items-center gap-1.5 mt-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    Cuenta activa
+                  </span>
                 </div>
               </div>
             </section>
