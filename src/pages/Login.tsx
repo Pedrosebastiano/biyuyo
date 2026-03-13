@@ -253,37 +253,6 @@ export default function Login() {
               )}
             </Button>
 
-            <div className="relative py-2">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">O</span>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full gap-2 border-2"
-              onClick={async () => {
-                const userData = await loginBiometrics(false);
-              if (userData) {
-                loginWithUserData({
-                  user_id: userData.user_id,
-                  name: userData.name,
-                  email: userData.email,
-                  is_premium: userData.is_premium || false,
-                });
-                toast.success("¡Bienvenido biométricamente!");
-                navigate("/");
-              }
-            }}
-              disabled={disabled}
-            >
-              <Fingerprint className="h-4 w-4" />
-              Entrar con Biometría
-            </Button>
           </form>
 
           {/* Sign up link */}
