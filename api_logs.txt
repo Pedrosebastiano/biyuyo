@@ -1,0 +1,8 @@
+2026-03-13T22:20:34.409Z - [GET /goals] userId: 7fca39e4-44c8-4ae4-b964-c8418ce2d9aa, sharedId: undefined
+2026-03-13T22:20:35.416Z - [GET /goals] userId: 7fca39e4-44c8-4ae4-b964-c8418ce2d9aa, sharedId: undefined
+2026-03-13T22:20:37.418Z - [GET /goals] userId: 7fca39e4-44c8-4ae4-b964-c8418ce2d9aa, sharedId: undefined
+2026-03-13T22:20:37.570Z - [GET /goals] userId: 7fca39e4-44c8-4ae4-b964-c8418ce2d9aa, sharedId: undefined
+2026-03-13T22:22:02.628Z - [GET /goals] userId: 7fca39e4-44c8-4ae4-b964-c8418ce2d9aa, sharedId: undefined
+2026-03-13T22:22:02.762Z - [GET /goals] userId: 7fca39e4-44c8-4ae4-b964-c8418ce2d9aa, sharedId: undefined
+2026-03-13T22:47:09.756Z - [GET /goals] userId: 7fca39e4-44c8-4ae4-b964-c8418ce2d9aa, sharedId: undefined
+2026-03-13T22:47:10.274Z - [GET /goals] userId: 7fca39e4-44c8-4ae4-b964-c8418ce2d9aa, sharedId: undefined

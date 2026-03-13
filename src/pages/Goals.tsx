@@ -10,6 +10,7 @@ import { useGoals } from "@/hooks/useGoals";
 import { useSharedProfile } from "@/contexts/SharedProfileContext";
 import { AddGoalDialog } from "@/goals/AddGoalDialog";
 import { UpdateProgressDialog } from "@/goals/UpdateProgressDialog";
+import { RegisterSavingsDialog } from "@/goals/RegisterSavingsDialog";
 import { getApiUrl } from "@/lib/config";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -197,6 +198,7 @@ export default function Goals() {
   );
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+  const [isRegisterSavingsOpen, setIsRegisterSavingsOpen] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<any>(null);
   const { isOnboarding, registerAction, unregisterAction } = useOnboarding();
 
@@ -279,9 +281,14 @@ export default function Goals() {
                   {activeSharedProfile ? "Metas colectivas del grupo." : "Ahorra para lo que más importa."}
                 </p>
               </div>
-              <Button onClick={() => setIsAddDialogOpen(true)} className="rounded-full shadow-lg h-11 px-6" data-onboarding="new-goal-btn">
-                <Plus className="h-5 w-5 mr-2" /> Nueva Meta
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={() => setIsRegisterSavingsOpen(true)} variant="outline" className="rounded-full shadow-sm h-11 px-6 border-primary text-primary hover:bg-primary/10">
+                  <Plus className="h-5 w-5 mr-2" /> Registro de ahorro
+                </Button>
+                <Button onClick={() => setIsAddDialogOpen(true)} className="rounded-full shadow-lg h-11 px-6" data-onboarding="new-goal-btn">
+                  <Plus className="h-5 w-5 mr-2" /> Nueva Meta
+                </Button>
+              </div>
             </div>
 
             {loading ? (
@@ -339,6 +346,11 @@ export default function Goals() {
         open={isUpdateDialogOpen}
         onOpenChange={setIsUpdateDialogOpen}
         onUpdate={handleUpdateProgress}
+      />
+
+      <RegisterSavingsDialog
+        open={isRegisterSavingsOpen}
+        onOpenChange={setIsRegisterSavingsOpen}
       />
     </div>
   );

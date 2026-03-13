@@ -1542,6 +1542,59 @@ app.post("/set-initial-balance", async (req, res) => {
   }
 });
 
+app.post("/accounts/savings", async (req, res) => {
+  const { userId, amount, sharedId } = req.body;
+
+  if (!amount || isNaN(parseFloat(amount))) {
+    return res.status(400).json({ error: "Monto inválido" });
+  }
+
+  try {
+    let query = "";
+    let values = [];
+
+    // Priorizamos sharedId si existe
+    if (sharedId) {
+      // Buscamos la cuenta principal asociada a este sharedId
+      const existing = await pool.query(
+        "SELECT * FROM accounts WHERE shared_id = $1 ORDER BY account_id LIMIT 1",
+        [sharedId]
+      );
+
+      if (existing.rows.length > 0) {
+        query = "UPDATE accounts SET balance = balance + $1, savings = savings + $1 WHERE account_id = $2 RETURNING *";
+        values = [amount, existing.rows[0].account_id];
+      } else {
+        // En un entorno compartido donde no hay cuenta, idealmente debe existir.
+        // Creada por el admin original. Si no, forzamos crearla:
+        query = "INSERT INTO accounts (user_id, shared_id, name, balance, savings) VALUES ($1, $2, $3, $4, $4) RETURNING *";
+        values = [userId, sharedId, "Principal", amount];
+      }
+    } else {
+      // Caso de usuario individual
+      const existing = await pool.query(
+        "SELECT * FROM accounts WHERE user_id = $1 AND shared_id IS NULL AND name = 'Principal'",
+        [userId]
+      );
+
+      if (existing.rows.length > 0) {
+        query = "UPDATE accounts SET balance = balance + $1, savings = savings + $1 WHERE account_id = $2 RETURNING *";
+        values = [amount, existing.rows[0].account_id];
+      } else {
+        query = "INSERT INTO accounts (user_id, name, balance, savings) VALUES ($1, $2, $3, $3) RETURNING *";
+        values = [userId, "Principal", amount];
+      }
+    }
+
+    const result = await pool.query(query, values);
+    res.json({ success: true, account: result.rows[0] });
+  } catch (err) {
+    console.error("Error al registrar ahorro global:", err);
+    res.status(500).json({ error: "Error al registrar ahorro" });
+  }
+});
+
+
 app.get("/reminders", async (req, res) => {
   const { userId, sharedId } = req.query;
 
