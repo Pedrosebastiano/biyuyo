@@ -22,6 +22,13 @@ interface AddTransactionDialogProps {
 export function AddTransactionDialog({ open, onOpenChange, initialTab = "expense", initialData }: AddTransactionDialogProps) {
   const [activeTab, setActiveTab] = useState(initialTab);
 
+  const tabLabels: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+    expense:  { label: "Gasto",        icon: <TrendingDown className="h-3.5 w-3.5" />, color: "text-destructive bg-destructive/10" },
+    income:   { label: "Ingreso",      icon: <TrendingUp   className="h-3.5 w-3.5" />, color: "text-green-600 bg-green-500/10" },
+    reminder: { label: "Recordatorio", icon: <Bell         className="h-3.5 w-3.5" />, color: "text-amber-500 bg-amber-500/10" },
+  };
+  const current = tabLabels[activeTab];
+
   // When dialog opens/closes, or when initialTab changes, update activeTab
   useEffect(() => {
     if (open) {
@@ -37,7 +44,15 @@ export function AddTransactionDialog({ open, onOpenChange, initialTab = "expense
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] border-2 max-h-[90vh] overflow-y-auto" data-onboarding="transaction-dialog-content">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Nueva Transacción</DialogTitle>
+          <div className="flex flex-col items-center gap-1">
+            <DialogTitle className="text-xl font-bold">Nueva Transacción</DialogTitle>
+            {current && (
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${current.color}`}>
+                {current.icon}
+                {current.label}
+              </span>
+            )}
+          </div>
           <DialogDescription className="hidden">Agrega una nueva transacción a tu registro.</DialogDescription>
         </DialogHeader>
 

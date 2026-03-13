@@ -236,7 +236,7 @@ export default function Transactions() {
                   <Button
                     size="sm"
                     className="gap-2"
-                    onClick={() => setIsTransactionDialogOpen(true)}
+                    onClick={() => { setDialogInitialTab("expense"); setIsTransactionDialogOpen(true); }}
                   >
                     <Plus className="h-4 w-4" />
                     Agregar Transacción
@@ -268,7 +268,7 @@ export default function Transactions() {
                   <Button
                     size="sm"
                     className="gap-2"
-                    onClick={() => setIsTransactionDialogOpen(true)}
+                    onClick={() => { setDialogInitialTab("income"); setIsTransactionDialogOpen(true); }}
                   >
                     <Plus className="h-4 w-4" />
                     Agregar Transacción
@@ -300,7 +300,7 @@ export default function Transactions() {
                   <Button
                     size="sm"
                     className="gap-2"
-                    onClick={() => setIsTransactionDialogOpen(true)}
+                    onClick={() => { setDialogInitialTab("reminder"); setIsTransactionDialogOpen(true); }}
                   >
                     <Plus className="h-4 w-4" />
                     Agregar Transacción
