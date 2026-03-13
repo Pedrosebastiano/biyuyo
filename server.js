@@ -1545,7 +1545,8 @@ app.post("/set-initial-balance", async (req, res) => {
 app.post("/accounts/savings", async (req, res) => {
   const { userId, amount, sharedId } = req.body;
 
-  console.log(`[/accounts/savings] Recibido - userId: ${userId}, amount: ${amount}, sharedId: ${sharedId || 'none'}`);
+  const logMsg = `${new Date().toISOString()} - [POST /accounts/savings] userId: ${userId}, amount: ${amount}, sharedId: ${sharedId || 'none'}\n`;
+  fs.appendFileSync("api_logs.txt", logMsg);
 
   if (!userId) {
     return res.status(400).json({ error: "userId es requerido" });
@@ -1561,12 +1562,10 @@ app.post("/accounts/savings", async (req, res) => {
     let result;
 
     if (sharedId) {
-      // Entorno compartido: buscar primera cuenta del shared_id
       const existing = await pool.query(
         "SELECT * FROM accounts WHERE shared_id = $1 ORDER BY created_at ASC LIMIT 1",
         [sharedId]
       );
-      console.log(`[/accounts/savings] Cuentas compartidas encontradas: ${existing.rows.length}`);
 
       if (existing.rows.length > 0) {
         result = await pool.query(
@@ -1580,22 +1579,22 @@ app.post("/accounts/savings", async (req, res) => {
         );
       }
     } else {
-      // Entorno individual: buscar CUALQUIER cuenta del usuario (sin importar el nombre)
+      // Busca cualquier cuenta, sin importar el nombre
       const existing = await pool.query(
         "SELECT * FROM accounts WHERE user_id = $1::uuid AND shared_id IS NULL ORDER BY created_at ASC LIMIT 1",
         [userId]
       );
-      console.log(`[/accounts/savings] Cuentas individuales encontradas: ${existing.rows.length}`);
+
+      const foundLog = `${new Date().toISOString()} - [POST /accounts/savings] Cuentas encontradas: ${existing.rows.length}${existing.rows.length > 0 ? `, account_id: ${existing.rows[0].account_id}` : ''}\n`;
+      fs.appendFileSync("api_logs.txt", foundLog);
 
       if (existing.rows.length > 0) {
         const accountId = existing.rows[0].account_id;
-        console.log(`[/accounts/savings] Actualizando cuenta: ${accountId} con +${numericAmount}`);
         result = await pool.query(
           "UPDATE accounts SET balance = balance + $1, savings = savings + $1 WHERE account_id = $2 RETURNING *",
           [numericAmount, accountId]
         );
       } else {
-        console.log(`[/accounts/savings] No hay cuentas, creando cuenta 'Principal'`);
         result = await pool.query(
           "INSERT INTO accounts (user_id, name, balance, savings) VALUES ($1::uuid, $2, $3, $3) RETURNING *",
           [userId, "Principal", numericAmount]
@@ -1604,11 +1603,15 @@ app.post("/accounts/savings", async (req, res) => {
     }
 
     const updatedAccount = result.rows[0];
-    console.log(`[/accounts/savings] ✅ Supabase actualizado - account_id: ${updatedAccount.account_id}, balance: ${updatedAccount.balance}, savings: ${updatedAccount.savings}`);
+    const successLog = `${new Date().toISOString()} - [POST /accounts/savings] ✅ OK - account_id: ${updatedAccount.account_id}, balance: ${updatedAccount.balance}, savings: ${updatedAccount.savings}\n`;
+    fs.appendFileSync("api_logs.txt", successLog);
+
     res.json({ success: true, account: updatedAccount });
   } catch (err) {
-    console.error("[/accounts/savings] ❌ Error:", err.message);
-    res.status(500).json({ error: "Error al registrar ahorro" });
+    const errLog = `${new Date().toISOString()} - [POST /accounts/savings] ❌ Error: ${err.message}\n`;
+    fs.appendFileSync("api_logs.txt", errLog);
+    console.error("[/accounts/savings] Error:", err.message);
+    res.status(500).json({ error: "Error al registrar ahorro", detail: err.message });
   }
 });
 
