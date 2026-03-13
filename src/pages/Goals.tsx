@@ -281,12 +281,12 @@ export default function Goals() {
                   {activeSharedProfile ? "Metas colectivas del grupo." : "Ahorra para lo que más importa."}
                 </p>
               </div>
-              <div className="flex gap-2">
-                <Button onClick={() => setIsRegisterSavingsOpen(true)} variant="outline" className="rounded-full shadow-sm h-11 px-6 border-primary text-primary hover:bg-primary/10">
-                  <Plus className="h-5 w-5 mr-2" /> Registro de ahorro
-                </Button>
+              <div className="flex flex-col gap-2 items-end">
                 <Button onClick={() => setIsAddDialogOpen(true)} className="rounded-full shadow-lg h-11 px-6" data-onboarding="new-goal-btn">
                   <Plus className="h-5 w-5 mr-2" /> Nueva Meta
+                </Button>
+                <Button onClick={() => setIsRegisterSavingsOpen(true)} variant="outline" className="rounded-full shadow-sm h-11 px-6 border-primary text-primary hover:bg-primary/10">
+                  <Plus className="h-5 w-5 mr-2" /> Registro de ahorro
                 </Button>
               </div>
             </div>

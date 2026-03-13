@@ -1296,17 +1296,17 @@ app.get("/budget-stats/:userId", async (req, res) => {
     };
 
     for (const row of result.rows) {
-      const key = row.budget_type === 'necesarios' ? 'necesarios' 
-                : row.budget_type === 'flexibles' ? 'flexibles' 
-                : row.budget_type === 'ahorro' ? 'ahorro' : null;
+      const key = row.budget_type === 'necesarios' ? 'necesarios'
+        : row.budget_type === 'flexibles' ? 'flexibles'
+          : row.budget_type === 'ahorro' ? 'ahorro' : null;
       if (key) {
         stats[key].count = parseInt(row.transaction_count);
         stats[key].amount = parseFloat(row.total_amount);
-        stats[key].pct_by_count = totalTransactions > 0 
-          ? Math.round((parseInt(row.transaction_count) / totalTransactions) * 100) 
+        stats[key].pct_by_count = totalTransactions > 0
+          ? Math.round((parseInt(row.transaction_count) / totalTransactions) * 100)
           : 0;
-        stats[key].pct_by_amount = totalAmount > 0 
-          ? Math.round((parseFloat(row.total_amount) / totalAmount) * 100) 
+        stats[key].pct_by_amount = totalAmount > 0
+          ? Math.round((parseFloat(row.total_amount) / totalAmount) * 100)
           : 0;
       }
     }
@@ -1545,51 +1545,69 @@ app.post("/set-initial-balance", async (req, res) => {
 app.post("/accounts/savings", async (req, res) => {
   const { userId, amount, sharedId } = req.body;
 
-  if (!amount || isNaN(parseFloat(amount))) {
+  console.log(`[/accounts/savings] Recibido - userId: ${userId}, amount: ${amount}, sharedId: ${sharedId || 'none'}`);
+
+  if (!userId) {
+    return res.status(400).json({ error: "userId es requerido" });
+  }
+
+  if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
     return res.status(400).json({ error: "Monto inválido" });
   }
 
-  try {
-    let query = "";
-    let values = [];
+  const numericAmount = parseFloat(amount);
 
-    // Priorizamos sharedId si existe
+  try {
+    let result;
+
     if (sharedId) {
-      // Buscamos la cuenta principal asociada a este sharedId
+      // Entorno compartido: buscar primera cuenta del shared_id
       const existing = await pool.query(
-        "SELECT * FROM accounts WHERE shared_id = $1 ORDER BY account_id LIMIT 1",
+        "SELECT * FROM accounts WHERE shared_id = $1 ORDER BY created_at ASC LIMIT 1",
         [sharedId]
       );
+      console.log(`[/accounts/savings] Cuentas compartidas encontradas: ${existing.rows.length}`);
 
       if (existing.rows.length > 0) {
-        query = "UPDATE accounts SET balance = balance + $1, savings = savings + $1 WHERE account_id = $2 RETURNING *";
-        values = [amount, existing.rows[0].account_id];
+        result = await pool.query(
+          "UPDATE accounts SET balance = balance + $1, savings = savings + $1 WHERE account_id = $2 RETURNING *",
+          [numericAmount, existing.rows[0].account_id]
+        );
       } else {
-        // En un entorno compartido donde no hay cuenta, idealmente debe existir.
-        // Creada por el admin original. Si no, forzamos crearla:
-        query = "INSERT INTO accounts (user_id, shared_id, name, balance, savings) VALUES ($1, $2, $3, $4, $4) RETURNING *";
-        values = [userId, sharedId, "Principal", amount];
+        result = await pool.query(
+          "INSERT INTO accounts (user_id, shared_id, name, balance, savings) VALUES ($1::uuid, $2, $3, $4, $4) RETURNING *",
+          [userId, sharedId, "Principal", numericAmount]
+        );
       }
     } else {
-      // Caso de usuario individual
+      // Entorno individual: buscar CUALQUIER cuenta del usuario (sin importar el nombre)
       const existing = await pool.query(
-        "SELECT * FROM accounts WHERE user_id = $1 AND shared_id IS NULL AND name = 'Principal'",
+        "SELECT * FROM accounts WHERE user_id = $1::uuid AND shared_id IS NULL ORDER BY created_at ASC LIMIT 1",
         [userId]
       );
+      console.log(`[/accounts/savings] Cuentas individuales encontradas: ${existing.rows.length}`);
 
       if (existing.rows.length > 0) {
-        query = "UPDATE accounts SET balance = balance + $1, savings = savings + $1 WHERE account_id = $2 RETURNING *";
-        values = [amount, existing.rows[0].account_id];
+        const accountId = existing.rows[0].account_id;
+        console.log(`[/accounts/savings] Actualizando cuenta: ${accountId} con +${numericAmount}`);
+        result = await pool.query(
+          "UPDATE accounts SET balance = balance + $1, savings = savings + $1 WHERE account_id = $2 RETURNING *",
+          [numericAmount, accountId]
+        );
       } else {
-        query = "INSERT INTO accounts (user_id, name, balance, savings) VALUES ($1, $2, $3, $3) RETURNING *";
-        values = [userId, "Principal", amount];
+        console.log(`[/accounts/savings] No hay cuentas, creando cuenta 'Principal'`);
+        result = await pool.query(
+          "INSERT INTO accounts (user_id, name, balance, savings) VALUES ($1::uuid, $2, $3, $3) RETURNING *",
+          [userId, "Principal", numericAmount]
+        );
       }
     }
 
-    const result = await pool.query(query, values);
-    res.json({ success: true, account: result.rows[0] });
+    const updatedAccount = result.rows[0];
+    console.log(`[/accounts/savings] ✅ Supabase actualizado - account_id: ${updatedAccount.account_id}, balance: ${updatedAccount.balance}, savings: ${updatedAccount.savings}`);
+    res.json({ success: true, account: updatedAccount });
   } catch (err) {
-    console.error("Error al registrar ahorro global:", err);
+    console.error("[/accounts/savings] ❌ Error:", err.message);
     res.status(500).json({ error: "Error al registrar ahorro" });
   }
 });
@@ -2706,7 +2724,7 @@ app.post("/api/auth/webauthn/register-challenge", async (req, res) => {
     // Determinar el RP ID basado en el origen de la solicitud (frontend)
     const origin = req.get('origin') || req.get('referer');
     let rpId = 'localhost';
-    
+
     if (origin) {
       try {
         const url = new URL(origin);
@@ -2720,7 +2738,7 @@ app.post("/api/auth/webauthn/register-challenge", async (req, res) => {
 
     // Generar desafío aleatorio
     const challenge = crypto.randomBytes(32).toString('base64url');
-    
+
     // Configuración para el navegador
     const options = {
       challenge,
@@ -2768,10 +2786,10 @@ app.post("/api/auth/webauthn/register-verify", async (req, res) => {
     // En una implementación real con librerías como @simplewebauthn/server, 
     // verificaríamos la fe de fe de hechos (attestation).
     // Aquí guardamos los datos básicos para permitir el flujo solicitado de "Autofill".
-    
+
     const { id, rawId, response, type } = credential;
     const publicKey = response.publicKey; // En base64 o similar enviado por el cliente
-    
+
     await pool.query(
       `INSERT INTO webauthn_credentials (user_id, credential_id, public_key, counter, authenticator_attachment)
        VALUES ($1, $2, $3, $4, $5)
@@ -2793,7 +2811,7 @@ app.get("/api/auth/webauthn/login-challenge", async (req, res) => {
   try {
     const origin = req.get('origin') || req.get('referer');
     let rpId = 'localhost';
-    
+
     if (origin) {
       try {
         const url = new URL(origin);
@@ -2806,7 +2824,7 @@ app.get("/api/auth/webauthn/login-challenge", async (req, res) => {
     }
 
     const challenge = crypto.randomBytes(32).toString('base64url');
-    
+
     res.json({
       challenge,
       timeout: 60000,
@@ -2827,7 +2845,7 @@ app.post("/api/auth/webauthn/login-verify", async (req, res) => {
 
   try {
     const { id, response } = credential;
-    
+
     // Buscar la credencial en la DB
     const credResult = await pool.query(
       "SELECT user_id, public_key FROM webauthn_credentials WHERE credential_id = $1",
