@@ -51,7 +51,7 @@ export function useWebAuthn() {
       setLoading(true);
 
       // 1. Obtener desafío del servidor
-      const resChallenge = await fetch(`${API_URL}/auth/webauthn/register-challenge`, {
+      const resChallenge = await fetch(`${API_URL}/api/auth/webauthn/register-challenge`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: userId }),
@@ -81,7 +81,7 @@ export function useWebAuthn() {
       // 3. Enviar respuesta al servidor para verificar y guardar
       const response = credential.response as AuthenticatorAttestationResponse;
       
-      const resVerify = await fetch(`${API_URL}/auth/webauthn/register-verify`, {
+      const resVerify = await fetch(`${API_URL}/api/auth/webauthn/register-verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -122,7 +122,7 @@ export function useWebAuthn() {
       setLoading(true);
 
       // 1. Obtener desafío del servidor
-      const resChallenge = await fetch(`${API_URL}/auth/webauthn/login-challenge`);
+      const resChallenge = await fetch(`${API_URL}/api/auth/webauthn/login-challenge`);
       if (!resChallenge.ok) throw new Error("Error al obtener desafío de login");
       const options = await resChallenge.json();
 
@@ -145,7 +145,7 @@ export function useWebAuthn() {
 
       // 3. Enviar al servidor para validar firma
       const response = assertion.response as AuthenticatorAssertionResponse;
-      const resVerify = await fetch(`${API_URL}/auth/webauthn/login-verify`, {
+      const resVerify = await fetch(`${API_URL}/api/auth/webauthn/login-verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
