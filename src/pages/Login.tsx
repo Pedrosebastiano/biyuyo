@@ -22,23 +22,36 @@ export default function Login() {
   const navigate = useNavigate();
   const { loginBiometrics, checkAvailability } = useWebAuthn();
 
-  // WebAuthn Conditional UI (Autofill)
+  // WebAuthn Auto-trigger for returning users
   useEffect(() => {
-    const initAutofill = async () => {
+    const initBiometrics = async () => {
       const isAvailable = await checkAvailability();
       if (!isAvailable) return;
 
-      // Intentar login con Conditional UI
-      const userData = await loginBiometrics(true);
-      if (userData) {
-        // Si el usuario selecciona su llave desde el autofill
-        localStorage.setItem("biyuyo_user", JSON.stringify(userData));
-        localStorage.setItem("biyuyo_user_id", userData.user_id);
-        toast.success("¡Bienvenido de nuevo!");
-        navigate("/");
+      const savedUserId = localStorage.getItem("biyuyo_user_id");
+      
+      // Si hay un usuario guardado (ha iniciado sesión antes), intentamos login directo
+      if (savedUserId) {
+        // Lanzamos el prompt de inmediato (no condicional, porque sabemos que existe)
+        const userData = await loginBiometrics(false);
+        if (userData) {
+          localStorage.setItem("biyuyo_user", JSON.stringify(userData));
+          localStorage.setItem("biyuyo_user_id", userData.user_id);
+          toast.success("¡Bienvenido de nuevo!");
+          navigate("/");
+        }
+      } else {
+        // Si no hay usuario previo, activamos el Conditional UI (Autofill)
+        const userData = await loginBiometrics(true);
+        if (userData) {
+          localStorage.setItem("biyuyo_user", JSON.stringify(userData));
+          localStorage.setItem("biyuyo_user_id", userData.user_id);
+          toast.success("¡Bienvenido de nuevo!");
+          navigate("/");
+        }
       }
     };
-    initAutofill();
+    initBiometrics();
   }, [checkAvailability, loginBiometrics, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {

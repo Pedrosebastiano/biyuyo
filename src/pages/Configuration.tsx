@@ -17,7 +17,8 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useWebAuthn } from "@/hooks/useWebAuthn";
 import { Fingerprint, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 
 // Subcomponente para cada fila de configuración
 function SettingsItem({ icon: Icon, title, subtitle, color, onClick }: any) {
@@ -44,12 +45,35 @@ export default function Settings() {
   const { user } = useAuth(); 
   const navigate = useNavigate();
 
-  const { registerBiometrics, checkAvailability, loading: webAuthnLoading } = useWebAuthn();
+  const { registerBiometrics, checkAvailability, checkBiometricStatus, removeBiometrics, loading: webAuthnLoading } = useWebAuthn();
   const [isBiometricsSupported, setIsBiometricsSupported] = useState<boolean | null>(null);
+  const [isBiometricsEnabled, setIsBiometricsEnabled] = useState(false);
 
   useEffect(() => {
     checkAvailability().then(setIsBiometricsSupported);
   }, [checkAvailability]);
+
+  useEffect(() => {
+    if (user && isBiometricsSupported) {
+      checkBiometricStatus(user.user_id).then(setIsBiometricsEnabled);
+    }
+  }, [user, isBiometricsSupported, checkBiometricStatus]);
+
+  const handleBiometricToggle = async (checked: boolean) => {
+    if (!user) return;
+    
+    if (checked) {
+      const success = await registerBiometrics(user.user_id);
+      if (success) {
+        setIsBiometricsEnabled(true);
+      }
+    } else {
+      const success = await removeBiometrics(user.user_id);
+      if (success) {
+        setIsBiometricsEnabled(false);
+      }
+    }
+  };
 
   if (!user) {
     return (
@@ -155,19 +179,14 @@ export default function Settings() {
                       <p className="text-xs text-muted-foreground">Usa tu huella o reconocimiento facial</p>
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    className="rounded-2xl gap-2 font-semibold border-primary/20 hover:bg-primary/5 transition-all w-full md:w-auto"
-                    onClick={() => user && registerBiometrics(user.user_id)}
-                    disabled={webAuthnLoading}
-                  >
-                    {webAuthnLoading ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <Fingerprint size={16} />
-                    )}
-                    {webAuthnLoading ? "Activando..." : "Activar Biometría"}
-                  </Button>
+                  <div className="flex items-center space-x-2">
+                    {webAuthnLoading && <Loader2 size={16} className="animate-spin text-muted-foreground" />}
+                    <Switch
+                      checked={isBiometricsEnabled}
+                      onCheckedChange={handleBiometricToggle}
+                      disabled={webAuthnLoading}
+                    />
+                  </div>
                 </div>
               </section>
             )}

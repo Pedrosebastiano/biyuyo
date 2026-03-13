@@ -2816,6 +2816,37 @@ app.post("/api/auth/webauthn/login-verify", async (req, res) => {
   }
 });
 
+/**
+ * Endpoint para verificar si el usuario tiene biometría activa
+ */
+app.get("/api/auth/webauthn/status/:user_id", async (req, res) => {
+  const { user_id } = req.params;
+  try {
+    const result = await pool.query(
+      "SELECT COUNT(*) as count FROM webauthn_credentials WHERE user_id = $1",
+      [user_id]
+    );
+    res.json({ enabled: parseInt(result.rows[0].count) > 0 });
+  } catch (err) {
+    console.error("Error checking webauthn status:", err);
+    res.status(500).json({ error: "Error al verificar estado biométrico" });
+  }
+});
+
+/**
+ * Endpoint para desactivar (eliminar) la biometría
+ */
+app.delete("/api/auth/webauthn/remove/:user_id", async (req, res) => {
+  const { user_id } = req.params;
+  try {
+    await pool.query("DELETE FROM webauthn_credentials WHERE user_id = $1", [user_id]);
+    res.json({ success: true, message: "Biometría desactivada" });
+  } catch (err) {
+    console.error("Error removing webauthn:", err);
+    res.status(500).json({ error: "Error al desactivar biometría" });
+  }
+});
+
 // --- FINAL DE WEBAUTHN ENDPOINTS ---
 
 // --- CONFIGURACIÓN DEL PUERTO ---

@@ -179,10 +179,48 @@ export function useWebAuthn() {
     }
   }, []);
 
+  /**
+   * Verificar si el usuario ya tiene biometría registrada
+   */
+  const checkBiometricStatus = useCallback(async (userId: string) => {
+    try {
+      const res = await fetch(`${API_URL}/api/auth/webauthn/status/${userId}`);
+      if (!res.ok) return false;
+      const data = await res.json();
+      return data.enabled as boolean;
+    } catch (err) {
+      console.error("Error al verificar estado biométrico:", err);
+      return false;
+    }
+  }, []);
+
+  /**
+   * Desactivar (eliminar) biometría
+   */
+  const removeBiometrics = useCallback(async (userId: string) => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/api/auth/webauthn/remove/${userId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Error al desactivar biometría");
+      toast.success("Biometría desactivada");
+      return true;
+    } catch (err) {
+      console.error("Error al remover biometría:", err);
+      toast.error("Error al desactivar biometría");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   return {
     loading,
     checkAvailability,
     registerBiometrics,
     loginBiometrics,
+    checkBiometricStatus,
+    removeBiometrics,
   };
 }
