@@ -16,17 +16,19 @@ import {
   CheckCircle2,
   ArrowLeft,
   Sparkles,
+  Smartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-type PaymentMethod = "card" | "paypal" | "transfer";
+type PaymentMethod = "card" | "paypal" | "transfer" | "pagomovil";
 
 const paymentMethods = [
   { id: "card" as const, label: "Tarjeta", icon: CreditCard, color: "bg-blue-600" },
   { id: "paypal" as const, label: "PayPal", icon: Wallet, color: "bg-indigo-500" },
   { id: "transfer" as const, label: "Transferencia", icon: Building2, color: "bg-emerald-600" },
+  { id: "pagomovil" as const, label: "Pago Móvil", icon: Smartphone, color: "bg-orange-500" },
 ];
 
 export default function PaymentGateway() {
@@ -38,6 +40,8 @@ export default function PaymentGateway() {
   const [cardNumber, setCardNumber] = useState("");
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
+  const [pagoMovilPhone, setPagoMovilPhone] = useState("");
+  const [pagoMovilCedula, setPagoMovilCedula] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -122,7 +126,7 @@ export default function PaymentGateway() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Método</span>
-                  <span className="font-medium capitalize">{selectedMethod === "card" ? "Tarjeta" : selectedMethod === "paypal" ? "PayPal" : "Transferencia"}</span>
+                  <span className="font-medium capitalize">{selectedMethod === "card" ? "Tarjeta" : selectedMethod === "paypal" ? "PayPal" : selectedMethod === "pagomovil" ? "Pago Móvil" : "Transferencia"}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Total pagado</span>
@@ -238,7 +242,7 @@ export default function PaymentGateway() {
               <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-2">
                 Método de Pago
               </h2>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {paymentMethods.map((method) => {
                   const isActive = selectedMethod === method.id;
                   return (
@@ -428,6 +432,62 @@ export default function PaymentGateway() {
               </section>
             )}
 
+            {/* ── Pago Móvil ── */}
+            {selectedMethod === "pagomovil" && (
+              <section className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-2">
+                  Pago Móvil
+                </h2>
+                <div className="p-6 bg-card border rounded-[32px] space-y-5">
+                  <div className="mx-auto w-16 h-16 bg-orange-500/10 rounded-2xl flex items-center justify-center">
+                    <Smartphone size={32} className="text-orange-500" />
+                  </div>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="pm-phone" className="text-sm font-semibold">
+                        Teléfono
+                      </Label>
+                      <Input
+                        id="pm-phone"
+                        placeholder="0412-1234567"
+                        value={pagoMovilPhone}
+                        onChange={(e) => setPagoMovilPhone(e.target.value)}
+                        className="rounded-xl h-12 text-base font-mono"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pm-cedula" className="text-sm font-semibold">
+                        Cédula de Identidad
+                      </Label>
+                      <Input
+                        id="pm-cedula"
+                        placeholder="V-12345678"
+                        value={pagoMovilCedula}
+                        onChange={(e) => setPagoMovilCedula(e.target.value)}
+                        className="rounded-xl h-12 text-base font-mono"
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      {[
+                        { label: "Banco destino", value: "Banco Nacional" },
+                        { label: "Teléfono destino", value: "0414-0001234" },
+                        { label: "Cédula destino", value: "J-12345678-9" },
+                        { label: "Monto", value: "$1,250.00" },
+                      ].map((item) => (
+                        <div
+                          key={item.label}
+                          className="flex justify-between items-center p-3 bg-background/60 rounded-xl border"
+                        >
+                          <span className="text-sm text-muted-foreground">{item.label}</span>
+                          <span className="text-sm font-semibold font-mono">{item.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
             {/* ── Botón de Pagar + Seguridad ── */}
             <section className="space-y-4 pb-4">
               <Button
@@ -443,7 +503,7 @@ export default function PaymentGateway() {
                 ) : (
                   <div className="flex items-center gap-2">
                     <Lock size={18} />
-                    {selectedMethod === "transfer" ? "Confirmar Transferencia" : `Pagar $1,250.00`}
+                    {selectedMethod === "transfer" ? "Confirmar Transferencia" : selectedMethod === "pagomovil" ? "Confirmar Pago Móvil" : `Pagar $1,250.00`}
                   </div>
                 )}
               </Button>

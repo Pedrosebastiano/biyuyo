@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   ArrowLeft, LogOut, Mail, User,
-  Star, Loader2, Check,
+  Star, Loader2, Check, CreditCard,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/config";
@@ -363,6 +363,16 @@ export default function Profile() {
 
         {/* Educación Financiera */}
         <FinancialEducation />
+
+        {/* Pasarela de Pago */}
+        <Button
+          variant="outline"
+          className="w-full gap-2 rounded-xl h-12 border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-all"
+          onClick={() => navigate("/payment")}
+        >
+          <CreditCard className="h-5 w-5 text-primary" />
+          <span className="font-semibold">Pasarela de Pago</span>
+        </Button>
 
         {/* Logout */}
         <Button variant="destructive" className="w-full gap-2" onClick={handleLogout}>
