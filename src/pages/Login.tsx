@@ -8,6 +8,9 @@ import { Eye, EyeOff, Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import biyuyoLogo from "@/assets/biyuyo_imagen.png";
 import { toast } from "sonner";
+import { useWebAuthn } from "@/hooks/useWebAuthn";
+import { Fingerprint } from "lucide-react";
+import { useEffect } from "react";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -17,6 +20,26 @@ export default function Login() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const { loginBiometrics, checkAvailability } = useWebAuthn();
+
+  // WebAuthn Conditional UI (Autofill)
+  useEffect(() => {
+    const initAutofill = async () => {
+      const isAvailable = await checkAvailability();
+      if (!isAvailable) return;
+
+      // Intentar login con Conditional UI
+      const userData = await loginBiometrics(true);
+      if (userData) {
+        // Si el usuario selecciona su llave desde el autofill
+        localStorage.setItem("biyuyo_user", JSON.stringify(userData));
+        localStorage.setItem("biyuyo_user_id", userData.user_id);
+        toast.success("¡Bienvenido de nuevo!");
+        navigate("/");
+      }
+    };
+    initAutofill();
+  }, [checkAvailability, loginBiometrics, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,6 +179,7 @@ export default function Login() {
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-9"
                   disabled={disabled}
+                  autoComplete="username webauthn"
                 />
               </div>
             </div>
@@ -206,6 +230,34 @@ export default function Login() {
               ) : (
                 "Iniciar sesión"
               )}
+            </Button>
+
+            <div className="relative py-2">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">O</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full gap-2 border-2"
+              onClick={async () => {
+                const userData = await loginBiometrics(false);
+                if (userData) {
+                  localStorage.setItem("biyuyo_user", JSON.stringify(userData));
+                  localStorage.setItem("biyuyo_user_id", userData.user_id);
+                  toast.success("¡Bienvenido de nuevo!");
+                  navigate("/");
+                }
+              }}
+              disabled={disabled}
+            >
+              <Fingerprint className="h-4 w-4" />
+              Entrar con Biometría
             </Button>
           </form>
 

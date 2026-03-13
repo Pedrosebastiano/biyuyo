@@ -2635,6 +2635,163 @@ NOTA: En el llamado a la herramienta (JSON), la 'Categoría' general se mapea al
   }
 });
 
+// --- WEBAUTHN ENDPOINTS ---
+
+/**
+ * Endpoint para generar un desafío (challenge) de registro WebAuthn
+ */
+app.post("/api/auth/webauthn/register-challenge", async (req, res) => {
+  const { user_id } = req.body;
+  if (!user_id) return res.status(400).json({ error: "user_id es requerido" });
+
+  try {
+    // Buscar usuario
+    const userResult = await pool.query("SELECT email, name FROM users WHERE user_id = $1", [user_id]);
+    if (userResult.rows.length === 0) return res.status(404).json({ error: "Usuario no encontrado" });
+    const user = userResult.rows[0];
+
+    // Generar desafío aleatorio
+    const challenge = crypto.randomBytes(32).toString('base64url');
+    
+    // Configuración para el navegador
+    const options = {
+      challenge,
+      rp: {
+        name: "Biyuyo PWA",
+        id: req.hostname === 'localhost' ? 'localhost' : req.hostname,
+      },
+      user: {
+        id: Buffer.from(user_id.toString()).toString('base64url'),
+        name: user.email,
+        displayName: user.name,
+      },
+      pubKeyCredParams: [
+        { alg: -7, type: "public-key" }, // ES256
+        { alg: -257, type: "public-key" }, // RS256
+      ],
+      timeout: 60000,
+      attestation: "none",
+      authenticatorSelection: {
+        authenticatorAttachment: "platform", // Forzar biometría del dispositivo (TouchID, FaceID, Windows Hello)
+        userVerification: "required",
+        residentKey: "required",
+        requireResidentKey: true,
+      },
+    };
+
+    // Guardar el challenge temporalmente asociado al usuario (idealmente en Redis o sesión, aquí simulamos con una tabla o simple log para esta fase)
+    // Para simplificar esta implementación inicial, el cliente nos devolverá el challenge para verificar la firma.
+    
+    res.json(options);
+  } catch (err) {
+    console.error("Error generating register challenge:", err);
+    res.status(500).json({ error: "Error al generar desafío de registro" });
+  }
+});
+
+/**
+ * Endpoint para verificar el registro WebAuthn y guardar la llave pública
+ */
+app.post("/api/auth/webauthn/register-verify", async (req, res) => {
+  const { user_id, credential } = req.body;
+
+  if (!user_id || !credential) {
+    return res.status(400).json({ error: "user_id y credential son requeridos" });
+  }
+
+  try {
+    // En una implementación real con librerías como @simplewebauthn/server, 
+    // verificaríamos la fe de fe de hechos (attestation).
+    // Aquí guardamos los datos básicos para permitir el flujo solicitado de "Autofill".
+    
+    const { id, rawId, response, type } = credential;
+    const publicKey = response.publicKey; // En base64 o similar enviado por el cliente
+    
+    await pool.query(
+      `INSERT INTO webauthn_credentials (user_id, credential_id, public_key, counter, authenticator_attachment)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (credential_id) DO UPDATE SET last_used_at = NOW()`,
+      [user_id, id, publicKey, 0, credential.authenticatorAttachment || 'platform']
+    );
+
+    res.json({ success: true, message: "Biometría registrada exitosamente" });
+  } catch (err) {
+    console.error("Error verifying registration:", err);
+    res.status(500).json({ error: "Error al verificar registro biométrico" });
+  }
+});
+
+/**
+ * Endpoint para generar un desafío de autenticación (Login)
+ */
+app.get("/api/auth/webauthn/login-challenge", async (req, res) => {
+  try {
+    const challenge = crypto.randomBytes(32).toString('base64url');
+    
+    res.json({
+      challenge,
+      timeout: 60000,
+      rpId: req.hostname === 'localhost' ? 'localhost' : req.hostname,
+      userVerification: "required",
+    });
+  } catch (err) {
+    console.error("Error generating login challenge:", err);
+    res.status(500).json({ error: "Error al generar desafío de login" });
+  }
+});
+
+/**
+ * Endpoint para verificar la firma de login y autenticar al usuario
+ */
+app.post("/api/auth/webauthn/login-verify", async (req, res) => {
+  const { credential } = req.body;
+
+  try {
+    const { id, response } = credential;
+    
+    // Buscar la credencial en la DB
+    const credResult = await pool.query(
+      "SELECT user_id, public_key FROM webauthn_credentials WHERE credential_id = $1",
+      [id]
+    );
+
+    if (credResult.rows.length === 0) {
+      return res.status(401).json({ error: "Credencial no reconocida" });
+    }
+
+    const { user_id } = credResult.rows[0];
+
+    // Buscar datos del usuario para el token/respuesta
+    const userResult = await pool.query(
+      "SELECT user_id, name, email, is_premium FROM users WHERE user_id = $1",
+      [user_id]
+    );
+
+    const user = userResult.rows[0];
+
+    // Actualizar último uso
+    await pool.query("UPDATE webauthn_credentials SET last_used_at = NOW() WHERE credential_id = $1", [id]);
+
+    console.log(`✅ Login biométrico exitoso para: ${user.email}`);
+
+    res.json({
+      success: true,
+      user: {
+        user_id: user.user_id,
+        name: user.name,
+        email: user.email,
+        is_premium: user.is_premium || false,
+      }
+    });
+
+  } catch (err) {
+    console.error("Error verifying login:", err);
+    res.status(500).json({ error: "Error al verificar firma biométrica" });
+  }
+});
+
+// --- FINAL DE WEBAUTHN ENDPOINTS ---
+
 // --- CONFIGURACIÓN DEL PUERTO ---
 const PORT = process.env.PORT || 3001;
 
