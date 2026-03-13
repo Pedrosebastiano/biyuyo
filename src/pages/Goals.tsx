@@ -16,6 +16,9 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { BudgetDistribution } from "@/components/dashboard/BudgetDistribution";
+import { useTransactions } from "@/hooks/useTransactions";
+import { EmergencyFund } from "@/components/dashboard/EmergencyFund";
+import { useExchangeRate } from "@/hooks/useExchangeRate";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -201,6 +204,11 @@ export default function Goals() {
   const [isRegisterSavingsOpen, setIsRegisterSavingsOpen] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<any>(null);
   const { isOnboarding, registerAction, unregisterAction } = useOnboarding();
+  const { transactions, accounts, loading: transactionsLoading } = useTransactions(
+    user?.user_id || "",
+    activeSharedProfile?.shared_id
+  );
+  const { rate: exchangeRate } = useExchangeRate();
 
   // Register onboarding actions to open/close goal dialog
   useEffect(() => {
@@ -321,6 +329,18 @@ export default function Goals() {
                 <Button onClick={() => setIsAddDialogOpen(true)} variant="outline" className="rounded-2xl">
                   Crear mi primera meta
                 </Button>
+              </div>
+            )}
+
+            {/* Emergency Fund Chart integrated into Goals */}
+            {!loading && !transactionsLoading && (
+              <div className="grid grid-cols-1 gap-6">
+                <EmergencyFund 
+                  accounts={accounts} 
+                  transactions={transactions} 
+                  currency="USD"
+                  exchangeRate={exchangeRate}
+                />
               </div>
             )}
 
