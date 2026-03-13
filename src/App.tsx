@@ -24,6 +24,7 @@ import { OnboardingOverlay } from "@/components/onboarding/OnboardingOverlay";
 import Goals from "./pages/Goals"; // Importamos la nueva página de Metas
 import Configuration from "./pages/Configuration.tsx"; // Importamos la nueva página de Configuración
 import Appearance from "./pages/Appearance.tsx"; // Importamos la nueva página de Apariencia
+import PaymentGateway from "./pages/PaymentGateway"; // Página de pasarela de pago
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,7 @@ const AppRoutes = () => (
     <Route path="/goals" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
     <Route path="/configuration" element={<ProtectedRoute><Configuration /></ProtectedRoute>} />
     <Route path="/appearance" element={<ProtectedRoute><Appearance /></ProtectedRoute>} />
+    <Route path="/payment" element={<ProtectedRoute><PaymentGateway /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
