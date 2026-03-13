@@ -12,8 +12,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/config";
 import { FinancialEducation } from "@/components/dashboard/FinancialEducation";
-import { useWebAuthn } from "@/hooks/useWebAuthn";
-import { Fingerprint } from "lucide-react";
 
 const API_URL = getApiUrl();
 const UNIMET_DOMAINS = ["correo.unimet.edu.ve", "unimet.edu.ve"];
@@ -39,13 +37,6 @@ export default function Profile() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
-
-  const { registerBiometrics, checkAvailability, loading: webAuthnLoading } = useWebAuthn();
-  const [isBiometricsSupported, setIsBiometricsSupported] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    checkAvailability().then(setIsBiometricsSupported);
-  }, [checkAvailability]);
 
   // Al entrar al perfil, refresca datos del servidor para tener is_premium actualizado
   useEffect(() => {
@@ -372,36 +363,6 @@ export default function Profile() {
 
         {/* Educación Financiera */}
         <FinancialEducation />
-
-        {/* Biometría */}
-        {isBiometricsSupported && (
-          <Card className="border-2">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Fingerprint className="h-5 w-5 text-primary" />
-                Acceso Biométrico
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Usa tu huella o reconocimiento facial para iniciar sesión de forma rápida y segura.
-              </p>
-              <Button
-                variant="outline"
-                className="w-full gap-2"
-                onClick={() => user && registerBiometrics(user.user_id)}
-                disabled={webAuthnLoading}
-              >
-                {webAuthnLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Fingerprint className="h-4 w-4" />
-                )}
-                Activar Biometría
-              </Button>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Logout */}
         <Button variant="destructive" className="w-full gap-2" onClick={handleLogout}>

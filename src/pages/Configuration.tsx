@@ -14,6 +14,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useWebAuthn } from "@/hooks/useWebAuthn";
+import { Fingerprint, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // Subcomponente para cada fila de configuración
 function SettingsItem({ icon: Icon, title, subtitle, color, onClick }: any) {
@@ -39,6 +43,13 @@ function SettingsItem({ icon: Icon, title, subtitle, color, onClick }: any) {
 export default function Settings() {
   const { user } = useAuth(); 
   const navigate = useNavigate();
+
+  const { registerBiometrics, checkAvailability, loading: webAuthnLoading } = useWebAuthn();
+  const [isBiometricsSupported, setIsBiometricsSupported] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    checkAvailability().then(setIsBiometricsSupported);
+  }, [checkAvailability]);
 
   if (!user) {
     return (
@@ -127,6 +138,39 @@ export default function Settings() {
                 onClick={() => navigate("/appearance")} // <--- Agregas el evento onClick
               /> 
             </section>
+
+            {/* Sección de Seguridad */}
+            {isBiometricsSupported && (
+              <section className="space-y-3">
+                <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-2">
+                  Seguridad
+                </h2>
+                <div className="p-6 bg-card border rounded-[32px] flex flex-col md:flex-row items-center justify-between gap-4 transition-all hover:shadow-md border-primary/10">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-indigo-500 rounded-2xl text-white">
+                      <Fingerprint size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base">Acceso Biométrico</h3>
+                      <p className="text-xs text-muted-foreground">Usa tu huella o reconocimiento facial</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="rounded-2xl gap-2 font-semibold border-primary/20 hover:bg-primary/5 transition-all w-full md:w-auto"
+                    onClick={() => user && registerBiometrics(user.user_id)}
+                    disabled={webAuthnLoading}
+                  >
+                    {webAuthnLoading ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Fingerprint size={16} />
+                    )}
+                    {webAuthnLoading ? "Activando..." : "Activar Biometría"}
+                  </Button>
+                </div>
+              </section>
+            )}
 
             {/* Sección Destacada de la App (PWA) */}
             <section className="space-y-3">
