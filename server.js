@@ -1562,6 +1562,7 @@ app.post("/accounts/savings", async (req, res) => {
     let result;
 
     if (sharedId) {
+      // Entorno compartido
       const existing = await pool.query(
         "SELECT * FROM accounts WHERE shared_id = $1 ORDER BY created_at ASC LIMIT 1",
         [sharedId]
@@ -1574,14 +1575,14 @@ app.post("/accounts/savings", async (req, res) => {
         );
       } else {
         result = await pool.query(
-          "INSERT INTO accounts (user_id, shared_id, name, balance, savings) VALUES ($1::uuid, $2, $3, $4, $4) RETURNING *",
+          "INSERT INTO accounts (user_id, shared_id, name, balance, savings) VALUES ($1, $2, $3, $4, $4) RETURNING *",
           [userId, sharedId, "Principal", numericAmount]
         );
       }
     } else {
-      // Busca cualquier cuenta, sin importar el nombre
+      // Entorno individual — misma lógica que GET /accounts y set-initial-balance
       const existing = await pool.query(
-        "SELECT * FROM accounts WHERE user_id = $1::uuid AND shared_id IS NULL ORDER BY created_at ASC LIMIT 1",
+        "SELECT * FROM accounts WHERE user_id = $1 AND shared_id IS NULL ORDER BY created_at ASC LIMIT 1",
         [userId]
       );
 
@@ -1589,14 +1590,14 @@ app.post("/accounts/savings", async (req, res) => {
       fs.appendFileSync("api_logs.txt", foundLog);
 
       if (existing.rows.length > 0) {
-        const accountId = existing.rows[0].account_id;
         result = await pool.query(
           "UPDATE accounts SET balance = balance + $1, savings = savings + $1 WHERE account_id = $2 RETURNING *",
-          [numericAmount, accountId]
+          [numericAmount, existing.rows[0].account_id]
         );
       } else {
+        // No tiene cuenta — crear una nueva (igual que set-initial-balance)
         result = await pool.query(
-          "INSERT INTO accounts (user_id, name, balance, savings) VALUES ($1::uuid, $2, $3, $3) RETURNING *",
+          "INSERT INTO accounts (user_id, name, balance, savings) VALUES ($1, $2, $3, $3) RETURNING *",
           [userId, "Principal", numericAmount]
         );
       }
