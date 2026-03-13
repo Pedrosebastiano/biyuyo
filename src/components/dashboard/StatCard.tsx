@@ -15,7 +15,7 @@ interface StatCardProps {
 
 const variantStyles = {
   default: "bg-card",
-  success: "bg-accent",
+  success: "bg-accent dark:bg-emerald-950/40",
   warning: "bg-warning/10",
   destructive: "bg-destructive/10",
 };
