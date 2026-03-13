@@ -18,7 +18,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, loginWithUserData } = useAuth();
   const navigate = useNavigate();
   const { loginBiometrics, checkAvailability } = useWebAuthn();
 
@@ -35,8 +35,12 @@ export default function Login() {
         // Lanzamos el prompt de inmediato (no condicional, porque sabemos que existe)
         const userData = await loginBiometrics(false);
         if (userData) {
-          localStorage.setItem("biyuyo_user", JSON.stringify(userData));
-          localStorage.setItem("biyuyo_user_id", userData.user_id);
+          loginWithUserData({
+            user_id: userData.user_id,
+            name: userData.name,
+            email: userData.email,
+            is_premium: userData.is_premium || false,
+          });
           toast.success("¡Bienvenido de nuevo!");
           navigate("/");
         }
@@ -44,15 +48,19 @@ export default function Login() {
         // Si no hay usuario previo, activamos el Conditional UI (Autofill)
         const userData = await loginBiometrics(true);
         if (userData) {
-          localStorage.setItem("biyuyo_user", JSON.stringify(userData));
-          localStorage.setItem("biyuyo_user_id", userData.user_id);
+          loginWithUserData({
+            user_id: userData.user_id,
+            name: userData.name,
+            email: userData.email,
+            is_premium: userData.is_premium || false,
+          });
           toast.success("¡Bienvenido de nuevo!");
           navigate("/");
         }
       }
     };
     initBiometrics();
-  }, [checkAvailability, loginBiometrics, navigate]);
+  }, [checkAvailability, loginBiometrics, navigate, loginWithUserData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -260,13 +268,17 @@ export default function Login() {
               className="w-full gap-2 border-2"
               onClick={async () => {
                 const userData = await loginBiometrics(false);
-                if (userData) {
-                  localStorage.setItem("biyuyo_user", JSON.stringify(userData));
-                  localStorage.setItem("biyuyo_user_id", userData.user_id);
-                  toast.success("¡Bienvenido de nuevo!");
-                  navigate("/");
-                }
-              }}
+              if (userData) {
+                loginWithUserData({
+                  user_id: userData.user_id,
+                  name: userData.name,
+                  email: userData.email,
+                  is_premium: userData.is_premium || false,
+                });
+                toast.success("¡Bienvenido biométricamente!");
+                navigate("/");
+              }
+            }}
               disabled={disabled}
             >
               <Fingerprint className="h-4 w-4" />
