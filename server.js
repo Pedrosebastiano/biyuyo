@@ -2650,6 +2650,21 @@ app.post("/api/auth/webauthn/register-challenge", async (req, res) => {
     if (userResult.rows.length === 0) return res.status(404).json({ error: "Usuario no encontrado" });
     const user = userResult.rows[0];
 
+    // Determinar el RP ID basado en el origen de la solicitud (frontend)
+    const origin = req.get('origin') || req.get('referer');
+    let rpId = 'localhost';
+    
+    if (origin) {
+      try {
+        const url = new URL(origin);
+        rpId = url.hostname;
+      } catch (e) {
+        rpId = req.hostname;
+      }
+    } else {
+      rpId = req.hostname;
+    }
+
     // Generar desafío aleatorio
     const challenge = crypto.randomBytes(32).toString('base64url');
     
@@ -2658,7 +2673,7 @@ app.post("/api/auth/webauthn/register-challenge", async (req, res) => {
       challenge,
       rp: {
         name: "Biyuyo PWA",
-        id: req.hostname === 'localhost' ? 'localhost' : req.hostname,
+        id: rpId,
       },
       user: {
         id: Buffer.from(user_id.toString()).toString('base64url'),
@@ -2672,16 +2687,13 @@ app.post("/api/auth/webauthn/register-challenge", async (req, res) => {
       timeout: 60000,
       attestation: "none",
       authenticatorSelection: {
-        authenticatorAttachment: "platform", // Forzar biometría del dispositivo (TouchID, FaceID, Windows Hello)
+        authenticatorAttachment: "platform",
         userVerification: "required",
         residentKey: "required",
         requireResidentKey: true,
       },
     };
 
-    // Guardar el challenge temporalmente asociado al usuario (idealmente en Redis o sesión, aquí simulamos con una tabla o simple log para esta fase)
-    // Para simplificar esta implementación inicial, el cliente nos devolverá el challenge para verificar la firma.
-    
     res.json(options);
   } catch (err) {
     console.error("Error generating register challenge:", err);
@@ -2726,12 +2738,26 @@ app.post("/api/auth/webauthn/register-verify", async (req, res) => {
  */
 app.get("/api/auth/webauthn/login-challenge", async (req, res) => {
   try {
+    const origin = req.get('origin') || req.get('referer');
+    let rpId = 'localhost';
+    
+    if (origin) {
+      try {
+        const url = new URL(origin);
+        rpId = url.hostname;
+      } catch (e) {
+        rpId = req.hostname;
+      }
+    } else {
+      rpId = req.hostname;
+    }
+
     const challenge = crypto.randomBytes(32).toString('base64url');
     
     res.json({
       challenge,
       timeout: 60000,
-      rpId: req.hostname === 'localhost' ? 'localhost' : req.hostname,
+      rpId: rpId,
       userVerification: "required",
     });
   } catch (err) {
