@@ -24,7 +24,7 @@ import { OnboardingOverlay } from "@/components/onboarding/OnboardingOverlay";
 import Goals from "./pages/Goals"; // Importamos la nueva página de Metas
 import Configuration from "./pages/Configuration.tsx"; // Importamos la nueva página de Configuración
 import Appearance from "./pages/Appearance.tsx"; // Importamos la nueva página de Apariencia
-import { AdBanner } from "@/components/layout/AdBanner";
+// import { AdBanner } from "@/components/layout/AdBanner"; // Temporarily disabled
 import { TransactionRefreshProvider } from "@/contexts/TransactionRefreshContext";
 
 const queryClient = new QueryClient();
@@ -87,7 +87,7 @@ const App = () => (
                 <TransactionRefreshProvider>
                   <AppInitializer />
                   <AppRoutes />
-                  <AdBanner />
+                  {/* <AdBanner /> */} {/* Re-enable when ads are active */}
                   <OnboardingOverlay />
                 </TransactionRefreshProvider>
               </SharedProfileProvider>
