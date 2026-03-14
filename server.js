@@ -1570,7 +1570,7 @@ app.post("/accounts/savings", async (req, res) => {
 
       if (existing.rows.length > 0) {
         result = await pool.query(
-          "UPDATE accounts SET balance = balance + $1, savings = savings + $1 WHERE account_id = $2 RETURNING *",
+          "UPDATE accounts SET balance = balance + $1, savings = COALESCE(savings, 0) + $1 WHERE account_id = $2 RETURNING *",
           [numericAmount, existing.rows[0].account_id]
         );
       } else {
@@ -1591,7 +1591,7 @@ app.post("/accounts/savings", async (req, res) => {
 
       if (existing.rows.length > 0) {
         result = await pool.query(
-          "UPDATE accounts SET balance = balance + $1, savings = savings + $1 WHERE account_id = $2 RETURNING *",
+          "UPDATE accounts SET balance = balance + $1, savings = COALESCE(savings, 0) + $1 WHERE account_id = $2 RETURNING *",
           [numericAmount, existing.rows[0].account_id]
         );
       } else {
