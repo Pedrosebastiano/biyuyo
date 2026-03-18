@@ -18,9 +18,9 @@ import {
 } from "@/data/categories";
 import { Camera, X, Loader2 } from "lucide-react";
 import { CurrencySelector, type Currency } from "./CurrencySelector";
-import { useTransactions } from "@/hooks/useTransactions";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSharedProfile } from "@/contexts/SharedProfileContext";
+import { useTransactionRefresh } from "@/contexts/TransactionRefreshContext";
 import { toast } from "sonner";
 import { createClient } from "@supabase/supabase-js";
 import { useExchangeRate } from "@/hooks/useExchangeRate";
@@ -41,10 +41,7 @@ interface ExpenseFormProps {
 export function ExpenseForm({ onSubmit, initialData }: ExpenseFormProps) {
   const { user } = useAuth();
   const { activeSharedProfile } = useSharedProfile();
-  const { refreshTransactions } = useTransactions(
-    user?.user_id || "",
-    activeSharedProfile?.shared_id || null
-  );
+  const { triggerRefresh } = useTransactionRefresh();
   const { rate, loading: loadingRate } = useExchangeRate();
 
   const [selectedMacro, setSelectedMacro] = useState<string>("");
@@ -285,8 +282,8 @@ export function ExpenseForm({ onSubmit, initialData }: ExpenseFormProps) {
 
       toast.success(successMsg);
 
-      // Refrescar lista
-      refreshTransactions();
+      // Refrescar lista (actualiza todas las instancias de useTransactions)
+      triggerRefresh();
 
       // Disparar entrenamiento automático de IA en segundo plano
       triggerMLTraining(user.user_id);

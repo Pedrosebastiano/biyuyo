@@ -19,8 +19,8 @@ import {
 import { Camera, X, Loader2 } from "lucide-react";
 import { CurrencySelector, type Currency } from "./CurrencySelector";
 import { toast } from "sonner";
-import { useTransactions } from "@/hooks/useTransactions";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTransactionRefresh } from "@/contexts/TransactionRefreshContext";
 import { useSharedProfile } from "@/contexts/SharedProfileContext";
 import { useExchangeRate } from "@/hooks/useExchangeRate";
 import { getApiUrl } from "@/lib/config";
@@ -34,10 +34,7 @@ interface IncomeFormProps {
 export function IncomeForm({ onSubmit, initialData }: IncomeFormProps) {
   const { user } = useAuth();
   const { activeSharedProfile } = useSharedProfile();
-  const { refreshTransactions } = useTransactions(
-    user?.user_id || "",
-    activeSharedProfile?.shared_id || null
-  );
+  const { triggerRefresh } = useTransactionRefresh();
   const { rate, loading: loadingRate } = useExchangeRate();
 
   const [selectedMacro, setSelectedMacro] = useState<string>("");
@@ -198,7 +195,7 @@ export function IncomeForm({ onSubmit, initialData }: IncomeFormProps) {
 
       toast.success("Ingreso registrado exitosamente");
 
-      refreshTransactions();
+      triggerRefresh();
 
       // Disparar entrenamiento automático de IA en segundo plano
       triggerMLTraining(user.user_id);

@@ -30,9 +30,9 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { CurrencySelector, type Currency } from "./CurrencySelector";
-import { useTransactions } from "@/hooks/useTransactions";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSharedProfile } from "@/contexts/SharedProfileContext";
+import { useTransactionRefresh } from "@/contexts/TransactionRefreshContext";
 import { toast } from "sonner";
 import { useExchangeRate } from "@/hooks/useExchangeRate";
 import { getApiUrl } from "@/lib/config";
@@ -45,10 +45,7 @@ interface ReminderFormProps {
 export function ReminderForm({ onSubmit, initialData }: ReminderFormProps) {
   const { user } = useAuth();
   const { activeSharedProfile } = useSharedProfile();
-  const { refreshTransactions } = useTransactions(
-    user?.user_id || "",
-    activeSharedProfile?.shared_id || null
-  );
+  const { triggerRefresh } = useTransactionRefresh();
   const { rate, loading: loadingRate } = useExchangeRate();
 
   const [selectedMacro, setSelectedMacro] = useState<string>("");
@@ -270,7 +267,7 @@ export function ReminderForm({ onSubmit, initialData }: ReminderFormProps) {
       setHasInstallments(false);
       setTotalInstallments("");
 
-      refreshTransactions();
+      triggerRefresh();
       onSubmit();
     } catch (error) {
       console.error("❌ Error completo:", error);
