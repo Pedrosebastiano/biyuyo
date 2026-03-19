@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from "react";
+import { useTransactionRefresh } from "@/contexts/TransactionRefreshContext";
 
 import { getApiUrl } from "@/lib/config";
 
@@ -44,6 +45,7 @@ export interface Account {
 }
 
 export function useTransactions(userId: string, sharedId?: string | null) {
+  const { refreshKey } = useTransactionRefresh();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -163,23 +165,20 @@ export function useTransactions(userId: string, sharedId?: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [userId, sharedId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, sharedId, refreshKey]);
 
   useEffect(() => {
     fetchTransactions();
   }, [fetchTransactions]);
-
-  const refreshTransactions = () => {
-    fetchTransactions();
-  };
 
   return {
     transactions,
     reminders,
     accounts,
     loading,
-    refreshTransactions,
-    addTransaction: refreshTransactions,
-    addReminder: refreshTransactions,
+    refreshTransactions: fetchTransactions,
+    addTransaction: fetchTransactions,
+    addReminder: fetchTransactions,
   };
 }

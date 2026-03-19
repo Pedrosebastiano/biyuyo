@@ -12,13 +12,13 @@ const CombinedBubble: React.FC<CombinedBubbleProps> = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    // Verificar si el usuario tiene correo de la universidad
-    if (user?.email && user.email.endsWith('@correo.unimet.edu.ve')) {
+    // Mostrar solo a usuarios premium
+    if (user?.is_premium) {
       setIsVisible(true);
     } else {
       setIsVisible(false);
     }
-  }, [user]); // Se ejecuta cada vez que cambia el usuario
+  }, [user]);
 
   const handleWhatsAppClick = (): void => {
     window.open('https://wa.me/+584125936487', '_blank');
@@ -36,6 +36,7 @@ const CombinedBubble: React.FC<CombinedBubbleProps> = () => {
         aria-label="Menú de Perfiles"
         role="button"
         tabIndex={0}
+        data-onboarding="premium-bubble-btn"
       >
         <div className="bubble-core">
           <div className="icon-container">

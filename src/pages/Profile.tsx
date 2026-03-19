@@ -162,11 +162,11 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-background px-6 py-8">
       <button
-        onClick={() => navigate(-1)}
+        onClick={() => navigate("/")}
         className="flex items-center gap-1 text-sm text-primary hover:underline mb-6"
       >
         <ArrowLeft className="h-4 w-4" />
-        Volver
+        Volver al inicio
       </button>
 
       <div className="max-w-sm mx-auto space-y-6">
@@ -361,18 +361,53 @@ export default function Profile() {
           )
         )}
 
+        {/* Suscripción Premium */}
+        <Card className="border-2 border-primary/20 overflow-hidden shadow-sm">
+          <div className="bg-gradient-to-r from-[#2d509e] to-[#436cd3] p-4 text-white">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+              Suscribirme al plan Premium
+            </h2>
+            <p className="text-sm text-white/90 mt-1">
+              Desbloquea todo el potencial de Biyuyo
+            </p>
+          </div>
+          <CardContent className="p-5 space-y-4">
+            <ul className="space-y-3 text-sm text-muted-foreground">
+              <li className="flex items-start gap-2">
+                <Check className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                <span><strong className="text-foreground">Perfiles compartidos:</strong> Administra tus finanzas en familia o en pareja con cuentas vinculadas.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                <span><strong className="text-foreground">Metas de ahorro en conjunto:</strong> Alcanza tus objetivos financieros aportando junto a tus familiares o pareja.</span>
+              </li>
+            </ul>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="flex flex-col h-auto py-3 gap-1 border-primary/30 hover:border-primary hover:bg-primary/5"
+                onClick={() => navigate("/payment", { state: { price: 4.99, planText: "Mensualidad" } })}
+              >
+                <span className="font-bold text-base text-foreground">Mensualidad</span>
+                <span className="text-xs text-muted-foreground">$4.99 / mes</span>
+              </Button>
+              <Button
+                className="flex flex-col h-auto py-3 gap-1 bg-[#2d509e] text-white hover:bg-[#2d509e]/90 shadow-md shadow-primary/20"
+                onClick={() => navigate("/payment", { state: { price: 49.99, planText: "Plan Anual" } })}
+              >
+                <span className="font-bold text-base">Plan Anual</span>
+                <span className="text-xs text-white/80">$49.99 / año</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Educación Financiera */}
         <FinancialEducation />
 
-        {/* Pasarela de Pago */}
-        <Button
-          variant="outline"
-          className="w-full gap-2 rounded-xl h-12 border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-all"
-          onClick={() => navigate("/payment")}
-        >
-          <CreditCard className="h-5 w-5 text-primary" />
-          <span className="font-semibold">Pasarela de Pago</span>
-        </Button>
+
 
         {/* Logout */}
         <Button variant="destructive" className="w-full gap-2" onClick={handleLogout}>

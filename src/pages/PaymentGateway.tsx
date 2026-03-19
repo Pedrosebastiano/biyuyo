@@ -19,68 +19,90 @@ import {
   Smartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
+import { useExchangeRate } from "@/hooks/useExchangeRate";
+import { getApiUrl } from "@/lib/config";
+import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 
-type PaymentMethod = "card" | "paypal" | "transfer" | "pagomovil";
+type PaymentMethod = "paypal" | "pagomovil";
 
 const paymentMethods = [
-  { id: "card" as const, label: "Tarjeta", icon: CreditCard, color: "bg-blue-600" },
   { id: "paypal" as const, label: "PayPal", icon: Wallet, color: "bg-indigo-500" },
-  { id: "transfer" as const, label: "Transferencia", icon: Building2, color: "bg-emerald-600" },
   { id: "pagomovil" as const, label: "Pago Móvil", icon: Smartphone, color: "bg-orange-500" },
 ];
 
 export default function PaymentGateway() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const API_URL = getApiUrl();
 
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("card");
-  const [cardName, setCardName] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvv, setCvv] = useState("");
+  const state = location.state as { price?: number; planText?: string } | null;
+  const totalAmount = state?.price || 1250.00;
+  const conceptText = state?.planText ? `Suscripción Premium (${state.planText})` : "Suscripción Premium Biyuyo";
+  const subtotalAmount = totalAmount / 1.16;
+  const taxAmount = totalAmount - subtotalAmount;
+
+  const formatCurrency = (val: number) => `$${val.toFixed(2)}`;
+
+  const { rate, loading: loadingRate } = useExchangeRate();
+  const vesAmount = rate ? (totalAmount * rate).toFixed(2) : "...";
+
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("paypal");
   const [pagoMovilPhone, setPagoMovilPhone] = useState("");
   const [pagoMovilCedula, setPagoMovilCedula] = useState("");
+  const [pagoMovilReferencia, setPagoMovilReferencia] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // Formatear número de tarjeta con espacios cada 4 dígitos
-  const formatCardNumber = (value: string) => {
-    const digits = value.replace(/\D/g, "").slice(0, 16);
-    return digits.replace(/(\d{4})(?=\d)/g, "$1 ");
-  };
+  const processPremiumUpgrade = async () => {
+    try {
+      const res = await fetch(`${API_URL}/upgrade-premium`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user?.user_id,
+          method: selectedMethod,
+          amount_usd: totalAmount,
+          amount_ves: selectedMethod === "pagomovil" ? vesAmount : null,
+          referencia: selectedMethod === "pagomovil" ? pagoMovilReferencia : null,
+          plan: state?.planText || "Mensualidad"
+        }),
+      });
 
-  // Formatear expiración como MM/AA
-  const formatExpiry = (value: string) => {
-    const digits = value.replace(/\D/g, "").slice(0, 4);
-    if (digits.length >= 3) {
-      return digits.slice(0, 2) + "/" + digits.slice(2);
+      if (!res.ok) throw new Error("Error activando plan premium");
+
+      await refreshUser();
+
+      // Activar el tutorial interactivo premium
+      localStorage.setItem("biyuyo_premium_onboarding", "true");
+
+      toast.success("¡Pago completado! Ya eres Premium ⭐");
+      navigate("/");
+    } catch (err) {
+      toast.error("Hubo un error al procesar el pago final en nuestro sistema");
+      console.error(err);
     }
-    return digits;
   };
 
   const handlePay = async () => {
-    if (selectedMethod === "card") {
-      if (!cardName || !cardNumber || !expiry || !cvv) {
-        toast.error("Por favor completa todos los campos de la tarjeta.");
-        return;
-      }
-      if (cardNumber.replace(/\s/g, "").length < 16) {
-        toast.error("El número de tarjeta debe tener 16 dígitos.");
+    if (selectedMethod === "pagomovil") {
+      if (!pagoMovilPhone.trim() || !pagoMovilCedula.trim() || !pagoMovilReferencia.trim()) {
+        toast.error("Por favor completa los datos y la referencia de Pago Móvil.");
         return;
       }
     }
 
     setIsProcessing(true);
 
-    // Simular procesamiento del pago
-    await new Promise((resolve) => setTimeout(resolve, 2500));
-
-    setIsProcessing(false);
-    setIsSuccess(true);
-
-    toast.success("¡Pago procesado exitosamente!");
+    try {
+      // Simular procesamiento del pago con la pasarela de Pago Móvil
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      await processPremiumUpgrade();
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (!user) {
@@ -126,11 +148,13 @@ export default function PaymentGateway() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Método</span>
-                  <span className="font-medium capitalize">{selectedMethod === "card" ? "Tarjeta" : selectedMethod === "paypal" ? "PayPal" : selectedMethod === "pagomovil" ? "Pago Móvil" : "Transferencia"}</span>
+                  <span className="font-medium capitalize">{selectedMethod === "paypal" ? "PayPal" : "Pago Móvil"}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Total pagado</span>
-                  <span className="font-bold text-primary">$1,250.00</span>
+                  <span className="font-bold text-primary">
+                    {selectedMethod === "pagomovil" ? `Bs. ${vesAmount}` : formatCurrency(totalAmount)}
+                  </span>
                 </div>
               </div>
 
@@ -147,10 +171,6 @@ export default function PaymentGateway() {
                   className="rounded-2xl"
                   onClick={() => {
                     setIsSuccess(false);
-                    setCardName("");
-                    setCardNumber("");
-                    setExpiry("");
-                    setCvv("");
                   }}
                 >
                   Nuevo Pago
@@ -214,24 +234,24 @@ export default function PaymentGateway() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Concepto</p>
-                      <p className="font-bold text-lg">Suscripción Premium Biyuyo</p>
+                      <p className="font-bold text-lg">{conceptText}</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-background/60 rounded-2xl border backdrop-blur-sm">
                       <p className="text-xs text-muted-foreground mb-1">Subtotal</p>
-                      <p className="text-lg font-bold">$1,050.00</p>
+                      <p className="text-lg font-bold">{formatCurrency(subtotalAmount)}</p>
                     </div>
                     <div className="p-4 bg-background/60 rounded-2xl border backdrop-blur-sm">
                       <p className="text-xs text-muted-foreground mb-1">Impuestos</p>
-                      <p className="text-lg font-bold">$200.00</p>
+                      <p className="text-lg font-bold">{formatCurrency(taxAmount)}</p>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between pt-3 border-t border-primary/10">
                     <span className="text-sm font-medium text-muted-foreground">Total a pagar</span>
-                    <span className="text-2xl font-bold text-primary">$1,250.00</span>
+                    <span className="text-2xl font-bold text-primary">{formatCurrency(totalAmount)}</span>
                   </div>
                 </div>
               </div>
@@ -278,108 +298,7 @@ export default function PaymentGateway() {
               </div>
             </section>
 
-            {/* ── Formulario de Tarjeta ── */}
-            {selectedMethod === "card" && (
-              <section className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-2">
-                  Datos de la Tarjeta
-                </h2>
-                <div className="p-6 bg-card border rounded-[32px] space-y-5">
-                  {/* Visualización de tarjeta */}
-                  <div className="relative h-48 w-full max-w-sm mx-auto rounded-2xl bg-gradient-to-br from-[hsl(220,56%,37%)] via-[hsl(220,56%,30%)] to-[hsl(220,56%,20%)] p-6 text-white shadow-xl shadow-primary/25 overflow-hidden">
-                    <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
-                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4" />
 
-                    <div className="relative z-10 flex flex-col justify-between h-full">
-                      <div className="flex justify-between items-start">
-                        <div className="w-10 h-7 bg-amber-400/80 rounded-md" />
-                        <CreditCard size={24} className="opacity-60" />
-                      </div>
-                      <div>
-                        <p className="font-mono text-lg tracking-[0.2em] mb-3">
-                          {cardNumber || "•••• •••• •••• ••••"}
-                        </p>
-                        <div className="flex justify-between items-end">
-                          <div>
-                            <p className="text-[10px] uppercase opacity-60 mb-0.5">Titular</p>
-                            <p className="text-sm font-medium truncate max-w-[180px]">
-                              {cardName || "NOMBRE COMPLETO"}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[10px] uppercase opacity-60 mb-0.5">Exp.</p>
-                            <p className="text-sm font-mono">{expiry || "MM/AA"}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Campos del formulario */}
-                  <div className="space-y-4 pt-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="card-name" className="text-sm font-semibold">
-                        Nombre del Titular
-                      </Label>
-                      <Input
-                        id="card-name"
-                        placeholder="Como aparece en la tarjeta"
-                        value={cardName}
-                        onChange={(e) => setCardName(e.target.value.toUpperCase())}
-                        className="rounded-xl h-12 text-base"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="card-number" className="text-sm font-semibold">
-                        Número de Tarjeta
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          id="card-number"
-                          placeholder="1234 5678 9012 3456"
-                          value={cardNumber}
-                          onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                          className="rounded-xl h-12 text-base font-mono pl-12"
-                          maxLength={19}
-                        />
-                        <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/50" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="expiry" className="text-sm font-semibold">
-                          Expiración
-                        </Label>
-                        <Input
-                          id="expiry"
-                          placeholder="MM/AA"
-                          value={expiry}
-                          onChange={(e) => setExpiry(formatExpiry(e.target.value))}
-                          className="rounded-xl h-12 text-base font-mono"
-                          maxLength={5}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="cvv" className="text-sm font-semibold">
-                          CVV
-                        </Label>
-                        <Input
-                          id="cvv"
-                          type="password"
-                          placeholder="•••"
-                          value={cvv}
-                          onChange={(e) => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                          className="rounded-xl h-12 text-base font-mono"
-                          maxLength={4}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            )}
 
             {/* ── PayPal ── */}
             {selectedMethod === "paypal" && (
@@ -399,38 +318,7 @@ export default function PaymentGateway() {
               </section>
             )}
 
-            {/* ── Transferencia ── */}
-            {selectedMethod === "transfer" && (
-              <section className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-2">
-                  Transferencia Bancaria
-                </h2>
-                <div className="p-6 bg-card border rounded-[32px] space-y-4">
-                  <div className="mx-auto w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center">
-                    <Building2 size={32} className="text-emerald-600" />
-                  </div>
-                  <div className="space-y-3">
-                    {[
-                      { label: "Banco", value: "Banco Nacional" },
-                      { label: "Cuenta", value: "0012-3456-7890-1234" },
-                      { label: "Beneficiario", value: "Biyuyo S.A." },
-                      { label: "Referencia", value: `PAY-${Date.now().toString(36).toUpperCase().slice(0, 6)}` },
-                    ].map((item) => (
-                      <div
-                        key={item.label}
-                        className="flex justify-between items-center p-3 bg-background/60 rounded-xl border"
-                      >
-                        <span className="text-sm text-muted-foreground">{item.label}</span>
-                        <span className="text-sm font-semibold font-mono">{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-xs text-muted-foreground text-center">
-                    Tu pago será validado en un plazo de 24 a 48 horas hábiles.
-                  </p>
-                </div>
-              </section>
-            )}
+
 
             {/* ── Pago Móvil ── */}
             {selectedMethod === "pagomovil" && (
@@ -467,12 +355,25 @@ export default function PaymentGateway() {
                         className="rounded-xl h-12 text-base font-mono"
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pm-referencia" className="text-sm font-semibold">
+                        Número de Referencia
+                      </Label>
+                      <Input
+                        id="pm-referencia"
+                        placeholder="0000 0000 0000"
+                        value={pagoMovilReferencia}
+                        onChange={(e) => setPagoMovilReferencia(e.target.value)}
+                        className="rounded-xl h-12 text-base font-mono"
+                      />
+                    </div>
                     <div className="space-y-3">
                       {[
                         { label: "Banco destino", value: "Banco Nacional" },
                         { label: "Teléfono destino", value: "0414-0001234" },
                         { label: "Cédula destino", value: "J-12345678-9" },
-                        { label: "Monto", value: "$1,250.00" },
+                        { label: "Monto a Transferir", value: loadingRate ? "Calculando..." : `Bs. ${vesAmount}` },
+                        { label: "Tasa BCV", value: loadingRate ? "..." : `Bs. ${rate}` },
                       ].map((item) => (
                         <div
                           key={item.label}
@@ -488,25 +389,66 @@ export default function PaymentGateway() {
               </section>
             )}
 
-            {/* ── Botón de Pagar + Seguridad ── */}
+            {/* ── Botones de Pagar + Seguridad ── */}
             <section className="space-y-4 pb-4">
-              <Button
-                onClick={handlePay}
-                disabled={isProcessing}
-                className="w-full h-14 rounded-2xl text-lg font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
-              >
-                {isProcessing ? (
-                  <div className="flex items-center gap-3">
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                    Procesando...
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <Lock size={18} />
-                    {selectedMethod === "transfer" ? "Confirmar Transferencia" : selectedMethod === "pagomovil" ? "Confirmar Pago Móvil" : `Pagar $1,250.00`}
-                  </div>
-                )}
-              </Button>
+              {selectedMethod === "paypal" ? (
+                <div className="w-full relative z-0">
+                  <PayPalScriptProvider options={{ clientId: "test", currency: "USD", intent: "capture" }}>
+                    <PayPalButtons
+                      style={{ layout: "vertical", shape: "rect", color: "gold", height: 55 }}
+                      createOrder={(data, actions) => {
+                        return actions.order.create({
+                          intent: "CAPTURE",
+                          purchase_units: [
+                            {
+                              description: conceptText,
+                              amount: {
+                                currency_code: "USD",
+                                value: totalAmount.toFixed(2),
+                              },
+                            },
+                          ],
+                        });
+                      }}
+                      onApprove={async (data, actions) => {
+                        if (!actions.order) return;
+                        setIsProcessing(true);
+                        try {
+                          await actions.order.capture();
+                          await processPremiumUpgrade();
+                        } catch (err) {
+                          toast.error("El pago no pudo ser procesado correctamente.");
+                          console.error(err);
+                        } finally {
+                          setIsProcessing(false);
+                        }
+                      }}
+                      onError={(err) => {
+                        toast.error("Ocurrió un error de comunicación con PayPal.");
+                        console.error(err);
+                      }}
+                    />
+                  </PayPalScriptProvider>
+                </div>
+              ) : (
+                <Button
+                  onClick={handlePay}
+                  disabled={isProcessing}
+                  className="w-full h-14 rounded-2xl text-lg font-bold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
+                >
+                  {isProcessing ? (
+                    <div className="flex items-center gap-3">
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                      Procesando...
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Lock size={18} />
+                      Confirmar Pago Móvil (Bs. {vesAmount})
+                    </div>
+                  )}
+                </Button>
+              )}
 
               {/* Indicador de seguridad */}
               <div className="flex items-center justify-center gap-2 text-muted-foreground">

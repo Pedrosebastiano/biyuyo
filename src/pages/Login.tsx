@@ -8,6 +8,9 @@ import { Eye, EyeOff, Mail, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import biyuyoLogo from "@/assets/biyuyo_imagen.png";
 import { toast } from "sonner";
+import { useWebAuthn } from "@/hooks/useWebAuthn";
+import { Fingerprint } from "lucide-react";
+import { useEffect } from "react";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -15,8 +18,49 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, loginWithUserData } = useAuth();
   const navigate = useNavigate();
+  const { loginBiometrics, checkAvailability } = useWebAuthn();
+
+  // WebAuthn Auto-trigger for returning users
+  useEffect(() => {
+    const initBiometrics = async () => {
+      const isAvailable = await checkAvailability();
+      if (!isAvailable) return;
+
+      const savedUserId = localStorage.getItem("biyuyo_user_id");
+      
+      // Si hay un usuario guardado (ha iniciado sesión antes), intentamos login directo
+      if (savedUserId) {
+        // Lanzamos el prompt de inmediato (no condicional, porque sabemos que existe)
+        const userData = await loginBiometrics(false);
+        if (userData) {
+          loginWithUserData({
+            user_id: userData.user_id,
+            name: userData.name,
+            email: userData.email,
+            is_premium: userData.is_premium || false,
+          });
+          toast.success("¡Bienvenido de nuevo!");
+          navigate("/");
+        }
+      } else {
+        // Si no hay usuario previo, activamos el Conditional UI (Autofill)
+        const userData = await loginBiometrics(true);
+        if (userData) {
+          loginWithUserData({
+            user_id: userData.user_id,
+            name: userData.name,
+            email: userData.email,
+            is_premium: userData.is_premium || false,
+          });
+          toast.success("¡Bienvenido de nuevo!");
+          navigate("/");
+        }
+      }
+    };
+    initBiometrics();
+  }, [checkAvailability, loginBiometrics, navigate, loginWithUserData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,6 +200,7 @@ export default function Login() {
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-9"
                   disabled={disabled}
+                  autoComplete="username webauthn"
                 />
               </div>
             </div>
@@ -207,6 +252,7 @@ export default function Login() {
                 "Iniciar sesión"
               )}
             </Button>
+
           </form>
 
           {/* Sign up link */}

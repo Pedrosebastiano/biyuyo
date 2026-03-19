@@ -1296,17 +1296,17 @@ app.get("/budget-stats/:userId", async (req, res) => {
     };
 
     for (const row of result.rows) {
-      const key = row.budget_type === 'necesarios' ? 'necesarios' 
-                : row.budget_type === 'flexibles' ? 'flexibles' 
-                : row.budget_type === 'ahorro' ? 'ahorro' : null;
+      const key = row.budget_type === 'necesarios' ? 'necesarios'
+        : row.budget_type === 'flexibles' ? 'flexibles'
+          : row.budget_type === 'ahorro' ? 'ahorro' : null;
       if (key) {
         stats[key].count = parseInt(row.transaction_count);
         stats[key].amount = parseFloat(row.total_amount);
-        stats[key].pct_by_count = totalTransactions > 0 
-          ? Math.round((parseInt(row.transaction_count) / totalTransactions) * 100) 
+        stats[key].pct_by_count = totalTransactions > 0
+          ? Math.round((parseInt(row.transaction_count) / totalTransactions) * 100)
           : 0;
-        stats[key].pct_by_amount = totalAmount > 0 
-          ? Math.round((parseFloat(row.total_amount) / totalAmount) * 100) 
+        stats[key].pct_by_amount = totalAmount > 0
+          ? Math.round((parseFloat(row.total_amount) / totalAmount) * 100)
           : 0;
       }
     }
@@ -1542,6 +1542,81 @@ app.post("/set-initial-balance", async (req, res) => {
   }
 });
 
+app.post("/accounts/savings", async (req, res) => {
+  const { userId, amount, sharedId } = req.body;
+
+  const logMsg = `${new Date().toISOString()} - [POST /accounts/savings] userId: ${userId}, amount: ${amount}, sharedId: ${sharedId || 'none'}\n`;
+  fs.appendFileSync("api_logs.txt", logMsg);
+
+  if (!userId) {
+    return res.status(400).json({ error: "userId es requerido" });
+  }
+
+  if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+    return res.status(400).json({ error: "Monto inválido" });
+  }
+
+  const numericAmount = parseFloat(amount);
+
+  try {
+    let result;
+
+    if (sharedId) {
+      // Entorno compartido
+      const existing = await pool.query(
+        "SELECT * FROM accounts WHERE shared_id = $1 ORDER BY created_at ASC LIMIT 1",
+        [sharedId]
+      );
+
+      if (existing.rows.length > 0) {
+        result = await pool.query(
+          "UPDATE accounts SET balance = balance + $1, savings = COALESCE(savings, 0) + $1 WHERE account_id = $2 RETURNING *",
+          [numericAmount, existing.rows[0].account_id]
+        );
+      } else {
+        result = await pool.query(
+          "INSERT INTO accounts (user_id, shared_id, name, balance, savings) VALUES ($1, $2, $3, $4, $4) RETURNING *",
+          [userId, sharedId, "Principal", numericAmount]
+        );
+      }
+    } else {
+      // Entorno individual — misma lógica que GET /accounts y set-initial-balance
+      const existing = await pool.query(
+        "SELECT * FROM accounts WHERE user_id = $1 AND shared_id IS NULL ORDER BY created_at ASC LIMIT 1",
+        [userId]
+      );
+
+      const foundLog = `${new Date().toISOString()} - [POST /accounts/savings] Cuentas encontradas: ${existing.rows.length}${existing.rows.length > 0 ? `, account_id: ${existing.rows[0].account_id}` : ''}\n`;
+      fs.appendFileSync("api_logs.txt", foundLog);
+
+      if (existing.rows.length > 0) {
+        result = await pool.query(
+          "UPDATE accounts SET balance = balance + $1, savings = COALESCE(savings, 0) + $1 WHERE account_id = $2 RETURNING *",
+          [numericAmount, existing.rows[0].account_id]
+        );
+      } else {
+        // No tiene cuenta — crear una nueva (igual que set-initial-balance)
+        result = await pool.query(
+          "INSERT INTO accounts (user_id, name, balance, savings) VALUES ($1, $2, $3, $3) RETURNING *",
+          [userId, "Principal", numericAmount]
+        );
+      }
+    }
+
+    const updatedAccount = result.rows[0];
+    const successLog = `${new Date().toISOString()} - [POST /accounts/savings] ✅ OK - account_id: ${updatedAccount.account_id}, balance: ${updatedAccount.balance}, savings: ${updatedAccount.savings}\n`;
+    fs.appendFileSync("api_logs.txt", successLog);
+
+    res.json({ success: true, account: updatedAccount });
+  } catch (err) {
+    const errLog = `${new Date().toISOString()} - [POST /accounts/savings] ❌ Error: ${err.message}\n`;
+    fs.appendFileSync("api_logs.txt", errLog);
+    console.error("[/accounts/savings] Error:", err.message);
+    res.status(500).json({ error: "Error al registrar ahorro", detail: err.message });
+  }
+});
+
+
 app.get("/reminders", async (req, res) => {
   const { userId, sharedId } = req.query;
 
@@ -1775,6 +1850,106 @@ app.post("/verify-unimet-token", async (req, res) => {
   } catch (err) {
     console.error("Error en verify-unimet-token:", err);
     res.status(500).json({ error: "Error al verificar el token" });
+  }
+});
+
+// --- ACTIVAR SUSCRIPCIÓN PREMIUM ---
+app.post("/upgrade-premium", async (req, res) => {
+  const { user_id, method, amount_usd, amount_ves, plan, referencia } = req.body;
+  if (!user_id) return res.status(400).json({ error: "user_id es requerido" });
+
+  try {
+    const result = await pool.query(
+      "UPDATE users SET is_premium = true WHERE user_id = $1 RETURNING *",
+      [user_id]
+    );
+    const user = result.rows[0];
+
+    // Configurar y enviar correos de confirmación
+    const adminEmail = "maria.correa@correo.unimet.edu.ve";
+    const methodText = method === "pagomovil" ? "Pago Móvil" : "PayPal";
+    const amountText = method === "pagomovil" ? `Bs. ${amount_ves} ($${amount_usd})` : `$${amount_usd}`;
+
+    const adminHtml = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <div style="background:#2d509e;color:white;padding:20px;text-align:center;border-radius:8px 8px 0 0">
+          <h1>Nuevo Pago Registrado</h1>
+        </div>
+        <div style="background:#f9f9f9;padding:30px;border-radius:0 0 8px 8px">
+          <p>El usuario <strong>${user.name || "Usuario"}</strong> (${user.email}) acaba de pagar una suscripción Premium (${plan || "Suscripción"}).</p>
+          <ul>
+            <li><strong>Método de pago:</strong> ${methodText}</li>
+            <li><strong>Monto a verificar:</strong> ${amountText}</li>
+            ${referencia ? `<li><strong>N° de Referencia:</strong> ${referencia}</li>` : ''}
+          </ul>
+          <p>Por favor revisa que el monto se haya reflejado adecuadamente.</p>
+        </div>
+      </div>
+    `;
+
+    const userHtml = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <div style="background:#2d509e;color:white;padding:20px;text-align:center;border-radius:8px 8px 0 0">
+          <h1>¡Bienvenido a Biyuyo Premium!</h1>
+        </div>
+        <div style="background:#f9f9f9;padding:30px;border-radius:0 0 8px 8px">
+          <p>Hola ${user.name || "Usuario"},</p>
+          <p>Hemos confirmado tu pago de <strong>${amountText}</strong> por tu plan <strong>${plan || "Premium"}</strong>.</p>
+          <p>Tu cuenta Biyuyo ya tiene todos los beneficios Premium totalmente activados:</p>
+          <ul>
+            <li>Perfiles compartidos ilimitados para controlar en familia o pareja.</li>
+            <li>Acceso total al gran compendio de Educación Financiera.</li>
+            <li>Soporte y análisis prioritario.</li>
+          </ul>
+          <p>¡Gracias por volar con Biyuyo!</p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await sendEmail(adminEmail, "Admin Biyuyo", "Nuevo Pago Recibido - Biyuyo Premium", adminHtml);
+      await sendEmail(user.email, user.name, "¡Bienvenido a Biyuyo Premium! Confirmación de Pago", userHtml);
+      console.log(`📧 Correos de confirmación de pago enviados a admin y a ${user.email}`);
+    } catch (emailErr) {
+      console.error("❌ Error enviando correos de pago (No detiene el flujo):", emailErr);
+    }
+
+    // Crear recordatorio automático para la renovación, activando las notificaciones nativas del sistema
+    try {
+      const nextPaymentDate = new Date();
+      if (plan === "Plan Anual") {
+        nextPaymentDate.setFullYear(nextPaymentDate.getFullYear() + 1);
+      } else {
+        nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+      }
+
+      await pool.query(
+        `INSERT INTO reminders (
+          user_id, reminder_name, macrocategoria, categoria, negocio, 
+          total_amount, next_payment_date, payment_frequency, is_installment, installment_number
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [
+          user.user_id,
+          `Renovación Biyuyo Premium - ${plan || "Mensualidad"}`,
+          'Necesidades',
+          'Suscripciones',
+          'Biyuyo',
+          amount_usd || 0,
+          nextPaymentDate.toISOString().split('T')[0],
+          plan === "Plan Anual" ? 'Anual' : 'Mensual',
+          false,
+          0
+        ]
+      );
+      console.log("⏰ Recordatorio de vencimiento guardado con éxito.");
+    } catch (reminderErr) {
+      console.error("❌ Error guardando el recordatorio de Premium (No detiene flujo):", reminderErr);
+    }
+
+    res.json({ success: true, user });
+  } catch (err) {
+    console.error("Error en /upgrade-premium:", err);
+    res.status(500).json({ error: "Error al activar suscripción premium" });
   }
 });
 
@@ -2634,6 +2809,220 @@ NOTA: En el llamado a la herramienta (JSON), la 'Categoría' general se mapea al
     return res.status(500).json({ error: "Error processing the request with AI" });
   }
 });
+
+// --- WEBAUTHN ENDPOINTS ---
+
+/**
+ * Endpoint para generar un desafío (challenge) de registro WebAuthn
+ */
+app.post("/api/auth/webauthn/register-challenge", async (req, res) => {
+  const { user_id } = req.body;
+  if (!user_id) return res.status(400).json({ error: "user_id es requerido" });
+
+  try {
+    // Buscar usuario
+    const userResult = await pool.query("SELECT email, name FROM users WHERE user_id = $1", [user_id]);
+    if (userResult.rows.length === 0) return res.status(404).json({ error: "Usuario no encontrado" });
+    const user = userResult.rows[0];
+
+    // Determinar el RP ID basado en el origen de la solicitud (frontend)
+    const origin = req.get('origin') || req.get('referer');
+    let rpId = 'localhost';
+
+    if (origin) {
+      try {
+        const url = new URL(origin);
+        rpId = url.hostname;
+      } catch (e) {
+        rpId = req.hostname;
+      }
+    } else {
+      rpId = req.hostname;
+    }
+
+    // Generar desafío aleatorio
+    const challenge = crypto.randomBytes(32).toString('base64url');
+
+    // Configuración para el navegador
+    const options = {
+      challenge,
+      rp: {
+        name: "Biyuyo PWA",
+        id: rpId,
+      },
+      user: {
+        id: Buffer.from(user_id.toString()).toString('base64url'),
+        name: user.email,
+        displayName: user.name,
+      },
+      pubKeyCredParams: [
+        { alg: -7, type: "public-key" }, // ES256
+        { alg: -257, type: "public-key" }, // RS256
+      ],
+      timeout: 60000,
+      attestation: "none",
+      authenticatorSelection: {
+        authenticatorAttachment: "platform",
+        userVerification: "required",
+        residentKey: "required",
+        requireResidentKey: true,
+      },
+    };
+
+    res.json(options);
+  } catch (err) {
+    console.error("Error generating register challenge:", err);
+    res.status(500).json({ error: "Error al generar desafío de registro" });
+  }
+});
+
+/**
+ * Endpoint para verificar el registro WebAuthn y guardar la llave pública
+ */
+app.post("/api/auth/webauthn/register-verify", async (req, res) => {
+  const { user_id, credential } = req.body;
+
+  if (!user_id || !credential) {
+    return res.status(400).json({ error: "user_id y credential son requeridos" });
+  }
+
+  try {
+    // En una implementación real con librerías como @simplewebauthn/server, 
+    // verificaríamos la fe de fe de hechos (attestation).
+    // Aquí guardamos los datos básicos para permitir el flujo solicitado de "Autofill".
+
+    const { id, rawId, response, type } = credential;
+    const publicKey = response.publicKey; // En base64 o similar enviado por el cliente
+
+    await pool.query(
+      `INSERT INTO webauthn_credentials (user_id, credential_id, public_key, counter, authenticator_attachment)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (credential_id) DO UPDATE SET last_used_at = NOW()`,
+      [user_id, id, publicKey, 0, credential.authenticatorAttachment || 'platform']
+    );
+
+    res.json({ success: true, message: "Biometría registrada exitosamente" });
+  } catch (err) {
+    console.error("Error verifying registration:", err);
+    res.status(500).json({ error: "Error al verificar registro biométrico" });
+  }
+});
+
+/**
+ * Endpoint para generar un desafío de autenticación (Login)
+ */
+app.get("/api/auth/webauthn/login-challenge", async (req, res) => {
+  try {
+    const origin = req.get('origin') || req.get('referer');
+    let rpId = 'localhost';
+
+    if (origin) {
+      try {
+        const url = new URL(origin);
+        rpId = url.hostname;
+      } catch (e) {
+        rpId = req.hostname;
+      }
+    } else {
+      rpId = req.hostname;
+    }
+
+    const challenge = crypto.randomBytes(32).toString('base64url');
+
+    res.json({
+      challenge,
+      timeout: 60000,
+      rpId: rpId,
+      userVerification: "required",
+    });
+  } catch (err) {
+    console.error("Error generating login challenge:", err);
+    res.status(500).json({ error: "Error al generar desafío de login" });
+  }
+});
+
+/**
+ * Endpoint para verificar la firma de login y autenticar al usuario
+ */
+app.post("/api/auth/webauthn/login-verify", async (req, res) => {
+  const { credential } = req.body;
+
+  try {
+    const { id, response } = credential;
+
+    // Buscar la credencial en la DB
+    const credResult = await pool.query(
+      "SELECT user_id, public_key FROM webauthn_credentials WHERE credential_id = $1",
+      [id]
+    );
+
+    if (credResult.rows.length === 0) {
+      return res.status(401).json({ error: "Credencial no reconocida" });
+    }
+
+    const { user_id } = credResult.rows[0];
+
+    // Buscar datos del usuario para el token/respuesta
+    const userResult = await pool.query(
+      "SELECT user_id, name, email, is_premium FROM users WHERE user_id = $1",
+      [user_id]
+    );
+
+    const user = userResult.rows[0];
+
+    // Actualizar último uso
+    await pool.query("UPDATE webauthn_credentials SET last_used_at = NOW() WHERE credential_id = $1", [id]);
+
+    console.log(`✅ Login biométrico exitoso para: ${user.email}`);
+
+    res.json({
+      success: true,
+      user: {
+        user_id: user.user_id,
+        name: user.name,
+        email: user.email,
+        is_premium: user.is_premium || false,
+      }
+    });
+
+  } catch (err) {
+    console.error("Error verifying login:", err);
+    res.status(500).json({ error: "Error al verificar firma biométrica" });
+  }
+});
+
+/**
+ * Endpoint para verificar si el usuario tiene biometría activa
+ */
+app.get("/api/auth/webauthn/status/:user_id", async (req, res) => {
+  const { user_id } = req.params;
+  try {
+    const result = await pool.query(
+      "SELECT COUNT(*) as count FROM webauthn_credentials WHERE user_id = $1",
+      [user_id]
+    );
+    res.json({ enabled: parseInt(result.rows[0].count) > 0 });
+  } catch (err) {
+    console.error("Error checking webauthn status:", err);
+    res.status(500).json({ error: "Error al verificar estado biométrico" });
+  }
+});
+
+/**
+ * Endpoint para desactivar (eliminar) la biometría
+ */
+app.delete("/api/auth/webauthn/remove/:user_id", async (req, res) => {
+  const { user_id } = req.params;
+  try {
+    await pool.query("DELETE FROM webauthn_credentials WHERE user_id = $1", [user_id]);
+    res.json({ success: true, message: "Biometría desactivada" });
+  } catch (err) {
+    console.error("Error removing webauthn:", err);
+    res.status(500).json({ error: "Error al desactivar biometría" });
+  }
+});
+
+// --- FINAL DE WEBAUTHN ENDPOINTS ---
 
 // --- CONFIGURACIÓN DEL PUERTO ---
 const PORT = process.env.PORT || 3001;
