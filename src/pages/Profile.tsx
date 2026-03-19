@@ -100,6 +100,13 @@ export default function Profile() {
       // Refresca el contexto para que is_premium quede en true en localStorage
       await refreshUser();
 
+      // Trigger premium onboarding and redirect to dashboard
+      if (!user?.is_premium) {
+        localStorage.removeItem("biyuyo_premium_onboarding_complete");
+        localStorage.setItem("biyuyo_premium_onboarding", "true");
+      }
+      navigate("/");
+
       toast({ title: "⭐ ¡Cuenta Premium activada!", description: "Verificación exitosa." });
     } catch (err) {
       toast({

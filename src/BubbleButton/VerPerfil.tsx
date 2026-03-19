@@ -45,7 +45,7 @@ export const VerPerfil: React.FC<VerPerfilProps> = ({ open, onOpenChange }) => {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md" data-onboarding="ver-perfil-modal">
                 <DialogHeader>
                     <DialogTitle>Cambiar Perfil</DialogTitle>
                 </DialogHeader>

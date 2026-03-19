@@ -163,7 +163,7 @@ export default function SharedProfiles() {
                             <Users className="h-6 w-6 text-primary" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold tracking-tight text-[#2d509e]">
+                            <h1 className="text-2xl font-bold tracking-tight text-[#2d509e]" data-onboarding="shared-profiles-title">
                                 Perfiles Compartidos
                             </h1>
                             <p className="text-sm text-muted-foreground">
@@ -177,7 +177,7 @@ export default function SharedProfiles() {
                 <div className="flex flex-col sm:flex-row gap-3">
                     <Dialog open={joinDialogOpen} onOpenChange={setJoinDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button variant="outline" className="gap-2 w-full sm:flex-1 h-12">
+                            <Button variant="outline" className="gap-2 w-full sm:flex-1 h-12" data-onboarding="join-shared-profile-btn">
                                 <UserPlus className="h-4 w-4" />
                                 Unirse
                             </Button>
@@ -224,7 +224,7 @@ export default function SharedProfiles() {
 
                     <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button className="gap-2 w-full sm:flex-1 h-12">
+                            <Button className="gap-2 w-full sm:flex-1 h-12" data-onboarding="create-shared-profile-btn">
                                 <Plus className="h-4 w-4" />
                                 Crear Perfil
                             </Button>

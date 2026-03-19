@@ -75,8 +75,11 @@ export default function PaymentGateway() {
 
       await refreshUser();
 
-      // Activar el tutorial interactivo premium
-      localStorage.setItem("biyuyo_premium_onboarding", "true");
+      // Activar el tutorial interactivo premium si es primera vez
+      if (!user?.is_premium) {
+        localStorage.removeItem("biyuyo_premium_onboarding_complete");
+        localStorage.setItem("biyuyo_premium_onboarding", "true");
+      }
 
       toast.success("¡Pago completado! Ya eres Premium ⭐");
       navigate("/");
