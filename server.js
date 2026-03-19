@@ -1853,6 +1853,106 @@ app.post("/verify-unimet-token", async (req, res) => {
   }
 });
 
+// --- ACTIVAR SUSCRIPCIÓN PREMIUM ---
+app.post("/upgrade-premium", async (req, res) => {
+  const { user_id, method, amount_usd, amount_ves, plan, referencia } = req.body;
+  if (!user_id) return res.status(400).json({ error: "user_id es requerido" });
+
+  try {
+    const result = await pool.query(
+      "UPDATE users SET is_premium = true WHERE user_id = $1 RETURNING *",
+      [user_id]
+    );
+    const user = result.rows[0];
+
+    // Configurar y enviar correos de confirmación
+    const adminEmail = "maria.correa@correo.unimet.edu.ve";
+    const methodText = method === "pagomovil" ? "Pago Móvil" : "PayPal";
+    const amountText = method === "pagomovil" ? `Bs. ${amount_ves} ($${amount_usd})` : `$${amount_usd}`;
+
+    const adminHtml = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <div style="background:#2d509e;color:white;padding:20px;text-align:center;border-radius:8px 8px 0 0">
+          <h1>Nuevo Pago Registrado</h1>
+        </div>
+        <div style="background:#f9f9f9;padding:30px;border-radius:0 0 8px 8px">
+          <p>El usuario <strong>${user.name || "Usuario"}</strong> (${user.email}) acaba de pagar una suscripción Premium (${plan || "Suscripción"}).</p>
+          <ul>
+            <li><strong>Método de pago:</strong> ${methodText}</li>
+            <li><strong>Monto a verificar:</strong> ${amountText}</li>
+            ${referencia ? `<li><strong>N° de Referencia:</strong> ${referencia}</li>` : ''}
+          </ul>
+          <p>Por favor revisa que el monto se haya reflejado adecuadamente.</p>
+        </div>
+      </div>
+    `;
+
+    const userHtml = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <div style="background:#2d509e;color:white;padding:20px;text-align:center;border-radius:8px 8px 0 0">
+          <h1>¡Bienvenido a Biyuyo Premium!</h1>
+        </div>
+        <div style="background:#f9f9f9;padding:30px;border-radius:0 0 8px 8px">
+          <p>Hola ${user.name || "Usuario"},</p>
+          <p>Hemos confirmado tu pago de <strong>${amountText}</strong> por tu plan <strong>${plan || "Premium"}</strong>.</p>
+          <p>Tu cuenta Biyuyo ya tiene todos los beneficios Premium totalmente activados:</p>
+          <ul>
+            <li>Perfiles compartidos ilimitados para controlar en familia o pareja.</li>
+            <li>Acceso total al gran compendio de Educación Financiera.</li>
+            <li>Soporte y análisis prioritario.</li>
+          </ul>
+          <p>¡Gracias por volar con Biyuyo!</p>
+        </div>
+      </div>
+    `;
+
+    try {
+      await sendEmail(adminEmail, "Admin Biyuyo", "Nuevo Pago Recibido - Biyuyo Premium", adminHtml);
+      await sendEmail(user.email, user.name, "¡Bienvenido a Biyuyo Premium! Confirmación de Pago", userHtml);
+      console.log(`📧 Correos de confirmación de pago enviados a admin y a ${user.email}`);
+    } catch (emailErr) {
+      console.error("❌ Error enviando correos de pago (No detiene el flujo):", emailErr);
+    }
+
+    // Crear recordatorio automático para la renovación, activando las notificaciones nativas del sistema
+    try {
+      const nextPaymentDate = new Date();
+      if (plan === "Plan Anual") {
+        nextPaymentDate.setFullYear(nextPaymentDate.getFullYear() + 1);
+      } else {
+        nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+      }
+
+      await pool.query(
+        `INSERT INTO reminders (
+          user_id, reminder_name, macrocategoria, categoria, negocio, 
+          total_amount, next_payment_date, payment_frequency, is_installment, installment_number
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [
+          user.user_id,
+          `Renovación Biyuyo Premium - ${plan || "Mensualidad"}`,
+          'Necesidades',
+          'Suscripciones',
+          'Biyuyo',
+          amount_usd || 0,
+          nextPaymentDate.toISOString().split('T')[0],
+          plan === "Plan Anual" ? 'Anual' : 'Mensual',
+          false,
+          0
+        ]
+      );
+      console.log("⏰ Recordatorio de vencimiento guardado con éxito.");
+    } catch (reminderErr) {
+      console.error("❌ Error guardando el recordatorio de Premium (No detiene flujo):", reminderErr);
+    }
+
+    res.json({ success: true, user });
+  } catch (err) {
+    console.error("Error en /upgrade-premium:", err);
+    res.status(500).json({ error: "Error al activar suscripción premium" });
+  }
+});
+
 // --- ACTUALIZAR DATOS DE USUARIO ---
 app.put("/user/:user_id", async (req, res) => {
   const { user_id } = req.params;

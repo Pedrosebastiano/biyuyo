@@ -149,6 +149,51 @@ const UNIMET_STEPS: TutorialStep[] = [
   }
 ];
 
+const PREMIUM_STEPS: TutorialStep[] = [
+  {
+    target: "dashboard-content",
+    title: "⭐ ¡Bienvenido a Biyuyo Premium!",
+    description: "Gracias por suscribirte. Ahora tienes acceso a herramientas exclusivas para compartir y potenciar tus finanzas en familia. ¡Veamos qué hay de nuevo!",
+    route: "/profile",
+    placement: "center",
+  },
+  {
+    target: "premium-bubble-btn",
+    title: "👥 Menú de Perfiles Activos",
+    description: "Este es el botón flotante exclusivo para usuarios Premium. Puedes hacer clic en él en cualquier momento para desplegar opciones avanzadas de perfiles.",
+    route: "/",
+    placement: "left",
+  },
+  {
+    target: "premium-bubble-btn",
+    title: "➕ Crear y Unirse a Perfiles",
+    description: "Dentro de este botón encontrarás 'Crear Perfil', que te permite generar un código único para invitar a otras personas a colaborar contigo en una cuenta en conjunto.",
+    route: "/",
+    placement: "left",
+  },
+  {
+    target: "premium-bubble-btn",
+    title: "🔄 Cambiar Perfil Activo",
+    description: "También verás la opción 'Cambiar Perfil'. Con ella, podrás saltar fácilmente entre tu entorno personal privado y cualquier perfil compartido al que te hayas unido.",
+    route: "/",
+    placement: "left",
+  },
+  {
+    target: "goals-page-title",
+    title: "🎯 Metas de Ahorro Colaborativas",
+    description: "En la sección de Metas de Ahorro verás el cambio más importante: Ahora podrás aportar dinero a metas compartidas simultáneamente con todos los miembros de tu perfil.",
+    route: "/goals",
+    placement: "bottom",
+  },
+  {
+    target: "dashboard-content",
+    title: "🚀 ¡Disfruta Premium!",
+    description: "Ya estás listo para sacarle el máximo provecho a tus cuentas vinculadas. ¡Empieza a invitar a tus seres queridos a tu tripulación financiera!",
+    route: "/",
+    placement: "center",
+  }
+];
+
 const COMPLETE_STEP: TutorialStep = {
   target: "dashboard-content",
   title: "🎉 ¡Tutorial Completado!",
@@ -181,14 +226,17 @@ const STORAGE_KEY_PENDING = "biyuyo_onboarding_pending";
 export function OnboardingProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [isOnboarding, setIsOnboarding] = useState(false);
+  const [isPremiumOnboarding, setIsPremiumOnboarding] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const actionCallbacksRef = useRef<Record<string, () => void>>({});
 
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Dynamically attach UNIMET completion steps if applicable
   const tutorialSteps = useMemo(() => {
+    if (isPremiumOnboarding) {
+      return PREMIUM_STEPS;
+    }
     const isUnimet =
       user?.email &&
       (user.email.endsWith("@unimet.edu.ve") ||
@@ -198,16 +246,27 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       return [...BASE_STEPS, ...UNIMET_STEPS, COMPLETE_STEP];
     }
     return [...BASE_STEPS, COMPLETE_STEP];
-  }, [user]);
+  }, [user, isPremiumOnboarding]);
 
   // Check for pending onboarding on mount AND on route changes
   useEffect(() => {
     if (isOnboarding) return; // Don't restart if already running
-    const pending = localStorage.getItem(STORAGE_KEY_PENDING);
-    const completed = localStorage.getItem(STORAGE_KEY_COMPLETE);
-    if (pending === "true" && completed !== "true") {
+    const pendingBase = localStorage.getItem(STORAGE_KEY_PENDING);
+    const completedBase = localStorage.getItem(STORAGE_KEY_COMPLETE);
+    const pendingPremium = localStorage.getItem("biyuyo_premium_onboarding");
+    const completedPremium = localStorage.getItem("biyuyo_premium_onboarding_complete");
+
+    if (pendingPremium === "true" && completedPremium !== "true") {
+      const timer = setTimeout(() => {
+        setIsPremiumOnboarding(true);
+        setIsOnboarding(true);
+        setCurrentStep(0);
+      }, 1200);
+      return () => clearTimeout(timer);
+    } else if (pendingBase === "true" && completedBase !== "true") {
       const timer = setTimeout(() => {
         localStorage.removeItem(STORAGE_KEY_PENDING);
+        setIsPremiumOnboarding(false);
         setIsOnboarding(true);
         setCurrentStep(0);
       }, 1200);
@@ -262,11 +321,17 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     if (currentStepData?.reverseAction) {
       triggerAction(currentStepData.reverseAction);
     }
-    localStorage.setItem(STORAGE_KEY_COMPLETE, "true");
-    localStorage.removeItem(STORAGE_KEY_PENDING);
+    if (isPremiumOnboarding) {
+      localStorage.setItem("biyuyo_premium_onboarding_complete", "true");
+      localStorage.removeItem("biyuyo_premium_onboarding");
+    } else {
+      localStorage.setItem(STORAGE_KEY_COMPLETE, "true");
+      localStorage.removeItem(STORAGE_KEY_PENDING);
+    }
     setIsOnboarding(false);
+    setIsPremiumOnboarding(false);
     setCurrentStep(0);
-  }, [currentStep, triggerAction, tutorialSteps]);
+  }, [currentStep, triggerAction, tutorialSteps, isPremiumOnboarding]);
 
   const skipOnboarding = useCallback(() => {
     completeOnboarding();

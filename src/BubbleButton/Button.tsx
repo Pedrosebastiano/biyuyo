@@ -36,6 +36,7 @@ const CombinedBubble: React.FC<CombinedBubbleProps> = () => {
         aria-label="Menú de Perfiles"
         role="button"
         tabIndex={0}
+        data-onboarding="premium-bubble-btn"
       >
         <div className="bubble-core">
           <div className="icon-container">
