@@ -534,7 +534,7 @@ app.post("/login", async (req, res) => {
   try {
     // Buscar usuario por email
     const userResult = await pool.query(
-      "SELECT user_id, name, email, password_hash FROM users WHERE email = $1",
+      "SELECT user_id, name, email, password_hash, is_premium, premium_started_at, premium_expires_at, premium_plan FROM users WHERE email = $1",
       [email.toLowerCase()],
     );
 
@@ -555,11 +555,21 @@ app.post("/login", async (req, res) => {
     console.log(`✅ Login exitoso: ${user.email}`);
 
     // Retornar datos del usuario (sin password_hash)
+    // Verificar expiración de premium
+    let isPremium = user.is_premium || false;
+    if (isPremium && user.premium_expires_at && new Date(user.premium_expires_at) < new Date()) {
+      isPremium = false;
+      await pool.query("UPDATE users SET is_premium = false WHERE user_id = $1", [user.user_id]);
+    }
+
     res.json({
       user_id: user.user_id,
       name: user.name,
       email: user.email,
-      is_premium: user.is_premium || false,
+      is_premium: isPremium,
+      premium_started_at: user.premium_started_at || null,
+      premium_expires_at: user.premium_expires_at || null,
+      premium_plan: user.premium_plan || null,
     });
   } catch (err) {
     console.error("Error en login:", err);
@@ -1859,9 +1869,18 @@ app.post("/upgrade-premium", async (req, res) => {
   if (!user_id) return res.status(400).json({ error: "user_id es requerido" });
 
   try {
+    // Calcular fecha de expiración según el plan
+    const now = new Date();
+    const expiresAt = new Date(now);
+    if (plan === "Plan Anual") {
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+    } else {
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+    }
+
     const result = await pool.query(
-      "UPDATE users SET is_premium = true WHERE user_id = $1 RETURNING *",
-      [user_id]
+      `UPDATE users SET is_premium = true, premium_started_at = $2, premium_expires_at = $3, premium_plan = $4 WHERE user_id = $1 RETURNING *`,
+      [user_id, now.toISOString(), expiresAt.toISOString(), plan || "Mensualidad"]
     );
     const user = result.rows[0];
 
@@ -2017,13 +2036,31 @@ app.get("/user/:user_id", async (req, res) => {
   const { user_id } = req.params;
   try {
     const result = await pool.query(
-      "SELECT user_id, name, email, is_premium FROM users WHERE user_id = $1",
+      "SELECT user_id, name, email, is_premium, premium_started_at, premium_expires_at, premium_plan FROM users WHERE user_id = $1",
       [user_id],
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
-    res.json(result.rows[0]);
+
+    const userData = result.rows[0];
+
+    // Verificar expiración dinámica de premium
+    let isPremium = userData.is_premium || false;
+    if (isPremium && userData.premium_expires_at && new Date(userData.premium_expires_at) < new Date()) {
+      isPremium = false;
+      await pool.query("UPDATE users SET is_premium = false WHERE user_id = $1", [user_id]);
+    }
+
+    res.json({
+      user_id: userData.user_id,
+      name: userData.name,
+      email: userData.email,
+      is_premium: isPremium,
+      premium_started_at: userData.premium_started_at || null,
+      premium_expires_at: userData.premium_expires_at || null,
+      premium_plan: userData.premium_plan || null,
+    });
   } catch (err) {
     console.error("Error en GET /user/:user_id:", err);
     res.status(500).json({ error: "Error al obtener usuario" });

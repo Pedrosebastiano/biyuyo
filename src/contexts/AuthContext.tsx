@@ -15,6 +15,9 @@ interface User {
   email: string;
   user_id: string;
   is_premium: boolean;
+  premium_started_at: string | null;
+  premium_expires_at: string | null;
+  premium_plan: string | null;
 }
 
 interface AuthContextType {
@@ -41,6 +44,9 @@ async function syncGoogleUserToDb(
     name: string;
     email: string;
     is_premium: boolean;
+    premium_started_at: string | null;
+    premium_expires_at: string | null;
+    premium_plan: string | null;
   }> = await response.json();
 
   const existing = allUsers.find(
@@ -53,6 +59,9 @@ async function syncGoogleUserToDb(
       name: existing.name,
       email: existing.email,
       is_premium: existing.is_premium || false,
+      premium_started_at: existing.premium_started_at || null,
+      premium_expires_at: existing.premium_expires_at || null,
+      premium_plan: existing.premium_plan || null,
     };
   }
 
@@ -74,6 +83,9 @@ async function syncGoogleUserToDb(
       name: string;
       email: string;
       is_premium: boolean;
+      premium_started_at: string | null;
+      premium_expires_at: string | null;
+      premium_plan: string | null;
     }> = await retryRes.json();
     const retryUser = retryUsers.find(
       (u) => u.email.toLowerCase() === email.toLowerCase()
@@ -84,6 +96,9 @@ async function syncGoogleUserToDb(
         name: retryUser.name,
         email: retryUser.email,
         is_premium: retryUser.is_premium || false,
+        premium_started_at: retryUser.premium_started_at || null,
+        premium_expires_at: retryUser.premium_expires_at || null,
+        premium_plan: retryUser.premium_plan || null,
       };
     throw new Error("Error al registrar usuario de Google en la base de datos");
   }
@@ -94,6 +109,9 @@ async function syncGoogleUserToDb(
     name: newUser.name,
     email: newUser.email,
     is_premium: newUser.is_premium || false,
+    premium_started_at: newUser.premium_started_at || null,
+    premium_expires_at: newUser.premium_expires_at || null,
+    premium_plan: newUser.premium_plan || null,
   };
 }
 
@@ -130,6 +148,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: data.name,
         email: data.email,
         is_premium: data.is_premium || false,
+        premium_started_at: data.premium_started_at || null,
+        premium_expires_at: data.premium_expires_at || null,
+        premium_plan: data.premium_plan || null,
       });
     } catch {
       // Si falla el refresh, mantiene los datos actuales
@@ -214,6 +235,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       name: userData.name,
       email: userData.email,
       is_premium: userData.is_premium || false,
+      premium_started_at: userData.premium_started_at || null,
+      premium_expires_at: userData.premium_expires_at || null,
+      premium_plan: userData.premium_plan || null,
     });
   };
 
@@ -239,6 +263,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       name: userData.name,
       email: userData.email,
       is_premium: userData.is_premium || false,
+      premium_started_at: userData.premium_started_at || null,
+      premium_expires_at: userData.premium_expires_at || null,
+      premium_plan: userData.premium_plan || null,
     };
     saveUser(newUser);
     return newUser;
