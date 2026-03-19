@@ -39,6 +39,8 @@ export default function Profile() {
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
 
+  const [showRenew, setShowRenew] = useState(false);
+
   // Al entrar al perfil, refresca datos del servidor para tener is_premium actualizado
   useEffect(() => {
     refreshUser();
@@ -289,176 +291,196 @@ export default function Profile() {
           </CardContent>
         </Card>
 
-        {/* Sección Unimet — solo si tiene correo Unimet */}
-        {showUnimetSection && (
-          isPremium ? (
-            /* Ya es premium */
-            <Card className="border-2 border-yellow-300" style={{ background: "#fefce8" }}>
-              <CardContent className="pt-5 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="bg-yellow-100 p-2 rounded-full">
-                    <Star className="h-6 w-6 fill-yellow-400 text-yellow-500" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-yellow-800">Cuenta Premium activa</p>
-                    <p className="text-xs text-yellow-700">
-                      {premiumPlan && premiumExpiresAt
-                        ? `${premiumPlan} · Vence el ${formatDate(premiumExpiresAt)}`
-                        : "Tu correo Unimet está verificado. ¡Disfruta todos los beneficios!"}
-                    </p>
-                  </div>
+        {/* Estado Premium Activo */}
+        {isPremium && (
+          <Card className="border-2 border-primary/20 shadow-sm relative overflow-hidden bg-card">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-400 to-yellow-600" />
+            <CardContent className="pt-6 pb-5">
+              <div className="flex items-center gap-4">
+                <div className="bg-primary/10 p-2.5 rounded-full ring-2 ring-primary/20">
+                  <Star className="h-6 w-6 fill-yellow-400 text-yellow-500" />
                 </div>
+                <div>
+                  <p className="font-semibold text-foreground">Cuenta Premium activa</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {premiumPlan && premiumExpiresAt
+                      ? `${premiumPlan} · Vence el ${formatDate(premiumExpiresAt)}`
+                      : showUnimetSection
+                        ? "Tu correo Unimet verificado."
+                        : "Acceso a beneficios Premium"}
+                  </p>
+                </div>
+              </div>
 
-                {/* Info de suscripción con duración */}
-                {premiumExpiresAt && daysRemaining !== null && (
-                  <div className="mt-4 space-y-2">
-                    <div className="flex items-center gap-2 p-2.5 bg-white/70 rounded-xl border border-yellow-200">
-                      <CalendarDays className="h-4 w-4 text-yellow-600" />
-                      <span className="text-sm text-yellow-800">
-                        <strong>Plan:</strong> {premiumPlan || "Premium"}
+              {/* Info de suscripción con duración */}
+              {premiumExpiresAt && daysRemaining !== null && (
+                <div className="mt-5 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-2.5 p-3 bg-secondary/30 rounded-xl border border-border/50">
+                      <CalendarDays className="h-4 w-4 text-primary" />
+                      <span className="text-sm text-foreground">
+                        <span className="text-muted-foreground text-xs block">Plan actual</span>
+                        <span className="font-medium">{premiumPlan || "Premium"}</span>
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 p-2.5 bg-white/70 rounded-xl border border-yellow-200">
-                      <Clock className="h-4 w-4 text-yellow-600" />
-                      <span className={`text-sm ${isExpiringSoon ? "text-red-600 font-semibold" : "text-yellow-800"}`}>
-                        <strong>Quedan:</strong> {daysRemaining} día{daysRemaining !== 1 ? "s" : ""}
-                        {isExpiringSoon && " ⚠️ ¡Renueva pronto!"}
+                    <div className="flex items-center gap-2.5 p-3 bg-secondary/30 rounded-xl border border-border/50">
+                      <Clock className={`h-4 w-4 ${isExpiringSoon ? "text-red-500" : "text-primary"}`} />
+                      <span className="text-sm text-foreground">
+                        <span className="text-muted-foreground text-xs block">Tiempo restante</span>
+                        <span className={`font-medium ${isExpiringSoon ? "text-red-500" : ""}`}>
+                          {daysRemaining} día{daysRemaining !== 1 ? "s" : ""}
+                        </span>
                       </span>
                     </div>
-
-                    {/* Barra de progreso */}
-                    {user?.premium_started_at && (
-                      (() => {
-                        const startMs = new Date(user.premium_started_at!).getTime();
-                        const endMs = premiumExpiresAt.getTime();
-                        const nowMs = Date.now();
-                        const elapsed = Math.max(0, Math.min(1, (nowMs - startMs) / (endMs - startMs)));
-                        return (
-                          <div className="mt-1">
-                            <div className="h-2 bg-yellow-200 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all duration-500 ${
-                                  isExpiringSoon ? "bg-red-400" : "bg-yellow-500"
-                                }`}
-                                style={{ width: `${elapsed * 100}%` }}
-                              />
-                            </div>
-                            <p className="text-[10px] text-yellow-600 mt-1 text-right">
-                              {Math.round(elapsed * 100)}% transcurrido
-                            </p>
-                          </div>
-                        );
-                      })()
-                    )}
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          ) : (
-            /* No verificado aún */
-            <Card className="border-2 border-yellow-300" style={{ background: "#fefce8" }} data-onboarding="unimet-verification-card">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2 text-yellow-700">
-                  <Star className="h-4 w-4 fill-yellow-400" />
-                  Verificación Premium Unimet
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-yellow-800">
-                  Verifica tu correo institucional y obtén acceso Premium gratis.
-                </p>
 
-                {!tokenSent ? (
+                  {/* Barra de progreso */}
+                  {user?.premium_started_at && (
+                    (() => {
+                      const startMs = new Date(user.premium_started_at).getTime();
+                      const endMs = premiumExpiresAt.getTime();
+                      const nowMs = Date.now();
+                      const elapsed = Math.max(0, Math.min(1, (nowMs - startMs) / (endMs - startMs)));
+                      return (
+                        <div className="mt-2 text-right">
+                          <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                isExpiringSoon ? "bg-red-500" : "bg-primary"
+                              }`}
+                              style={{ width: `${elapsed * 100}%` }}
+                            />
+                          </div>
+                          <p className={`text-[10px] mt-1.5 ${isExpiringSoon ? "text-red-500 font-medium" : "text-muted-foreground"}`}>
+                            {isExpiringSoon ? "⚠️ ¡Tu plan expirará pronto!" : `${Math.round(elapsed * 100)}% transcurrido`}
+                          </p>
+                        </div>
+                      );
+                    })()
+                  )}
+                  
+                  {/* Botón de Renovar solo si quedan <= 10 días */}
+                  {daysRemaining <= 10 && !showRenew && (
+                    <Button 
+                      className="w-full mt-3 h-9" 
+                      variant="outline" 
+                      onClick={() => setShowRenew(true)}
+                    >
+                      Renovar suscripción
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Sección Unimet — solo si tiene correo Unimet y NO es Premium */}
+        {showUnimetSection && !isPremium && (
+          <Card className="border-2 border-yellow-300" style={{ background: "#fefce8" }} data-onboarding="unimet-verification-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2 text-yellow-700">
+                <Star className="h-4 w-4 fill-yellow-400" />
+                Verificación Premium Unimet
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-yellow-800">
+                Verifica tu correo institucional y obtén acceso Premium gratis.
+              </p>
+
+              {!tokenSent ? (
+                <Button
+                  className="w-full text-white"
+                  style={{ background: "#eab308" }}
+                  onClick={handleSendToken}
+                  disabled={isSending}
+                >
+                  {isSending ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Enviando...</>
+                  ) : (
+                    "Enviar código de verificación"
+                  )}
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Pega el código aquí"
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    className="font-mono border-2 border-yellow-300"
+                    disabled={isVerifying}
+                  />
                   <Button
                     className="w-full text-white"
                     style={{ background: "#eab308" }}
-                    onClick={handleSendToken}
-                    disabled={isSending}
+                    onClick={handleVerify}
+                    disabled={isVerifying || !token.trim()}
                   >
-                    {isSending ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Enviando...</>
+                    {isVerifying ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verificando...</>
                     ) : (
-                      "Enviar código de verificación"
+                      "Activar Premium"
                     )}
                   </Button>
-                ) : (
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Pega el código aquí"
-                      value={token}
-                      onChange={(e) => setToken(e.target.value)}
-                      className="font-mono border-2 border-yellow-300"
-                      disabled={isVerifying}
-                    />
-                    <Button
-                      className="w-full text-white"
-                      style={{ background: "#eab308" }}
-                      onClick={handleVerify}
-                      disabled={isVerifying || !token.trim()}
-                    >
-                      {isVerifying ? (
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verificando...</>
-                      ) : (
-                        "Activar Premium"
-                      )}
-                    </Button>
-                    <button
-                      type="button"
-                      onClick={handleSendToken}
-                      disabled={isSending}
-                      className="w-full text-xs text-yellow-700 hover:underline"
-                    >
-                      {isSending ? "Reenviando..." : "¿No recibiste el código? Reenviar"}
-                    </button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )
+                  <button
+                    type="button"
+                    onClick={handleSendToken}
+                    disabled={isSending}
+                    className="w-full text-xs text-yellow-700 hover:underline"
+                  >
+                    {isSending ? "Reenviando..." : "¿No recibiste el código? Reenviar"}
+                  </button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         {/* Suscripción Premium */}
-        <Card className="border-2 border-primary/20 overflow-hidden shadow-sm">
-          <div className="bg-gradient-to-r from-[#2d509e] to-[#436cd3] p-4 text-white">
-            <h2 className="text-lg font-bold flex items-center gap-2">
-              <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-              Suscribirme al plan Premium
-            </h2>
-            <p className="text-sm text-white/90 mt-1">
-              Desbloquea todo el potencial de Biyuyo
-            </p>
-          </div>
-          <CardContent className="p-5 space-y-4">
-            <ul className="space-y-3 text-sm text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <Check className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                <span><strong className="text-foreground">Perfiles compartidos:</strong> Administra tus finanzas en familia o en pareja con cuentas vinculadas.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <Check className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                <span><strong className="text-foreground">Metas de ahorro en conjunto:</strong> Alcanza tus objetivos financieros aportando junto a tus familiares o pareja.</span>
-              </li>
-            </ul>
-
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <Button
-                variant="outline"
-                className="flex flex-col h-auto py-3 gap-1 border-primary/30 hover:border-primary hover:bg-primary/5"
-                onClick={() => navigate("/payment", { state: { price: 4.99, planText: "Mensualidad" } })}
-              >
-                <span className="font-bold text-base text-foreground">Mensualidad</span>
-                <span className="text-xs text-muted-foreground">$4.99 / mes</span>
-              </Button>
-              <Button
-                className="flex flex-col h-auto py-3 gap-1 bg-[#2d509e] text-white hover:bg-[#2d509e]/90 shadow-md shadow-primary/20"
-                onClick={() => navigate("/payment", { state: { price: 49.99, planText: "Plan Anual" } })}
-              >
-                <span className="font-bold text-base">Plan Anual</span>
-                <span className="text-xs text-white/80">$49.99 / año</span>
-              </Button>
+        {(!isPremium || showRenew) && (
+          <Card className="border-2 border-primary/20 overflow-hidden shadow-sm mt-4">
+            <div className="bg-gradient-to-r from-[#2d509e] to-[#436cd3] p-4 text-white">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                Suscribirme al plan Premium
+              </h2>
+              <p className="text-sm text-white/90 mt-1">
+                Desbloquea todo el potencial de Biyuyo
+              </p>
             </div>
-          </CardContent>
-        </Card>
+            <CardContent className="p-5 space-y-4">
+              <ul className="space-y-3 text-sm text-muted-foreground">
+                <li className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                  <span><strong className="text-foreground">Perfiles compartidos:</strong> Administra tus finanzas en familia o en pareja con cuentas vinculadas.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                  <span><strong className="text-foreground">Metas de ahorro en conjunto:</strong> Alcanza tus objetivos financieros aportando junto a tus familiares o pareja.</span>
+                </li>
+              </ul>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex flex-col h-auto py-3 gap-1 border-primary/30 hover:border-primary hover:bg-primary/5"
+                  onClick={() => navigate("/payment", { state: { price: 4.99, planText: "Mensualidad" } })}
+                >
+                  <span className="font-bold text-base text-foreground">Mensualidad</span>
+                  <span className="text-xs text-muted-foreground">$4.99 / mes</span>
+                </Button>
+                <Button
+                  className="flex flex-col h-auto py-3 gap-1 bg-[#2d509e] text-white hover:bg-[#2d509e]/90 shadow-md shadow-primary/20"
+                  onClick={() => navigate("/payment", { state: { price: 49.99, planText: "Plan Anual" } })}
+                >
+                  <span className="font-bold text-base">Plan Anual</span>
+                  <span className="text-xs text-white/80">$49.99 / año</span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Educación Financiera */}
         <FinancialEducation />
