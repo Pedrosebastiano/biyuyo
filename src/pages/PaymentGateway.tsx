@@ -73,15 +73,20 @@ export default function PaymentGateway() {
 
       if (!res.ok) throw new Error("Error activando plan premium");
 
-      await refreshUser();
+      if (selectedMethod === "paypal") {
+        await refreshUser();
 
-      // Activar el tutorial interactivo premium si es primera vez
-      if (!user?.is_premium) {
-        localStorage.removeItem("biyuyo_premium_onboarding_complete");
-        localStorage.setItem("biyuyo_premium_onboarding", "true");
+        // Activar el tutorial interactivo premium si es primera vez
+        if (!user?.is_premium) {
+          localStorage.removeItem("biyuyo_premium_onboarding_complete");
+          localStorage.setItem("biyuyo_premium_onboarding", "true");
+        }
+
+        toast.success("¡Pago completado! Ya eres Premium ⭐");
+      } else {
+        toast.success("Pago enviado. Estamos verificando tu transferencia.");
       }
-
-      toast.success("¡Pago completado! Ya eres Premium ⭐");
+      
       navigate("/");
     } catch (err) {
       toast.error("Hubo un error al procesar el pago final en nuestro sistema");

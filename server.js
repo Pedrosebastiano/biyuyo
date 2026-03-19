@@ -230,35 +230,35 @@ const pool = new Pool({
   },
 });
 
-const POSTMARK_TOKEN = process.env.POSTMARK_API_TOKEN;
-const SENDER_EMAIL = process.env.POSTMARK_SENDER_EMAIL;
+const GMAIL_USER = process.env.GMAIL_USER;
+const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 
 console.log(
-  POSTMARK_TOKEN ? "✅ Postmark configurado" : "❌ Falta POSTMARK_API_TOKEN",
+  GMAIL_USER && GMAIL_APP_PASSWORD ? "✅ Gmail configurado" : "❌ Falta configuración de Gmail",
 );
 
-async function sendEmail(toEmail, toName, subject, htmlContent) {
-  const response = await fetch("https://api.postmarkapp.com/email", {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "X-Postmark-Server-Token": POSTMARK_TOKEN,
-    },
-    body: JSON.stringify({
-      From: `Biyuyo <${SENDER_EMAIL}>`,
-      To: `${toName} <${toEmail}>`,
-      Subject: subject,
-      HtmlBody: htmlContent,
-      MessageStream: "outbound",
-    }),
-  });
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: GMAIL_USER,
+    pass: GMAIL_APP_PASSWORD,
+  },
+});
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.Message || "Error enviando email");
+async function sendEmail(toEmail, toName, subject, htmlContent) {
+  const mailOptions = {
+    from: `"Biyuyo" <${GMAIL_USER}>`,
+    to: toEmail,
+    subject: subject,
+    html: htmlContent,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    return info;
+  } catch (error) {
+    throw new Error(error.message || "Error enviando email");
   }
-  return await response.json();
 }
 
 // --- RUTA DE PRUEBA ---
@@ -1869,7 +1869,9 @@ app.post("/upgrade-premium", async (req, res) => {
   if (!user_id) return res.status(400).json({ error: "user_id es requerido" });
 
   try {
-    // Calcular fecha de expiración según el plan
+    // Si el método es Paypal, activamos y registramos fechas
+    let user;
+
     const now = new Date();
     const expiresAt = new Date(now);
     if (plan === "Plan Anual") {
@@ -1878,21 +1880,33 @@ app.post("/upgrade-premium", async (req, res) => {
       expiresAt.setMonth(expiresAt.getMonth() + 1);
     }
 
-    const result = await pool.query(
-      `UPDATE users SET is_premium = true, premium_started_at = $2, premium_expires_at = $3, premium_plan = $4 WHERE user_id = $1 RETURNING *`,
-      [user_id, now.toISOString(), expiresAt.toISOString(), plan || "Mensualidad"]
-    );
-    const user = result.rows[0];
+    if (method === "paypal") {
+      const result = await pool.query(
+        `UPDATE users SET is_premium = true, premium_started_at = $2, premium_expires_at = $3, premium_plan = $4 WHERE user_id = $1 RETURNING *`,
+        [user_id, now.toISOString(), expiresAt.toISOString(), plan || "Mensualidad"]
+      );
+      user = result.rows[0];
+    } else {
+      // Para movil, no actualizamos, solo obtenemos el usuario actual
+      const result = await pool.query(`SELECT * FROM users WHERE user_id = $1`, [user_id]);
+      user = result.rows[0];
+    }
 
     // Configurar y enviar correos de confirmación
     const adminEmail = "maria.correa@correo.unimet.edu.ve";
     const methodText = method === "pagomovil" ? "Pago Móvil" : "PayPal";
     const amountText = method === "pagomovil" ? `Bs. ${amount_ves} ($${amount_usd})` : `$${amount_usd}`;
 
+    const formatDate = (d) => d.toLocaleDateString('es-VE', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const startDateStr = formatDate(now);
+    const endDateStr = formatDate(expiresAt);
+    const startDbStr = now.toISOString();
+    const endDbStr = expiresAt.toISOString();
+
     const adminHtml = `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
         <div style="background:#2d509e;color:white;padding:20px;text-align:center;border-radius:8px 8px 0 0">
-          <h1>Nuevo Pago Registrado</h1>
+          <h1>Nuevo Pago Registrado - ${methodText}</h1>
         </div>
         <div style="background:#f9f9f9;padding:30px;border-radius:0 0 8px 8px">
           <p>El usuario <strong>${user.name || "Usuario"}</strong> (${user.email}) acaba de pagar una suscripción Premium (${plan || "Suscripción"}).</p>
@@ -1900,75 +1914,80 @@ app.post("/upgrade-premium", async (req, res) => {
             <li><strong>Método de pago:</strong> ${methodText}</li>
             <li><strong>Monto a verificar:</strong> ${amountText}</li>
             ${referencia ? `<li><strong>N° de Referencia:</strong> ${referencia}</li>` : ''}
+            <li><strong>Inicio sugerido:</strong> ${startDateStr} <br><small>(Para BD: <code>${startDbStr}</code>)</small></li>
+            <li><strong>Expiración sugerida:</strong> ${endDateStr} <br><small>(Para BD: <code>${endDbStr}</code>)</small></li>
           </ul>
-          <p>Por favor revisa que el monto se haya reflejado adecuadamente.</p>
+          ${method === "pagomovil" ? "<p><strong>¡IMPORTANTE!</strong> Este es un Pago Móvil. Debes verificar el pago en el banco y luego ascender manualmente la cuenta del usuario actualizando su row en la tabla <code>users</code> con <code>is_premium = true</code>, y completando sus campos <code>premium_plan</code>, <code>premium_started_at</code> y <code>premium_expires_at</code> empleando las fechas sugeridas.</p>" : "<p>El pago fue hecho por PayPal, el sistema ya ascendió la cuenta y registró su expiración automáticamente.</p>"}
         </div>
       </div>
     `;
 
-    const userHtml = `
+    const userHtmlPagoMovil = `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
         <div style="background:#2d509e;color:white;padding:20px;text-align:center;border-radius:8px 8px 0 0">
-          <h1>¡Bienvenido a Biyuyo Premium!</h1>
+          <h1>Suscripción en Revisión</h1>
         </div>
         <div style="background:#f9f9f9;padding:30px;border-radius:0 0 8px 8px">
           <p>Hola ${user.name || "Usuario"},</p>
-          <p>Hemos confirmado tu pago de <strong>${amountText}</strong> por tu plan <strong>${plan || "Premium"}</strong>.</p>
-          <p>Tu cuenta Biyuyo ya tiene todos los beneficios Premium totalmente activados:</p>
-          <ul>
-            <li>Perfiles compartidos ilimitados para controlar en familia o pareja.</li>
-            <li>Acceso total al gran compendio de Educación Financiera.</li>
-            <li>Soporte y análisis prioritario.</li>
-          </ul>
+          <p>Hemos recibido el reporte de tu <strong>${methodText}</strong> por <strong>${amountText}</strong> para tu plan <strong>${plan || "Premium"}</strong>.</p>
+          <p>Tu transferencia se encuentra actualmente en revisión. Nuestro equipo validará el pago y tu cuenta Biyuyo Premium será activada muy pronto.</p>
           <p>¡Gracias por volar con Biyuyo!</p>
         </div>
       </div>
     `;
 
     try {
-      await sendEmail(adminEmail, "Admin Biyuyo", "Nuevo Pago Recibido - Biyuyo Premium", adminHtml);
-      await sendEmail(user.email, user.name, "¡Bienvenido a Biyuyo Premium! Confirmación de Pago", userHtml);
-      console.log(`📧 Correos de confirmación de pago enviados a admin y a ${user.email}`);
+      if (method === "pagomovil") {
+        await sendEmail(adminEmail, "Admin Biyuyo", "Pendiente de Verificación - Pago Móvil Biyuyo Premium", adminHtml);
+        await sendEmail(user.email, user.name, "Suscripción Biyuyo Premium en Revisión", userHtmlPagoMovil);
+        console.log(`📧 Correo de PAGO MOVIL en revisión enviado a la admin y usuario.`);
+      } else {
+        await sendEmail(adminEmail, "Admin Biyuyo", "Pago Confirmado - PayPal Biyuyo", adminHtml);
+        // NOTA: Como solicitó el usuario, NO ENVIAMOS correo de bienvenida para paypal.
+        console.log(`📧 Correo de confirmación PayPal enviado SOLAMENTE al Admin.`);
+      }
     } catch (emailErr) {
       console.error("❌ Error enviando correos de pago (No detiene el flujo):", emailErr);
     }
 
-    // Crear recordatorio automático para la renovación, activando las notificaciones nativas del sistema
-    try {
-      const nextPaymentDate = new Date();
-      if (plan === "Plan Anual") {
-        nextPaymentDate.setFullYear(nextPaymentDate.getFullYear() + 1);
-      } else {
-        nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
-      }
+    if (method === "paypal") {
+      // Crear recordatorio automático para la renovación, activando las notificaciones nativas del sistema
+      try {
+        const nextPaymentDate = new Date();
+        if (plan === "Plan Anual") {
+          nextPaymentDate.setFullYear(nextPaymentDate.getFullYear() + 1);
+        } else {
+          nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+        }
 
-      await pool.query(
-        `INSERT INTO reminders (
-          user_id, reminder_name, macrocategoria, categoria, negocio, 
-          total_amount, next_payment_date, payment_frequency, is_installment, installment_number
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [
-          user.user_id,
-          `Renovación Biyuyo Premium - ${plan || "Mensualidad"}`,
-          'Necesidades',
-          'Suscripciones',
-          'Biyuyo',
-          amount_usd || 0,
-          nextPaymentDate.toISOString().split('T')[0],
-          plan === "Plan Anual" ? 'Anual' : 'Mensual',
-          false,
-          0
-        ]
-      );
-      console.log("⏰ Recordatorio de vencimiento guardado con éxito.");
-    } catch (reminderErr) {
-      console.error("❌ Error guardando el recordatorio de Premium (No detiene flujo):", reminderErr);
+        await pool.query(
+          `INSERT INTO reminders (
+            user_id, reminder_name, macrocategoria, categoria, negocio, 
+            total_amount, next_payment_date, payment_frequency, is_installment, installment_number
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            user.user_id,
+            `Renovación Biyuyo Premium - ${plan || "Mensualidad"}`,
+            'Necesidades',
+            'Suscripciones',
+            'Biyuyo',
+            amount_usd || 0,
+            nextPaymentDate.toISOString().split('T')[0],
+            plan === "Plan Anual" ? 'Anual' : 'Mensual',
+            false,
+            0
+          ]
+        );
+        console.log("⏰ Recordatorio de vencimiento guardado con éxito.");
+      } catch (reminderErr) {
+        console.error("❌ Error guardando el recordatorio de Premium (No detiene flujo):", reminderErr);
+      }
     }
 
     res.json({ success: true, user });
   } catch (err) {
     console.error("Error en /upgrade-premium:", err);
-    res.status(500).json({ error: "Error al activar suscripción premium" });
+    res.status(500).json({ error: "Error al procesar el pago" });
   }
 });
 
