@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   ArrowLeft, LogOut, Mail, User,
   Star, Loader2, Check, CreditCard,
+  CalendarDays, Clock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from "@/lib/config";
@@ -159,6 +160,15 @@ export default function Profile() {
   const isPremium = user?.is_premium || false;
   const showUnimetSection = user?.email && isUnimetEmail(user.email);
 
+  // Calcular info de suscripción
+  const premiumExpiresAt = user?.premium_expires_at ? new Date(user.premium_expires_at) : null;
+  const premiumPlan = user?.premium_plan || null;
+  const daysRemaining = premiumExpiresAt
+    ? Math.max(0, Math.ceil((premiumExpiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : null;
+  const isExpiringSoon = daysRemaining !== null && daysRemaining <= 7;
+  const formatDate = (date: Date) => date.toLocaleDateString("es-VE", { day: "numeric", month: "long", year: "numeric" });
+
   return (
     <div className="min-h-screen bg-background px-6 py-8">
       <button
@@ -292,10 +302,56 @@ export default function Profile() {
                   <div>
                     <p className="font-semibold text-yellow-800">Cuenta Premium activa</p>
                     <p className="text-xs text-yellow-700">
-                      Tu correo Unimet está verificado. ¡Disfruta todos los beneficios!
+                      {premiumPlan && premiumExpiresAt
+                        ? `${premiumPlan} · Vence el ${formatDate(premiumExpiresAt)}`
+                        : "Tu correo Unimet está verificado. ¡Disfruta todos los beneficios!"}
                     </p>
                   </div>
                 </div>
+
+                {/* Info de suscripción con duración */}
+                {premiumExpiresAt && daysRemaining !== null && (
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center gap-2 p-2.5 bg-white/70 rounded-xl border border-yellow-200">
+                      <CalendarDays className="h-4 w-4 text-yellow-600" />
+                      <span className="text-sm text-yellow-800">
+                        <strong>Plan:</strong> {premiumPlan || "Premium"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 p-2.5 bg-white/70 rounded-xl border border-yellow-200">
+                      <Clock className="h-4 w-4 text-yellow-600" />
+                      <span className={`text-sm ${isExpiringSoon ? "text-red-600 font-semibold" : "text-yellow-800"}`}>
+                        <strong>Quedan:</strong> {daysRemaining} día{daysRemaining !== 1 ? "s" : ""}
+                        {isExpiringSoon && " ⚠️ ¡Renueva pronto!"}
+                      </span>
+                    </div>
+
+                    {/* Barra de progreso */}
+                    {user?.premium_started_at && (
+                      (() => {
+                        const startMs = new Date(user.premium_started_at!).getTime();
+                        const endMs = premiumExpiresAt.getTime();
+                        const nowMs = Date.now();
+                        const elapsed = Math.max(0, Math.min(1, (nowMs - startMs) / (endMs - startMs)));
+                        return (
+                          <div className="mt-1">
+                            <div className="h-2 bg-yellow-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  isExpiringSoon ? "bg-red-400" : "bg-yellow-500"
+                                }`}
+                                style={{ width: `${elapsed * 100}%` }}
+                              />
+                            </div>
+                            <p className="text-[10px] text-yellow-600 mt-1 text-right">
+                              {Math.round(elapsed * 100)}% transcurrido
+                            </p>
+                          </div>
+                        );
+                      })()
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : (

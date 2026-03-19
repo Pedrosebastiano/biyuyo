@@ -40,6 +40,9 @@ export default function Login() {
             name: userData.name,
             email: userData.email,
             is_premium: userData.is_premium || false,
+            premium_started_at: userData.premium_started_at || null,
+            premium_expires_at: userData.premium_expires_at || null,
+            premium_plan: userData.premium_plan || null,
           });
           toast.success("¡Bienvenido de nuevo!");
           navigate("/");
@@ -53,6 +56,9 @@ export default function Login() {
             name: userData.name,
             email: userData.email,
             is_premium: userData.is_premium || false,
+            premium_started_at: userData.premium_started_at || null,
+            premium_expires_at: userData.premium_expires_at || null,
+            premium_plan: userData.premium_plan || null,
           });
           toast.success("¡Bienvenido de nuevo!");
           navigate("/");
