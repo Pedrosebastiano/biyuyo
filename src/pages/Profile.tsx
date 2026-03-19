@@ -352,9 +352,8 @@ export default function Profile() {
                         <div className="mt-2 text-right">
                           <div className="h-2 bg-secondary rounded-full overflow-hidden">
                             <div
-                              className={`h-full rounded-full transition-all duration-500 ${
-                                isExpiringSoon ? "bg-red-500" : "bg-primary"
-                              }`}
+                              className={`h-full rounded-full transition-all duration-500 ${isExpiringSoon ? "bg-red-500" : "bg-primary"
+                                }`}
                               style={{ width: `${elapsed * 100}%` }}
                             />
                           </div>
@@ -365,12 +364,12 @@ export default function Profile() {
                       );
                     })()
                   )}
-                  
+
                   {/* Botón de Renovar solo si quedan <= 10 días */}
                   {daysRemaining <= 10 && !showRenew && (
-                    <Button 
-                      className="w-full mt-3 h-9" 
-                      variant="outline" 
+                    <Button
+                      className="w-full mt-3 h-9"
+                      variant="outline"
                       onClick={() => setShowRenew(true)}
                     >
                       Renovar suscripción
